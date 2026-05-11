@@ -1,0 +1,24 @@
+{
+  "name": "jogada-limpa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jogada Limpa — futebol amador entre equipas",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace apps/mobile",
+    "mobile:ios": "npm run ios --workspace apps/mobile",
+    "mobile:android": "npm run android --workspace apps/mobile",
+    "web": "npm run dev --workspace apps/web",
+    "web:build": "npm run build --workspace apps/web",
+    "shared:build": "npm run build --workspace packages/shared",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

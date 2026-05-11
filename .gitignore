@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env (NUNCA committar — contém chaves Supabase, etc)
+.env
+.env.local
+.env.*.local
+
+# Expo
+.expo/
+dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+ios/
+android/
+
+# Next.js
+.next/
+out/
+.vercel/
+
+# Build artifacts
+build/
+*.tsbuildinfo
+
+# Cache
+.turbo/
+.cache/
+coverage/
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# Editor
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
