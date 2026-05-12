@@ -10,11 +10,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchActiveSports, type ActiveSport } from '@/lib/profile';
 import { createTeam } from '@/lib/teams';
+import { Screen } from '@/components/Screen';
+import { Button } from '@/components/Button';
 
 export default function NewTeamScreen() {
   const { session } = useAuth();
@@ -77,7 +79,7 @@ export default function NewTeamScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -93,79 +95,87 @@ export default function NewTeamScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.label}>Nome da equipa</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: Os Estagiários"
-            placeholderTextColor="#666"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            autoCorrect={false}
-            editable={!submitting}
-          />
+          <Animated.View entering={FadeInDown.duration(300).springify()}>
+            <Text style={styles.label}>Nome da equipa</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex: Os Estagiários"
+              placeholderTextColor="#5a5a5a"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              editable={!submitting}
+            />
+          </Animated.View>
 
-          <Text style={styles.label}>Cidade</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Coimbra"
-            placeholderTextColor="#666"
-            value={city}
-            onChangeText={setCity}
-            autoCapitalize="words"
-            autoCorrect={false}
-            editable={!submitting}
-          />
+          <Animated.View entering={FadeInDown.delay(60).springify()}>
+            <Text style={styles.label}>Cidade</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Coimbra"
+              placeholderTextColor="#5a5a5a"
+              value={city}
+              onChangeText={setCity}
+              autoCapitalize="words"
+              autoCorrect={false}
+              editable={!submitting}
+            />
+          </Animated.View>
 
-          <Text style={[styles.label, { marginTop: 24 }]}>Desporto</Text>
-          {loadingSports ? (
-            <ActivityIndicator color="#ffffff" style={{ marginTop: 12 }} />
-          ) : (
-            <View style={styles.sportsRow}>
-              {sports.map((s) => {
-                const picked = sportId === s.id;
-                return (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => setSportId(s.id)}
-                    disabled={submitting}
-                    style={[styles.chip, picked && styles.chipPicked]}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        picked && styles.chipTextPicked,
-                      ]}
+          <Animated.View entering={FadeInDown.delay(120).springify()}>
+            <Text style={[styles.label, { marginTop: 24 }]}>Desporto</Text>
+            {loadingSports ? (
+              <ActivityIndicator color="#ffffff" style={{ marginTop: 12 }} />
+            ) : (
+              <View style={styles.sportsRow}>
+                {sports.map((s) => {
+                  const picked = sportId === s.id;
+                  return (
+                    <Pressable
+                      key={s.id}
+                      onPress={() => setSportId(s.id)}
+                      disabled={submitting}
+                      style={[styles.chip, picked && styles.chipPicked]}
                     >
-                      {s.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
+                      <Text
+                        style={[
+                          styles.chipText,
+                          picked && styles.chipTextPicked,
+                        ]}
+                      >
+                        {s.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </Animated.View>
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
-            onPress={handleSubmit}
-            disabled={submitting}
-            style={[styles.submit, submitting && styles.submitDisabled]}
+          <Animated.View
+            entering={FadeInDown.delay(180).springify()}
+            style={{ marginTop: 32 }}
           >
-            {submitting ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.submitText}>Criar equipa</Text>
-            )}
-          </Pressable>
-
-          <Text style={styles.hint}>
-            Serás o capitão. Podes convidar membros depois com um link/código.
-          </Text>
+            <Button
+              label="Criar equipa"
+              size="lg"
+              haptic="medium"
+              loading={submitting}
+              onPress={handleSubmit}
+              full
+            />
+            <Text style={styles.hint}>
+              Serás o capitão. Podes convidar membros depois com um código.
+            </Text>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -182,14 +192,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     color: '#ffffff',
     fontSize: 16,
+    letterSpacing: -0.1,
   },
   sportsRow: {
     flexDirection: 'row',
