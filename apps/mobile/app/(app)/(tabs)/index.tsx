@@ -36,6 +36,11 @@ export default function HomeScreen() {
       router.replace('/(app)/onboarding');
       return;
     }
+    if (p.deleted_at) {
+      await supabase.auth.signOut();
+      router.replace('/(auth)/login');
+      return;
+    }
     setProfile(p);
     const [myTeams, ch, rv] = await Promise.all([
       fetchMyTeams(session.user.id),

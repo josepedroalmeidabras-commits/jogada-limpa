@@ -13,7 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
-import { fetchProfile, updateProfile } from '@/lib/profile';
+import {
+  deleteMyAccount,
+  fetchProfile,
+  updateProfile,
+} from '@/lib/profile';
+import { Alert } from 'react-native';
+import { supabase } from '@/lib/supabase';
 import {
   fetchUserSports,
   setSportAvailability,
@@ -277,6 +283,41 @@ export default function EditProfileScreen() {
           <Text style={styles.hint}>
             Para editar desportos ou nível inicial, contacta o suporte.
           </Text>
+
+          <View style={styles.dangerBlock}>
+            <Text style={styles.dangerTitle}>Zona perigosa</Text>
+            <Pressable
+              style={styles.dangerBtn}
+              onPress={() => {
+                Alert.alert(
+                  'Eliminar conta?',
+                  'O teu perfil fica anonimizado. Não podes desfazer. Os teus jogos passados ficam, mas com o nome "Conta apagada".',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Eliminar',
+                      style: 'destructive',
+                      onPress: async () => {
+                        const r = await deleteMyAccount();
+                        if (!r.ok) {
+                          Alert.alert('Erro', r.message);
+                          return;
+                        }
+                        await supabase.auth.signOut();
+                        router.replace('/(auth)/login');
+                      },
+                    },
+                  ],
+                );
+              }}
+            >
+              <Text style={styles.dangerBtnText}>Eliminar a minha conta</Text>
+            </Pressable>
+            <Text style={styles.dangerHint}>
+              Se és capitão de equipa, transfere a capitania ou pede ao
+              suporte primeiro.
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -367,4 +408,35 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   toggleKnobOn: { alignSelf: 'flex-end' },
+  dangerBlock: {
+    marginTop: 40,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.3)',
+    backgroundColor: 'rgba(248,113,113,0.05)',
+  },
+  dangerTitle: {
+    color: '#f87171',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  dangerBtn: {
+    backgroundColor: 'rgba(248,113,113,0.12)',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.4)',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  dangerBtnText: { color: '#f87171', fontWeight: '600', fontSize: 14 },
+  dangerHint: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
 });

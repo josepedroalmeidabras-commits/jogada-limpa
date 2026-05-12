@@ -7,12 +7,13 @@ export type Profile = {
   city: string;
   birthdate: string;
   phone: string | null;
+  deleted_at: string | null;
 };
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, photo_url, city, birthdate, phone')
+    .select('id, name, photo_url, city, birthdate, phone, deleted_at')
     .eq('id', userId)
     .maybeSingle();
 
@@ -21,6 +22,19 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
     return null;
   }
   return data;
+}
+
+export async function deleteMyAccount(): Promise<
+  { ok: true } | { ok: false; message: string }
+> {
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível eliminar a conta.',
+    };
+  }
+  return { ok: true };
 }
 
 export type ActiveSport = {
