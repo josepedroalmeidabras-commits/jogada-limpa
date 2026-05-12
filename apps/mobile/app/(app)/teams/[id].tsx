@@ -29,6 +29,7 @@ import {
   type TeamMember,
   type TeamWithSport,
 } from '@/lib/teams';
+import { fetchFriends, type FriendProfile } from '@/lib/friends';
 import {
   computeTeamRecord,
   fetchMatchesForTeam,
@@ -64,21 +65,25 @@ export default function TeamDetailScreen() {
   const [suggested, setSuggested] = useState<SuggestedOpponent[]>([]);
   const [coach, setCoach] = useState<CoachProfile | null>(null);
   const [contributors, setContributors] = useState<TeamContributor[]>([]);
+  const [friendMembers, setFriendMembers] = useState<FriendProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [t, m, ms, contribs] = await Promise.all([
+    const [t, m, ms, contribs, friends] = await Promise.all([
       fetchTeamById(id),
       fetchTeamMembers(id),
       fetchMatchesForTeam(id),
       fetchTeamTopContributors(id, 10),
+      fetchFriends(),
     ]);
     setTeam(t);
     setMembers(m);
     setMatches(ms);
     setContributors(contribs);
+    const memberIds = new Set(m.map((mm) => mm.user_id));
+    setFriendMembers(friends.filter((f) => memberIds.has(f.id)));
     if (t?.coach_id) {
       const c = await fetchCoach(t.coach_id);
       setCoach(c);
@@ -251,6 +256,36 @@ export default function TeamDetailScreen() {
                 <Text style={styles.arrow}>›</Text>
               </View>
             </Card>
+          </Animated.View>
+        )}
+
+        {friendMembers.length > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(70).springify()}
+            style={styles.friendsPillRow}
+          >
+            <View style={styles.friendsAvatars}>
+              {friendMembers.slice(0, 4).map((f, i) => (
+                <View
+                  key={f.id}
+                  style={[
+                    styles.friendsAvatarWrap,
+                    { marginLeft: i === 0 ? 0 : -10 },
+                  ]}
+                >
+                  <Avatar url={f.photo_url} name={f.name} size={24} />
+                </View>
+              ))}
+            </View>
+            <Text style={styles.friendsPillText}>
+              {friendMembers.length === 1
+                ? `1 amigo no plantel: ${friendMembers[0]!.name.split(' ')[0]}`
+                : friendMembers.length <= 3
+                  ? `${friendMembers.length} amigos no plantel: ${friendMembers
+                      .map((f) => f.name.split(' ')[0])
+                      .join(', ')}`
+                  : `${friendMembers[0]!.name.split(' ')[0]}, ${friendMembers[1]!.name.split(' ')[0]} e mais ${friendMembers.length - 2}`}
+            </Text>
           </Animated.View>
         )}
 
@@ -736,6 +771,28 @@ const styles = StyleSheet.create({
     color: '#a3a3a3',
     fontSize: 12,
     marginTop: 4,
+  },
+  friendsPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  friendsAvatars: { flexDirection: 'row', alignItems: 'center' },
+  friendsAvatarWrap: {
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#0a0a0a',
+  },
+  friendsPillText: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    flex: 1,
+    letterSpacing: -0.1,
   },
   annHeader: {
     flexDirection: 'row',
