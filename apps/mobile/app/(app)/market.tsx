@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -7,8 +8,10 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
@@ -42,6 +45,27 @@ export default function MarketScreen() {
   const [myTeams, setMyTeams] = useState<TeamWithSport[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+
+  const filteredAgents = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return agents;
+    return agents.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.city.toLowerCase().includes(q),
+    );
+  }, [agents, query]);
+
+  const filteredTeams = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return teams;
+    return teams.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.city.toLowerCase().includes(q),
+    );
+  }, [teams, query]);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -156,7 +180,36 @@ export default function MarketScreen() {
         </Animated.View>
 
         <Animated.View
-          entering={FadeInDown.delay(60).springify()}
+          entering={FadeInDown.delay(40).springify()}
+          style={styles.searchRow}
+        >
+          <Ionicons
+            name="search"
+            size={18}
+            color={colors.textMuted}
+            style={{ marginLeft: 14 }}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Procurar por nome ou cidade"
+            placeholderTextColor={colors.textFaint}
+            value={query}
+            onChangeText={setQuery}
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {query.length > 0 && (
+            <Pressable
+              onPress={() => setQuery('')}
+              style={{ paddingHorizontal: 14 }}
+            >
+              <Ionicons name="close-circle" size={18} color={colors.textDim} />
+            </Pressable>
+          )}
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(80).springify()}
           style={styles.tabRow}
         >
           <Pressable
@@ -169,7 +222,7 @@ export default function MarketScreen() {
                 tab === 'players' && styles.tabTextActive,
               ]}
             >
-              {`Jogadores · ${agents.length}`}
+              {`Jogadores · ${filteredAgents.length}`}
             </Text>
           </Pressable>
           <Pressable
@@ -182,7 +235,7 @@ export default function MarketScreen() {
                 tab === 'teams' && styles.tabTextActive,
               ]}
             >
-              {`Equipas · ${teams.length}`}
+              {`Equipas · ${filteredTeams.length}`}
             </Text>
           </Pressable>
         </Animated.View>
@@ -194,7 +247,7 @@ export default function MarketScreen() {
             ))}
           </View>
         ) : tab === 'players' ? (
-          agents.length === 0 ? (
+          filteredAgents.length === 0 ? (
             <Card style={{ marginTop: 16 }}>
               <Text style={styles.emptyTitle}>Mercado vazio</Text>
               <Text style={styles.emptyBody}>
@@ -211,7 +264,7 @@ export default function MarketScreen() {
               </View>
             </Card>
           ) : (
-            agents.map((a, i) => {
+            filteredAgents.map((a, i) => {
               const isCaptain = myCaptainTeams.some(
                 (t) => t.sport_id === a.sport_id,
               );
@@ -255,7 +308,7 @@ export default function MarketScreen() {
               );
             })
           )
-        ) : teams.length === 0 ? (
+        ) : filteredTeams.length === 0 ? (
           <Card style={{ marginTop: 16 }}>
             <Text style={styles.emptyTitle}>Sem equipas para descobrir</Text>
             <Text style={styles.emptyBody}>
@@ -264,7 +317,7 @@ export default function MarketScreen() {
             </Text>
           </Card>
         ) : (
-          teams.map((t, i) => (
+          filteredTeams.map((t, i) => (
             <Animated.View
               key={t.team_id}
               entering={FadeInDown.delay(80 + i * 30).springify()}
@@ -298,12 +351,28 @@ export default function MarketScreen() {
 
 const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgElevated,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    marginTop: 20,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    color: colors.text,
+    fontSize: 15,
+  },
   tabRow: {
     flexDirection: 'row',
     backgroundColor: colors.bgElevated,
     borderRadius: 999,
     padding: 4,
-    marginTop: 20,
+    marginTop: 12,
     marginBottom: 4,
   },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 999 },

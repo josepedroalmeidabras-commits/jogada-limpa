@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,23 +17,31 @@ import {
   statusLabel,
   type MatchSummary,
 } from '@/lib/matches';
+import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import { colors } from '@/theme';
 
 export default function AgendaScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [matches, setMatches] = useState<MatchSummary[]>([]);
+  const [teams, setTeams] = useState<TeamWithSport[]>([]);
+  const [teamFilter, setTeamFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const data = await fetchMatchesForUser(session.user.id);
+    const [data, t] = await Promise.all([
+      fetchMatchesForUser(session.user.id),
+      fetchMyTeams(session.user.id),
+    ]);
     setMatches(data);
+    setTeams(t);
     setLoading(false);
   }, [session]);
 
@@ -50,25 +59,32 @@ export default function AgendaScreen() {
     }, [load]),
   );
 
+  const filteredMatches = useMemo(() => {
+    if (!teamFilter) return matches;
+    return matches.filter(
+      (m) => m.side_a.id === teamFilter || m.side_b.id === teamFilter,
+    );
+  }, [matches, teamFilter]);
+
   const grouped = useMemo(() => {
     const now = Date.now();
     return {
-      upcoming: matches.filter(
+      upcoming: filteredMatches.filter(
         (m) =>
           new Date(m.scheduled_at).getTime() >= now &&
           m.status !== 'cancelled' &&
           m.status !== 'validated',
       ),
-      pendingResult: matches.filter(
+      pendingResult: filteredMatches.filter(
         (m) =>
           new Date(m.scheduled_at).getTime() < now &&
           (m.status === 'confirmed' ||
             m.status === 'result_pending' ||
             m.status === 'disputed'),
       ),
-      past: matches.filter((m) => m.status === 'validated'),
+      past: filteredMatches.filter((m) => m.status === 'validated'),
     };
-  }, [matches]);
+  }, [filteredMatches]);
 
   return (
     <Screen edges={['top']}>
@@ -104,6 +120,56 @@ export default function AgendaScreen() {
                 onPress={() => router.push('/(app)/rankings')}
               />
             </Animated.View>
+
+            {teams.length > 1 && (
+              <Animated.View entering={FadeInDown.delay(50).springify()}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterRow}
+                >
+                  <Pressable
+                    onPress={() => setTeamFilter(null)}
+                    style={[
+                      styles.filterChip,
+                      teamFilter === null && styles.filterChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        teamFilter === null && styles.filterChipTextActive,
+                      ]}
+                    >
+                      Todas
+                    </Text>
+                  </Pressable>
+                  {teams.map((t) => {
+                    const active = teamFilter === t.id;
+                    return (
+                      <Pressable
+                        key={t.id}
+                        onPress={() => setTeamFilter(t.id)}
+                        style={[
+                          styles.filterChip,
+                          active && styles.filterChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            active && styles.filterChipTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {t.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </Animated.View>
+            )}
 
             <Animated.View
               entering={FadeInDown.delay(80).springify()}
@@ -270,4 +336,24 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   muted: { color: '#737373', fontSize: 13 },
+  filterRow: { gap: 6, paddingVertical: 12 },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+    maxWidth: 200,
+  },
+  filterChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  filterChipText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  filterChipTextActive: { color: '#0a0a0a', fontWeight: '700' },
 });
