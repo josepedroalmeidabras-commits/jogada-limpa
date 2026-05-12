@@ -181,6 +181,12 @@ export default function HomeScreen() {
               </View>
               <Pressable
                 style={styles.bell}
+                onPress={() => router.push('/(app)/search')}
+              >
+                <Ionicons name="search" size={22} color={colors.text} />
+              </Pressable>
+              <Pressable
+                style={styles.bell}
                 onPress={() => router.push('/(app)/notifications')}
               >
                 <Ionicons
