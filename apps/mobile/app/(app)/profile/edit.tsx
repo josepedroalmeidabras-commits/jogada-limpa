@@ -37,6 +37,7 @@ export default function EditProfileScreen() {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+  const [bio, setBio] = useState('');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sports, setSports] = useState<UserSportElo[]>([]);
@@ -59,6 +60,7 @@ export default function EditProfileScreen() {
       setName(p.name);
       setCity(p.city);
       setPhone(p.phone ?? '');
+      setBio(p.bio ?? '');
       setPhotoUrl(p.photo_url ?? null);
       setSports(s);
       setLoading(false);
@@ -176,6 +178,7 @@ export default function EditProfileScreen() {
       name: name.trim(),
       city: city.trim(),
       phone: phone.trim() || null,
+      bio: bio.trim() || null,
     });
     setSubmitting(false);
     if (!r.ok) {
@@ -258,6 +261,19 @@ export default function EditProfileScreen() {
             keyboardType="phone-pad"
             editable={!submitting}
           />
+
+          <Text style={styles.label}>Bio (opcional)</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 80, textAlignVertical: 'top' }]}
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Posição preferida, estilo de jogo, há quanto tempo jogas..."
+            placeholderTextColor="#666"
+            multiline
+            maxLength={300}
+            editable={!submitting}
+          />
+          <Text style={styles.charHint}>{`${bio.length} / 300`}</Text>
 
           {error && <Text style={styles.error}>{error}</Text>}
 
@@ -472,6 +488,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontSize: 13,
+  },
+  charHint: {
+    color: '#5a5a5a',
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: 4,
   },
   avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
   changePhotoBtn: {

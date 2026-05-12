@@ -239,6 +239,17 @@ export default function PublicProfileScreen() {
           })()}
         </Animated.View>
 
+        {profile.bio && (
+          <Animated.View
+            entering={FadeInDown.delay(60).springify()}
+            style={styles.section}
+          >
+            <Card>
+              <Text style={styles.bio}>{profile.bio}</Text>
+            </Card>
+          </Animated.View>
+        )}
+
         <Animated.View
           entering={FadeInDown.delay(80).springify()}
           style={styles.section}
@@ -366,6 +377,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   city: { color: '#a3a3a3', fontSize: 14, letterSpacing: -0.1 },
+  bio: {
+    color: '#d4d4d4',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: -0.1,
+  },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

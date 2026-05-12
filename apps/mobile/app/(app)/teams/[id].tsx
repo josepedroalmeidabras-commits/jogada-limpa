@@ -106,7 +106,10 @@ export default function TeamDetailScreen() {
   }
 
   const isCaptain = team.captain_id === session?.user.id;
-  const inviteMessage = `Junta-te à minha equipa "${team.name}" na Jogada Limpa. Código: ${team.invite_code}`;
+  const inviteMessage =
+    `Junta-te à minha equipa "${team.name}" na Jogada Limpa ⚽\n\n` +
+    `Código de entrada: ${team.invite_code.toUpperCase()}\n\n` +
+    `Descarrega a app em jogadalimpa.app e insere o código.`;
 
   async function copyCode() {
     await Clipboard.setStringAsync(team!.invite_code);
@@ -164,6 +167,14 @@ export default function TeamDetailScreen() {
             </Pressable>
           )}
         </Animated.View>
+
+        {team.description && (
+          <Animated.View entering={FadeInDown.delay(60).springify()}>
+            <Card style={{ marginTop: 16 }}>
+              <Text style={styles.description}>{team.description}</Text>
+            </Card>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(80).springify()}>
           <TeamRecordRow record={record} />
@@ -408,6 +419,12 @@ const styles = StyleSheet.create({
     color: '#a3a3a3',
     fontSize: 13,
     marginTop: 4,
+    letterSpacing: -0.1,
+  },
+  description: {
+    color: '#d4d4d4',
+    fontSize: 14,
+    lineHeight: 21,
     letterSpacing: -0.1,
   },
   chatBtn: {

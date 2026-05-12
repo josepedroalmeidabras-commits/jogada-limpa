@@ -34,6 +34,7 @@ export default function EditTeamScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
+  const [description, setDescription] = useState('');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -56,6 +57,7 @@ export default function EditTeamScreen() {
       }
       setName(t.name);
       setCity(t.city);
+      setDescription(t.description ?? '');
       setPhotoUrl(t.photo_url ?? null);
       setMembers(m);
       setIsCaptain(t.captain_id === session.user.id);
@@ -102,7 +104,11 @@ export default function EditTeamScreen() {
       return;
     }
     setSubmitting(true);
-    const r = await updateTeam(id, { name: name.trim(), city: city.trim() });
+    const r = await updateTeam(id, {
+      name: name.trim(),
+      city: city.trim(),
+      description: description.trim() || null,
+    });
     setSubmitting(false);
     if (!r.ok) {
       setError(r.message);
@@ -193,6 +199,19 @@ export default function EditTeamScreen() {
             autoCorrect={false}
             editable={!submitting}
           />
+
+          <Text style={styles.label}>Sobre a equipa</Text>
+          <TextInput
+            style={[styles.input, { minHeight: 96, textAlignVertical: 'top' }]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Há quanto tempo jogam, identidade, estilo, etc."
+            placeholderTextColor="#666"
+            multiline
+            maxLength={500}
+            editable={!submitting}
+          />
+          <Text style={styles.charCount}>{`${description.length} / 500`}</Text>
 
           {error && <Text style={styles.error}>{error}</Text>}
 
@@ -336,6 +355,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     fontSize: 13,
+  },
+  charCount: {
+    color: '#5a5a5a',
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: 4,
   },
   deny: { color: '#a3a3a3', textAlign: 'center' },
   avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },

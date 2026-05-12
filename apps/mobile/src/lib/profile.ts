@@ -7,13 +7,14 @@ export type Profile = {
   city: string;
   birthdate: string;
   phone: string | null;
+  bio: string | null;
   deleted_at: string | null;
 };
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, photo_url, city, birthdate, phone, deleted_at')
+    .select('id, name, photo_url, city, birthdate, phone, bio, deleted_at')
     .eq('id', userId)
     .maybeSingle();
 
@@ -69,6 +70,7 @@ export type ProfileUpdate = {
   name?: string;
   city?: string;
   phone?: string | null;
+  bio?: string | null;
 };
 
 export async function updateProfile(
@@ -79,6 +81,7 @@ export async function updateProfile(
   if (input.name !== undefined) patch.name = input.name;
   if (input.city !== undefined) patch.city = input.city;
   if (input.phone !== undefined) patch.phone = input.phone;
+  if (input.bio !== undefined) patch.bio = input.bio;
   const { error } = await supabase
     .from('profiles')
     .update(patch)

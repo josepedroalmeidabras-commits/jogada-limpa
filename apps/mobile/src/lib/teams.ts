@@ -10,6 +10,7 @@ export type Team = {
   captain_id: string;
   invite_code: string;
   is_active: boolean;
+  description: string | null;
   created_at: string;
 };
 
@@ -33,7 +34,7 @@ export async function fetchMyTeams(
     .select(
       `team:teams!inner(
          id, name, photo_url, sport_id, city, captain_id,
-         invite_code, is_active, created_at,
+         invite_code, is_active, description, created_at,
          sport:sports!inner(id, code, name)
        )`,
     )
@@ -107,7 +108,7 @@ export async function createTeam(
       captain_id: captainId,
     })
     .select(
-      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, created_at',
+      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, created_at',
     )
     .single();
 
@@ -180,11 +181,12 @@ export async function deactivateTeam(
 
 export async function updateTeam(
   teamId: string,
-  input: { name?: string; city?: string },
+  input: { name?: string; city?: string; description?: string | null },
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const patch: Record<string, unknown> = {};
   if (input.name !== undefined) patch.name = input.name;
   if (input.city !== undefined) patch.city = input.city;
+  if (input.description !== undefined) patch.description = input.description;
   const { error } = await supabase
     .from('teams')
     .update(patch)
@@ -228,7 +230,7 @@ export async function joinTeamByCode(
   const { data: team, error: findError } = await supabase
     .from('teams')
     .select(
-      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, created_at',
+      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, created_at',
     )
     .eq('invite_code', code)
     .eq('is_active', true)
