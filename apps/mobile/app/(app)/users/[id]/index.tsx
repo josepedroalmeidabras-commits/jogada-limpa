@@ -68,6 +68,7 @@ import {
   type RatingHistoryEntry,
 } from '@/lib/rating-history';
 import { RatingHistoryChart } from '@/components/RatingHistoryChart';
+import { FormStrip, type FormResult } from '@/components/FormStrip';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -380,25 +381,37 @@ export default function PublicProfileScreen() {
 
           {(() => {
             const streak = computeWinStreak(history);
-            const show = streak.current >= 2 || mvpCount > 0;
-            if (!show) return null;
+            const lastFive: FormResult[] = history
+              .slice(0, 5)
+              .map((h) => h.result as FormResult)
+              .reverse();
+            const showBadges = streak.current >= 2 || mvpCount > 0;
             return (
-              <View style={styles.badgeRow}>
-                {streak.current >= 2 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
-                      {`🔥 ${streak.current}`}
-                    </Text>
+              <>
+                {lastFive.length > 0 && (
+                  <View style={styles.formRow}>
+                    <FormStrip results={lastFive} size="sm" />
                   </View>
                 )}
-                {mvpCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
-                      {`👑 ${mvpCount}`}
-                    </Text>
+                {showBadges && (
+                  <View style={styles.badgeRow}>
+                    {streak.current >= 2 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {`🔥 ${streak.current}`}
+                        </Text>
+                      </View>
+                    )}
+                    {mvpCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {`👑 ${mvpCount}`}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 )}
-              </View>
+              </>
             );
           })()}
         </Animated.View>
@@ -732,6 +745,10 @@ const styles = StyleSheet.create({
     gap: 6,
     justifyContent: 'center',
     marginTop: 8,
+  },
+  formRow: {
+    marginTop: 12,
+    alignItems: 'center',
   },
   badge: {
     paddingHorizontal: 12,

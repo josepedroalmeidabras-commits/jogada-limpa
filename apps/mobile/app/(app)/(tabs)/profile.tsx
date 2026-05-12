@@ -40,6 +40,7 @@ import {
   fetchMySelfRatingSummary,
   type SelfRatingSummary,
 } from '@/lib/self-rating';
+import { FormStrip, type FormResult } from '@/components/FormStrip';
 import { colors } from '@/theme';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
@@ -138,25 +139,37 @@ export default function ProfileScreen() {
 
               {(() => {
                 const streak = computeWinStreak(history);
-                const showStreak = streak.current >= 2 || mvpCount > 0;
-                if (!showStreak) return null;
+                const lastFive: FormResult[] = history
+                  .slice(0, 5)
+                  .map((h) => h.result as FormResult)
+                  .reverse();
+                const showBadges = streak.current >= 2 || mvpCount > 0;
                 return (
-                  <View style={styles.badgeRow}>
-                    {streak.current >= 2 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
-                          {`🔥 ${streak.current} vitórias seguidas`}
-                        </Text>
+                  <>
+                    {lastFive.length > 0 && (
+                      <View style={styles.formRow}>
+                        <FormStrip results={lastFive} size="sm" />
                       </View>
                     )}
-                    {mvpCount > 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
-                          {`👑 ${mvpCount} MVP${mvpCount === 1 ? '' : 's'}`}
-                        </Text>
+                    {showBadges && (
+                      <View style={styles.badgeRow}>
+                        {streak.current >= 2 && (
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeText}>
+                              {`🔥 ${streak.current} vitórias seguidas`}
+                            </Text>
+                          </View>
+                        )}
+                        {mvpCount > 0 && (
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeText}>
+                              {`👑 ${mvpCount} MVP${mvpCount === 1 ? '' : 's'}`}
+                            </Text>
+                          </View>
+                        )}
                       </View>
                     )}
-                  </View>
+                  </>
                 );
               })()}
 
@@ -555,6 +568,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
+  formRow: { marginTop: 12, alignItems: 'center' },
   badge: {
     paddingHorizontal: 12,
     paddingVertical: 6,

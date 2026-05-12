@@ -47,6 +47,7 @@ import {
   MatchListItem,
   MatchListGroup,
 } from '@/components/MatchListItem';
+import { FormStrip, type FormResult } from '@/components/FormStrip';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
@@ -219,6 +220,35 @@ export default function TeamDetailScreen() {
         <Animated.View entering={FadeInDown.delay(80).springify()}>
           <TeamRecordRow record={record} />
         </Animated.View>
+
+        {(() => {
+          const lastFive: FormResult[] = matches
+            .filter(
+              (m) =>
+                m.status === 'validated' &&
+                m.final_score_a !== null &&
+                m.final_score_b !== null,
+            )
+            .slice(0, 5)
+            .map((m) => {
+              const isA = m.side_a.id === team.id;
+              const myScore = isA ? m.final_score_a! : m.final_score_b!;
+              const oppScore = isA ? m.final_score_b! : m.final_score_a!;
+              if (myScore > oppScore) return 'win' as const;
+              if (myScore < oppScore) return 'loss' as const;
+              return 'draw' as const;
+            })
+            .reverse();
+          if (lastFive.length === 0) return null;
+          return (
+            <Animated.View
+              entering={FadeInDown.delay(100).springify()}
+              style={{ marginTop: 12, alignItems: 'center' }}
+            >
+              <FormStrip results={lastFive} size="md" />
+            </Animated.View>
+          );
+        })()}
 
         {isCaptain && (
           <Animated.View
