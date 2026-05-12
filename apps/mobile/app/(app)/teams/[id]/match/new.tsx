@@ -16,6 +16,7 @@ import { useAuth } from '@/providers/auth';
 import { fetchTeamById, type TeamWithSport } from '@/lib/teams';
 import {
   fetchOpponentCandidates,
+  fetchTeamMemberCount,
   proposeMatch,
   type TeamLite,
 } from '@/lib/matches';
@@ -53,6 +54,7 @@ export default function NewMatchScreen() {
 
   const [team, setTeam] = useState<TeamWithSport | null>(null);
   const [opponents, setOpponents] = useState<TeamLite[]>([]);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [date, setDate] = useState('');
@@ -76,6 +78,9 @@ export default function NewMatchScreen() {
       const list = await fetchOpponentCandidates(t.sport_id, t.id);
       if (cancelled) return;
       setOpponents(list);
+      const counts = await fetchTeamMemberCount(list.map((l) => l.id));
+      if (cancelled) return;
+      setMemberCounts(counts);
       setLoading(false);
     })();
     return () => {
@@ -199,7 +204,7 @@ export default function NewMatchScreen() {
                         picked && styles.oppCityPicked,
                       ]}
                     >
-                      {o.city}
+                      {o.city} · {memberCounts[o.id] ?? 0} membros
                     </Text>
                   </Pressable>
                 );

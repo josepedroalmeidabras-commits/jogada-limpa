@@ -12,12 +12,21 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
+import {
+  fetchPendingChallengesForUser,
+  fetchPendingReviewsForUser,
+  formatMatchDate,
+  type PendingChallenge,
+  type PendingReview,
+} from '@/lib/matches';
 
 export default function HomeScreen() {
   const { session, signOut } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [teams, setTeams] = useState<TeamWithSport[]>([]);
+  const [challenges, setChallenges] = useState<PendingChallenge[]>([]);
+  const [reviews, setReviews] = useState<PendingReview[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -28,8 +37,14 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const myTeams = await fetchMyTeams(session.user.id);
+    const [myTeams, ch, rv] = await Promise.all([
+      fetchMyTeams(session.user.id),
+      fetchPendingChallengesForUser(session.user.id),
+      fetchPendingReviewsForUser(session.user.id),
+    ]);
     setTeams(myTeams);
+    setChallenges(ch);
+    setReviews(rv);
     setLoading(false);
   }, [session, router]);
 
@@ -72,7 +87,63 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.section}>As tuas equipas</Text>
+        {challenges.length > 0 && (
+          <>
+            <Text style={styles.section}>
+              Convites pendentes ({challenges.length})
+            </Text>
+            {challenges.map((c) => (
+              <Pressable
+                key={c.match_id}
+                style={[styles.card, styles.cardAlert]}
+                onPress={() => router.push(`/(app)/matches/${c.match_id}`)}
+              >
+                <View style={styles.cardLeft}>
+                  <Text style={styles.cardName}>
+                    {c.my_side === 'B' ? 'Desafio de' : 'Aguarda resposta de'}{' '}
+                    {c.opponent_team_name}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {formatMatchDate(c.scheduled_at)} ·{' '}
+                    {c.location_tbd ? 'A combinar' : c.location_name ?? '—'}
+                  </Text>
+                </View>
+                <Text style={styles.cardArrow}>›</Text>
+              </Pressable>
+            ))}
+          </>
+        )}
+
+        {reviews.length > 0 && (
+          <>
+            <Text style={[styles.section, { marginTop: 16 }]}>
+              Avaliações pendentes ({reviews.length})
+            </Text>
+            {reviews.map((r) => (
+              <Pressable
+                key={r.match_id}
+                style={[styles.card, styles.cardWarn]}
+                onPress={() =>
+                  router.push(`/(app)/matches/${r.match_id}/review`)
+                }
+              >
+                <View style={styles.cardLeft}>
+                  <Text style={styles.cardName}>
+                    {r.side_a_name} vs {r.side_b_name}
+                  </Text>
+                  <Text style={styles.cardMeta}>
+                    {r.others_to_review} jogador(es) para avaliar
+                  </Text>
+                </View>
+                <Text style={styles.cardArrow}>›</Text>
+              </Pressable>
+            ))}
+          </>
+        )}
+
+        <Text style={[styles.section, { marginTop: 16 }]}>
+          As tuas equipas
+        </Text>
 
         {teams.length === 0 ? (
           <View style={styles.empty}>
@@ -175,6 +246,14 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
     backgroundColor: 'rgba(255,255,255,0.04)',
     marginBottom: 8,
+  },
+  cardAlert: {
+    borderColor: 'rgba(251,191,36,0.4)',
+    backgroundColor: 'rgba(251,191,36,0.08)',
+  },
+  cardWarn: {
+    borderColor: 'rgba(52,211,153,0.4)',
+    backgroundColor: 'rgba(52,211,153,0.06)',
   },
   cardLeft: { flex: 1 },
   cardName: { color: '#ffffff', fontSize: 16, fontWeight: '600' },

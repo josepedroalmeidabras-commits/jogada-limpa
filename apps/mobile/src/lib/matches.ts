@@ -226,6 +226,157 @@ export function formatMatchDate(iso: string): string {
   return `${day}/${month}/${year} · ${hour}:${min}`;
 }
 
+export type PendingChallenge = {
+  match_id: string;
+  scheduled_at: string;
+  location_name: string | null;
+  location_tbd: boolean;
+  my_side: 'A' | 'B';
+  opponent_team_name: string;
+  opponent_team_id: string;
+};
+
+export async function fetchPendingChallengesForUser(
+  userId: string,
+): Promise<PendingChallenge[]> {
+  const { data, error } = await supabase
+    .from('match_sides')
+    .select(
+      `side, captain_id,
+       match:matches!inner(
+         id, scheduled_at, status, location_name, location_tbd,
+         sides:match_sides!inner(side, team:teams!inner(id, name, city, captain_id))
+       )`,
+    )
+    .eq('captain_id', userId);
+
+  if (error || !data) {
+    console.error('fetchPendingChallengesForUser error', error);
+    return [];
+  }
+
+  return (data as any[])
+    .filter((row) => row.match?.status === 'proposed')
+    .map((row): PendingChallenge | null => {
+      const m = row.match;
+      const mySide = row.side as 'A' | 'B';
+      const opp = (m.sides as any[]).find((s) => s.side !== mySide)?.team;
+      if (!opp) return null;
+      return {
+        match_id: m.id,
+        scheduled_at: m.scheduled_at,
+        location_name: m.location_name,
+        location_tbd: m.location_tbd,
+        my_side: mySide,
+        opponent_team_name: opp.name,
+        opponent_team_id: opp.id,
+      };
+    })
+    .filter((p): p is PendingChallenge => p !== null);
+}
+
+export type PendingReview = {
+  match_id: string;
+  scheduled_at: string;
+  side_a_name: string;
+  side_b_name: string;
+  others_to_review: number;
+};
+
+export async function fetchPendingReviewsForUser(
+  userId: string,
+): Promise<PendingReview[]> {
+  // matches where I participated + validated
+  const { data: parts, error } = await supabase
+    .from('match_participants')
+    .select(
+      `match_id, side,
+       match:matches!inner(
+         id, scheduled_at, status,
+         sides:match_sides!inner(side, team:teams!inner(id, name))
+       )`,
+    )
+    .eq('user_id', userId)
+    .in('attendance', ['attended', 'substitute_in']);
+
+  if (error || !parts) {
+    console.error('fetchPendingReviewsForUser error', error);
+    return [];
+  }
+
+  const validated = (parts as any[]).filter(
+    (p) => p.match?.status === 'validated',
+  );
+  if (validated.length === 0) return [];
+
+  const matchIds = validated.map((p) => p.match_id);
+
+  // count other participants per match
+  const { data: allParts } = await supabase
+    .from('match_participants')
+    .select('match_id, user_id')
+    .in('match_id', matchIds)
+    .in('attendance', ['attended', 'substitute_in']);
+
+  // count reviews I already submitted
+  const { data: myReviews } = await supabase
+    .from('reviews')
+    .select('match_id, reviewed_id')
+    .in('match_id', matchIds)
+    .eq('reviewer_id', userId);
+
+  const partsByMatch = new Map<string, Set<string>>();
+  for (const p of allParts ?? []) {
+    const set = partsByMatch.get(p.match_id) ?? new Set();
+    set.add(p.user_id);
+    partsByMatch.set(p.match_id, set);
+  }
+  const reviewedByMatch = new Map<string, Set<string>>();
+  for (const r of myReviews ?? []) {
+    const set = reviewedByMatch.get(r.match_id) ?? new Set();
+    set.add(r.reviewed_id);
+    reviewedByMatch.set(r.match_id, set);
+  }
+
+  return validated
+    .map((p): PendingReview | null => {
+      const m = p.match;
+      const a = (m.sides as any[]).find((s) => s.side === 'A')?.team;
+      const b = (m.sides as any[]).find((s) => s.side === 'B')?.team;
+      if (!a || !b) return null;
+      const allOthers = new Set(partsByMatch.get(m.id) ?? []);
+      allOthers.delete(userId);
+      const reviewed = reviewedByMatch.get(m.id) ?? new Set();
+      const pending = [...allOthers].filter((id) => !reviewed.has(id));
+      if (pending.length === 0) return null;
+      return {
+        match_id: m.id,
+        scheduled_at: m.scheduled_at,
+        side_a_name: a.name,
+        side_b_name: b.name,
+        others_to_review: pending.length,
+      };
+    })
+    .filter((p): p is PendingReview => p !== null);
+}
+
+export async function fetchTeamMemberCount(
+  teamIds: string[],
+): Promise<Record<string, number>> {
+  if (teamIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .in('team_id', teamIds);
+  if (error || !data) return {};
+  const result: Record<string, number> = {};
+  for (const id of teamIds) result[id] = 0;
+  for (const row of data) {
+    result[row.team_id] = (result[row.team_id] ?? 0) + 1;
+  }
+  return result;
+}
+
 export function statusLabel(status: MatchStatus): string {
   switch (status) {
     case 'proposed':
