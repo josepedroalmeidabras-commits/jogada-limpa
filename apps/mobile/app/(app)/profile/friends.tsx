@@ -120,6 +120,14 @@ export default function FriendsScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+        <View style={{ marginBottom: 16 }}>
+          <Button
+            label="+ Adicionar amigos"
+            variant="secondary"
+            full
+            onPress={() => router.push('/(app)/profile/find-friends')}
+          />
+        </View>
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.text} />
