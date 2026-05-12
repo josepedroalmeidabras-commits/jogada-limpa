@@ -45,6 +45,13 @@ function parseBirthdate(input: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function formatBirthdateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 function isAdult(isoDate: string): boolean {
   const dob = new Date(`${isoDate}T00:00:00Z`);
   const eighteen = new Date();
@@ -179,7 +186,7 @@ export default function OnboardingScreen() {
             placeholder="01/01/1990"
             placeholderTextColor="#666"
             value={birthdate}
-            onChangeText={setBirthdate}
+            onChangeText={(text) => setBirthdate(formatBirthdateInput(text))}
             keyboardType="number-pad"
             editable={!submitting}
             maxLength={10}
