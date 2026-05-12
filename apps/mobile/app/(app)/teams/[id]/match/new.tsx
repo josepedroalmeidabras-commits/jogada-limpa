@@ -282,6 +282,38 @@ export default function NewMatchScreen() {
             </View>
           )}
 
+          <Text style={styles.label}>Atalhos rápidos</Text>
+          <View style={styles.presetRow}>
+            {(
+              [
+                { label: 'Sábado · 19h', day: 6, hour: 19, minute: 0 },
+                { label: 'Sábado · 21h', day: 6, hour: 21, minute: 0 },
+                { label: 'Domingo · 10h', day: 0, hour: 10, minute: 0 },
+              ]
+            ).map((p) => (
+              <Pressable
+                key={p.label}
+                style={styles.presetChip}
+                onPress={() => {
+                  const now = new Date();
+                  const target = new Date(now);
+                  const diff = (p.day - now.getDay() + 7) % 7 || 7;
+                  target.setDate(now.getDate() + diff);
+                  target.setHours(p.hour, p.minute, 0, 0);
+                  const dd = String(target.getDate()).padStart(2, '0');
+                  const mm = String(target.getMonth() + 1).padStart(2, '0');
+                  const yyyy = target.getFullYear();
+                  const hh = String(target.getHours()).padStart(2, '0');
+                  const mi = String(target.getMinutes()).padStart(2, '0');
+                  setDate(`${dd}/${mm}/${yyyy}`);
+                  setTime(`${hh}:${mi}`);
+                }}
+              >
+                <Text style={styles.presetChipText}>{p.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
           <Text style={styles.label}>Data (DD/MM/AAAA)</Text>
           <TextInput
             style={styles.input}
@@ -417,6 +449,22 @@ const styles = StyleSheet.create({
   },
   filterChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   filterChipTextActive: { color: '#0a0a0a' },
+  presetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  presetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+  },
+  presetChipText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
   oppCard: {
     padding: 14,
     borderRadius: 12,

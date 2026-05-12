@@ -97,6 +97,23 @@ export async function sendPushToUser(
   userId: string,
   payload: PushPayload,
 ): Promise<void> {
+  // 1) persist as in-app notification (best-effort, ignore failure)
+  void supabase
+    .from('notifications')
+    .insert({
+      user_id: userId,
+      type:
+        (payload.data?.type as string | undefined) ?? 'generic',
+      title: payload.title,
+      body: payload.body ?? null,
+      payload: payload.data ?? {},
+      channel: 'push',
+    })
+    .then(({ error }) => {
+      if (error) console.warn('notifications insert', error.message);
+    });
+
+  // 2) push fan-out via Expo
   const { data, error } = await supabase
     .from('push_tokens')
     .select('token')

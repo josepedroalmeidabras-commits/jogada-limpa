@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -31,6 +32,9 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 import { Avatar } from '@/components/Avatar';
+import { fetchUnreadCount } from '@/lib/notifications';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@/theme';
 
 export default function HomeScreen() {
   const { session } = useAuth();
@@ -40,6 +44,7 @@ export default function HomeScreen() {
   const [challenges, setChallenges] = useState<PendingChallenge[]>([]);
   const [reviews, setReviews] = useState<PendingReview[]>([]);
   const [activity, setActivity] = useState<CityActivity[]>([]);
+  const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -56,16 +61,18 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const [myTeams, ch, rv, act] = await Promise.all([
+    const [myTeams, ch, rv, act, u] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
       fetchPendingReviewsForUser(session.user.id),
       fetchCityActivity(p.city, 5),
+      fetchUnreadCount(session.user.id),
     ]);
     setTeams(myTeams);
     setChallenges(ch);
     setReviews(rv);
     setActivity(act);
+    setUnread(u);
     setLoading(false);
   }, [session, router]);
 
@@ -112,6 +119,23 @@ export default function HomeScreen() {
                   {`Olá, ${(profile?.name ?? '').split(' ')[0]}`}
                 </Heading>
               </View>
+              <Pressable
+                style={styles.bell}
+                onPress={() => router.push('/(app)/notifications')}
+              >
+                <Ionicons
+                  name={unread > 0 ? 'notifications' : 'notifications-outline'}
+                  size={22}
+                  color={unread > 0 ? colors.brand : colors.text}
+                />
+                {unread > 0 && (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.bellBadgeText}>
+                      {unread > 9 ? '9+' : String(unread)}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
               <Avatar
                 url={profile?.photo_url}
                 name={profile?.name}
@@ -325,10 +349,33 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     marginBottom: 24,
     marginTop: 4,
   },
+  bell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadgeText: { color: '#0a0a0a', fontSize: 10, fontWeight: '800' },
   section: { marginTop: 24 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   cardName: {
