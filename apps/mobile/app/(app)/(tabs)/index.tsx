@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -66,6 +66,12 @@ export default function HomeScreen() {
   const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
   const [friendsActivity, setFriendsActivity] = useState<FriendMatchEvent[]>([]);
   const [nextMatch, setNextMatch] = useState<MatchSummary | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
   const [incoming, setIncoming] = useState<PendingRequest[]>([]);
   const [completeness, setCompleteness] = useState<{
     items: { key: string; label: string; done: boolean }[];
@@ -209,27 +215,90 @@ export default function HomeScreen() {
               />
             </Animated.View>
 
-            {nextMatch && (
-              <Animated.View entering={FadeInDown.delay(40).springify()}>
-                <Pressable
-                  onPress={() =>
-                    router.push(`/(app)/matches/${nextMatch.id}`)
-                  }
-                  style={styles.nextMatchCard}
-                >
-                  <Text style={styles.nextMatchLabel}>📅 Próximo jogo</Text>
-                  <Text style={styles.nextMatchTeams} numberOfLines={1}>
-                    {`${nextMatch.side_a.name}  vs  ${nextMatch.side_b.name}`}
-                  </Text>
-                  <Text style={styles.nextMatchWhen}>
-                    {formatRelativeMatchDate(nextMatch.scheduled_at)}
-                  </Text>
-                  <Text style={styles.nextMatchWhere} numberOfLines={1}>
-                    {`📍 ${nextMatch.location_tbd ? 'A combinar' : (nextMatch.location_name ?? '—')}`}
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            )}
+            {nextMatch && (() => {
+              const scheduled = new Date(nextMatch.scheduled_at).getTime();
+              const diff = scheduled - now;
+              const mins = Math.floor(diff / 60_000);
+              const hours = Math.floor(mins / 60);
+              const days = Math.floor(hours / 24);
+              const urgent = diff > 0 && diff < 2 * 60 * 60 * 1000;
+              const live = diff <= 0 && diff > -4 * 60 * 60 * 1000;
+
+              let when: string;
+              let badge: string | null = null;
+              if (live) {
+                when = 'A decorrer agora';
+                badge = '🔴 AO VIVO';
+              } else if (diff <= 0) {
+                when = 'Acabou de terminar';
+              } else if (mins < 60) {
+                when = `Em ${mins} minuto${mins === 1 ? '' : 's'}`;
+                badge = 'AGORA';
+              } else if (hours < 24) {
+                const remMins = mins % 60;
+                when = remMins === 0
+                  ? `Em ${hours}h`
+                  : `Em ${hours}h ${remMins}min`;
+                badge = 'HOJE';
+              } else if (days < 2) {
+                when = `Amanhã às ${new Date(nextMatch.scheduled_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`;
+                badge = 'AMANHÃ';
+              } else {
+                when = formatRelativeMatchDate(nextMatch.scheduled_at);
+              }
+
+              return (
+                <Animated.View entering={FadeInDown.delay(40).springify()}>
+                  <Pressable
+                    onPress={() =>
+                      router.push(`/(app)/matches/${nextMatch.id}`)
+                    }
+                    style={[
+                      styles.nextMatchCard,
+                      urgent && styles.nextMatchCardUrgent,
+                      live && styles.nextMatchCardLive,
+                    ]}
+                  >
+                    <View style={styles.nextMatchHeader}>
+                      <Text style={styles.nextMatchLabel}>📅 Próximo jogo</Text>
+                      {badge && (
+                        <View
+                          style={[
+                            styles.nextMatchBadge,
+                            urgent && styles.nextMatchBadgeUrgent,
+                            live && styles.nextMatchBadgeLive,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.nextMatchBadgeText,
+                              (urgent || live) && { color: '#0a0a0a' },
+                            ]}
+                          >
+                            {badge}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.nextMatchTeams} numberOfLines={1}>
+                      {`${nextMatch.side_a.name}  vs  ${nextMatch.side_b.name}`}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.nextMatchWhen,
+                        urgent && { color: '#f87171' },
+                        live && { color: '#f87171' },
+                      ]}
+                    >
+                      {when}
+                    </Text>
+                    <Text style={styles.nextMatchWhere} numberOfLines={1}>
+                      {`📍 ${nextMatch.location_tbd ? 'A combinar' : (nextMatch.location_name ?? '—')}`}
+                    </Text>
+                  </Pressable>
+                </Animated.View>
+              );
+            })()}
 
             {completeness && completeness.percent < 100 && (
               <Animated.View entering={FadeInDown.delay(50).springify()}>
@@ -723,12 +792,47 @@ const styles = StyleSheet.create({
     borderColor: colors.brandSoftBorder,
     marginBottom: 8,
   },
+  nextMatchCardUrgent: {
+    backgroundColor: 'rgba(248,113,113,0.10)',
+    borderColor: 'rgba(248,113,113,0.40)',
+  },
+  nextMatchCardLive: {
+    backgroundColor: 'rgba(248,113,113,0.16)',
+    borderColor: 'rgba(248,113,113,0.6)',
+  },
+  nextMatchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   nextMatchLabel: {
     color: colors.brand,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1,
     textTransform: 'uppercase',
+  },
+  nextMatchBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(34,197,94,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.4)',
+  },
+  nextMatchBadgeUrgent: {
+    backgroundColor: '#fbbf24',
+    borderColor: '#fbbf24',
+  },
+  nextMatchBadgeLive: {
+    backgroundColor: '#f87171',
+    borderColor: '#f87171',
+  },
+  nextMatchBadgeText: {
+    color: '#22c55e',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   nextMatchTeams: {
     color: colors.text,
