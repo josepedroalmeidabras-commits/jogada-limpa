@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sendPushToUser } from './push';
 
 export type MatchStatus =
   | 'proposed'
@@ -232,7 +233,34 @@ export async function proposeMatch(input: {
       message: error?.message ?? 'Não foi possível propor o jogo.',
     };
   }
-  return { ok: true, match_id: data as string };
+  const matchId = data as string;
+
+  // notify opponent captain
+  void (async () => {
+    const [{ data: opponentTeam }, { data: proposingTeam }] = await Promise.all(
+      [
+        supabase
+          .from('teams')
+          .select('captain_id, name')
+          .eq('id', input.opponent_team_id)
+          .maybeSingle(),
+        supabase
+          .from('teams')
+          .select('name')
+          .eq('id', input.proposing_team_id)
+          .maybeSingle(),
+      ],
+    );
+    if (opponentTeam?.captain_id) {
+      await sendPushToUser(opponentTeam.captain_id, {
+        title: 'Novo desafio',
+        body: `${proposingTeam?.name ?? 'Uma equipa'} quer jogar contra ${opponentTeam.name ?? 'a tua equipa'}`,
+        data: { match_id: matchId, type: 'match_proposed' },
+      });
+    }
+  })();
+
+  return { ok: true, match_id: matchId };
 }
 
 export async function acceptMatch(
@@ -247,6 +275,19 @@ export async function acceptMatch(
       message: error.message ?? 'Não foi possível aceitar.',
     };
   }
+
+  // notify proposing captain (side A)
+  void (async () => {
+    const m = await fetchMatchById(matchId);
+    if (m) {
+      await sendPushToUser(m.side_a.captain_id, {
+        title: 'Desafio aceite ✅',
+        body: `${m.side_b.name} aceitou o teu desafio. Vai à app para combinar detalhes.`,
+        data: { match_id: matchId, type: 'match_accepted' },
+      });
+    }
+  })();
+
   return { ok: true };
 }
 

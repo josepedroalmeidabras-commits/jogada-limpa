@@ -41,7 +41,16 @@
         {
           "photosPermission": "Para escolheres uma foto de perfil ou escudo da equipa."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#ffffff"
+        }
       ]
-    ]
+    ],
+    "notification": {
+      "iosDisplayInForeground": true
+    }
   }
 }

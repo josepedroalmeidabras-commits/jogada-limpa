@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sendPushToUser } from './push';
 
 export type MatchParticipant = {
   match_id: string;
@@ -89,6 +90,13 @@ export async function inviteSubstitute(input: {
       message: error.message ?? 'Não foi possível convidar.',
     };
   }
+
+  void sendPushToUser(input.user_id, {
+    title: 'Convite para um jogo',
+    body: 'Um capitão adicionou-te a um jogo como substituto.',
+    data: { match_id: input.match_id, type: 'substitute_invited' },
+  });
+
   return { ok: true };
 }
 
@@ -110,5 +118,24 @@ export async function submitMatchSideResult(input: {
       message: error.message ?? 'Não foi possível submeter o resultado.',
     };
   }
+
+  // Notify the other captain to confirm
+  void (async () => {
+    const { data: sides } = await supabase
+      .from('match_sides')
+      .select('side, captain_id')
+      .eq('match_id', input.match_id);
+    if (!sides) return;
+    const me = (await supabase.auth.getUser()).data.user?.id;
+    const other = sides.find((s) => s.captain_id !== me);
+    if (other?.captain_id) {
+      await sendPushToUser(other.captain_id, {
+        title: 'Resultado submetido',
+        body: 'O outro capitão submeteu o resultado. Confirma o teu para validar.',
+        data: { match_id: input.match_id, type: 'result_submitted' },
+      });
+    }
+  })();
+
   return { ok: true };
 }
