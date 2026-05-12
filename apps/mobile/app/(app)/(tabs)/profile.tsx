@@ -31,6 +31,10 @@ import {
 } from '@/lib/elo-history';
 import { EloChart } from '@/components/EloChart';
 import { fetchSeasonStats, type SeasonStats } from '@/lib/season-stats';
+import {
+  fetchMySelfRatingSummary,
+  type SelfRatingSummary,
+} from '@/lib/self-rating';
 import { colors } from '@/theme';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
@@ -58,11 +62,12 @@ export default function ProfileScreen() {
   const [isCaptain, setIsCaptain] = useState(false);
   const [eloHistory, setEloHistory] = useState<EloHistoryPoint[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
+  const [selfSummary, setSelfSummary] = useState<SelfRatingSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const [p, s, a, h, mvp, myTeams, eh, ss] = await Promise.all([
+    const [p, s, a, h, mvp, myTeams, eh, ss, srs] = await Promise.all([
       fetchProfile(session.user.id),
       fetchUserSports(session.user.id),
       fetchReviewAggregate(session.user.id),
@@ -71,6 +76,7 @@ export default function ProfileScreen() {
       fetchMyTeams(session.user.id),
       fetchEloHistory(session.user.id, undefined, 30),
       fetchSeasonStats(session.user.id),
+      fetchMySelfRatingSummary(),
     ]);
     setProfile(p);
     setSports(s);
@@ -80,6 +86,7 @@ export default function ProfileScreen() {
     setIsCaptain(myTeams.some((t) => t.captain_id === session.user.id));
     setEloHistory(eh);
     setSeasonStats(ss);
+    setSelfSummary(srs);
     setLoading(false);
   }, [session]);
 
@@ -201,6 +208,55 @@ export default function ProfileScreen() {
                       <Text style={styles.seasonLabel}>🎁 assist.</Text>
                     </View>
                   </View>
+                </Card>
+              </Animated.View>
+            )}
+
+            {selfSummary && selfSummary.rated_matches > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(120).springify()}
+                style={styles.section}
+              >
+                <Eyebrow>🪞 Auto-avaliação</Eyebrow>
+                <Card style={{ marginTop: 8 }}>
+                  <View style={styles.selfRow}>
+                    <View style={styles.selfCell}>
+                      <Text style={styles.selfValue}>
+                        {Number(selfSummary.avg_self).toFixed(1)}
+                      </Text>
+                      <Text style={styles.selfLabel}>O que dei</Text>
+                    </View>
+                    <View style={styles.selfCell}>
+                      <Text style={styles.selfValue}>
+                        {Number(selfSummary.avg_others).toFixed(1)}
+                      </Text>
+                      <Text style={styles.selfLabel}>O que recebi</Text>
+                    </View>
+                    <View style={styles.selfCell}>
+                      <Text
+                        style={[
+                          styles.selfValue,
+                          {
+                            color:
+                              Number(selfSummary.avg_delta) > 0.5
+                                ? '#fb923c'
+                                : Number(selfSummary.avg_delta) < -0.5
+                                  ? '#34d399'
+                                  : colors.text,
+                          },
+                        ]}
+                      >
+                        {Number(selfSummary.avg_delta) > 0 ? '+' : ''}
+                        {Number(selfSummary.avg_delta).toFixed(1)}
+                      </Text>
+                      <Text style={styles.selfLabel}>Delta</Text>
+                    </View>
+                  </View>
+                  {selfSummary.divergent_matches > 0 && (
+                    <Text style={styles.selfFootnote}>
+                      {`${selfSummary.divergent_matches} jogo${selfSummary.divergent_matches === 1 ? '' : 's'} com discrepância significativa`}
+                    </Text>
+                  )}
                 </Card>
               </Animated.View>
             )}
@@ -565,6 +621,30 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+  },
+  selfRow: { flexDirection: 'row' },
+  selfCell: { flex: 1, alignItems: 'center' },
+  selfValue: {
+    color: '#ffffff',
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  selfLabel: {
+    color: '#a3a3a3',
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  selfFootnote: {
+    color: '#fb923c',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
   },
   muted: { color: '#737373', fontSize: 13 },
   aggRow: { marginBottom: 12 },

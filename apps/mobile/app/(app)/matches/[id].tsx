@@ -377,6 +377,15 @@ export default function MatchDetailScreen() {
             />
           )}
 
+          {canReview && isParticipant && (
+            <Button
+              label="🪞 Auto-avaliar"
+              variant="secondary"
+              full
+              onPress={() => router.push(`/(app)/matches/${match.id}/self-rating`)}
+            />
+          )}
+
           {match.status === 'validated' &&
             match.final_score_a !== null &&
             match.final_score_b !== null && (
