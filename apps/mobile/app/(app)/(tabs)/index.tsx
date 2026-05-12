@@ -320,6 +320,36 @@ export default function HomeScreen() {
               );
             })()}
 
+            {(teams.length === 0 || history.length === 0) && (
+              <Animated.View entering={FadeInDown.delay(45).springify()}>
+                <Card variant="subtle">
+                  <Eyebrow>🚀 Próximos passos</Eyebrow>
+                  <View style={styles.guideList}>
+                    <GuideRow
+                      done={teams.length > 0}
+                      label="Cria ou junta-te a uma equipa"
+                    />
+                    <GuideRow
+                      done={
+                        teams.some(
+                          (t) => t.captain_id === session?.user.id,
+                        ) || teams.length > 1
+                      }
+                      label="Convida pelo menos 1 jogador"
+                    />
+                    <GuideRow
+                      done={!!nextMatch || history.length > 0}
+                      label="Marca o primeiro jogo"
+                    />
+                    <GuideRow
+                      done={history.length > 0}
+                      label="Joga e valida o resultado"
+                    />
+                  </View>
+                </Card>
+              </Animated.View>
+            )}
+
             {completeness && completeness.percent < 100 && (
               <Animated.View entering={FadeInDown.delay(50).springify()}>
                 <Card variant="subtle">
@@ -702,6 +732,30 @@ function StatCell({
   );
 }
 
+function GuideRow({ done, label }: { done: boolean; label: string }) {
+  return (
+    <View style={styles.guideRow}>
+      <Ionicons
+        name={done ? 'checkmark-circle' : 'ellipse-outline'}
+        size={18}
+        color={done ? colors.brand : colors.textDim}
+      />
+      <Text
+        style={[
+          styles.guideLabel,
+          done && {
+            color: colors.text,
+            textDecorationLine: 'line-through',
+            textDecorationColor: colors.textDim,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function HomeSkeleton() {
   return (
     <View style={{ gap: 16 }}>
@@ -907,6 +961,14 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   completeList: { marginTop: 12, gap: 6 },
+  guideList: { marginTop: 10, gap: 8 },
+  guideRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  guideLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    flex: 1,
+    letterSpacing: -0.1,
+  },
   completeItem: {
     flexDirection: 'row',
     alignItems: 'center',
