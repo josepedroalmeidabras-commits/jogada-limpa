@@ -126,6 +126,60 @@ export async function assignInternalSides(
   return { ok: true };
 }
 
+export type PendingPeladinhaInvite = {
+  match_id: string;
+  scheduled_at: string;
+  location_name: string | null;
+  location_tbd: boolean;
+  team_id: string;
+  team_name: string;
+  side_a_label: string | null;
+  side_b_label: string | null;
+};
+
+export async function fetchPendingPeladinhaInvites(): Promise<
+  PendingPeladinhaInvite[]
+> {
+  const { data: auth } = await supabase.auth.getUser();
+  const me = auth.user?.id;
+  if (!me) return [];
+
+  const { data, error } = await supabase
+    .from('match_participants')
+    .select(
+      `match_id,
+       match:matches!inner(id, scheduled_at, location_name, location_tbd, status, is_internal, side_a_label, side_b_label),
+       sides:match_sides!inner(team_id, team:teams!inner(id, name))`,
+    )
+    .eq('user_id', me)
+    .eq('invitation_status', 'pending');
+  if (error || !data) return [];
+
+  const now = Date.now();
+  return (data as any[])
+    .filter((r) => r.match?.is_internal === true)
+    .filter((r) => r.match?.status === 'confirmed')
+    .filter((r) => new Date(r.match.scheduled_at).getTime() > now)
+    .map((r): PendingPeladinhaInvite => {
+      const side = Array.isArray(r.sides) ? r.sides[0] : r.sides;
+      return {
+        match_id: r.match.id,
+        scheduled_at: r.match.scheduled_at,
+        location_name: r.match.location_name,
+        location_tbd: r.match.location_tbd,
+        team_id: side?.team_id ?? '',
+        team_name: side?.team?.name ?? '',
+        side_a_label: r.match.side_a_label ?? null,
+        side_b_label: r.match.side_b_label ?? null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_at).getTime() -
+        new Date(b.scheduled_at).getTime(),
+    );
+}
+
 export async function respondToMatchInvite(
   matchId: string,
   accept: boolean,

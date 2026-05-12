@@ -51,6 +51,10 @@ import {
   type FriendMatchEvent,
   type PendingRequest,
 } from '@/lib/friends';
+import {
+  fetchPendingPeladinhaInvites,
+  type PendingPeladinhaInvite,
+} from '@/lib/internal-match';
 import { fetchPlayerStats } from '@/lib/player-stats';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
@@ -76,6 +80,7 @@ export default function HomeScreen() {
     return () => clearInterval(t);
   }, []);
   const [incoming, setIncoming] = useState<PendingRequest[]>([]);
+  const [peladinhas, setPeladinhas] = useState<PendingPeladinhaInvite[]>([]);
   const [completeness, setCompleteness] = useState<{
     items: { key: string; label: string; done: boolean }[];
     percent: number;
@@ -96,7 +101,7 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const [myTeams, ch, rv, act, u, hist, fa, inc, friends, myStats, nxt] = await Promise.all([
+    const [myTeams, ch, rv, act, u, hist, fa, inc, friends, myStats, nxt, pel] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
       fetchPendingReviewsForUser(session.user.id),
@@ -108,6 +113,7 @@ export default function HomeScreen() {
       fetchFriends(),
       fetchPlayerStats(session.user.id),
       fetchNextMatchForUser(session.user.id),
+      fetchPendingPeladinhaInvites(),
     ]);
     setTeams(myTeams);
     setChallenges(ch);
@@ -119,6 +125,7 @@ export default function HomeScreen() {
     setFriendsActivity(fa);
     setNextMatch(nxt);
     setIncoming(inc);
+    setPeladinhas(pel);
 
     const items = [
       { key: 'photo', label: 'Foto de perfil', done: Boolean(p.photo_url) },
@@ -425,6 +432,39 @@ export default function HomeScreen() {
                     <Text style={styles.arrow}>›</Text>
                   </View>
                 </Card>
+              </Animated.View>
+            )}
+
+            {peladinhas.length > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(68).springify()}
+                style={styles.section}
+              >
+                <Eyebrow>{`⚡ Peladinhas · ${peladinhas.length} por confirmar`}</Eyebrow>
+                {peladinhas.slice(0, 3).map((p, i) => (
+                  <Animated.View
+                    key={p.match_id}
+                    entering={FadeInDown.delay(100 + i * 40).springify()}
+                  >
+                    <Card
+                      onPress={() => router.push(`/(app)/matches/${p.match_id}`)}
+                      style={{ marginTop: 8 }}
+                    >
+                      <View style={styles.cardRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardName}>{p.team_name}</Text>
+                          <Text style={styles.cardMeta}>
+                            {formatRelativeMatchDate(p.scheduled_at)} ·{' '}
+                            {p.location_tbd
+                              ? 'A combinar'
+                              : (p.location_name ?? '—')}
+                          </Text>
+                        </View>
+                        <Text style={styles.arrow}>›</Text>
+                      </View>
+                    </Card>
+                  </Animated.View>
+                ))}
               </Animated.View>
             )}
 
