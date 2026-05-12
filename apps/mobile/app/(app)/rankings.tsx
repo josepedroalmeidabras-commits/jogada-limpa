@@ -19,6 +19,7 @@ import {
   type RankedPlayer,
   type RankedTeam,
 } from '@/lib/rankings';
+import { fetchTopScorers, type TopScorer } from '@/lib/season-stats';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -26,7 +27,7 @@ import { Card } from '@/components/Card';
 import { Skeleton } from '@/components/Skeleton';
 import { colors } from '@/theme';
 
-type Tab = 'players' | 'teams' | 'mvps';
+type Tab = 'players' | 'teams' | 'mvps' | 'scorers';
 type PlayerSort = 'elo' | 'matches';
 type TeamSort = 'elo' | 'members';
 
@@ -39,6 +40,7 @@ export default function RankingsScreen() {
   const [players, setPlayers] = useState<RankedPlayer[]>([]);
   const [teams, setTeams] = useState<RankedTeam[]>([]);
   const [mvps, setMvps] = useState<RankedMvp[]>([]);
+  const [scorers, setScorers] = useState<TopScorer[]>([]);
   const [playerSort, setPlayerSort] = useState<PlayerSort>('elo');
   const [teamSort, setTeamSort] = useState<TeamSort>('elo');
   const [loading, setLoading] = useState(true);
@@ -83,14 +85,16 @@ export default function RankingsScreen() {
 
   const loadRankings = useCallback(async () => {
     if (!sportId || !profile) return;
-    const [pl, tm, mv] = await Promise.all([
+    const [pl, tm, mv, sc] = await Promise.all([
       fetchTopPlayers(sportId, profile.city, 20),
       fetchTopTeams(sportId, profile.city, 20),
       fetchTopMvps(profile.city, 20),
+      fetchTopScorers(profile.city, sportId, 20),
     ]);
     setPlayers(pl);
     setTeams(tm);
     setMvps(mv);
+    setScorers(sc);
   }, [sportId, profile]);
 
   useFocusEffect(
@@ -193,6 +197,19 @@ export default function RankingsScreen() {
                   👑 MVPs
                 </Text>
               </Pressable>
+              <Pressable
+                onPress={() => setTab('scorers')}
+                style={[styles.tab, tab === 'scorers' && styles.tabActive]}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    tab === 'scorers' && styles.tabTextActive,
+                  ]}
+                >
+                  ⚽ Goleadores
+                </Text>
+              </Pressable>
             </Animated.View>
 
             {(tab === 'players' || tab === 'teams') && (
@@ -277,26 +294,50 @@ export default function RankingsScreen() {
                   </Animated.View>
                 ))
               )
-            ) : mvps.length === 0 ? (
+            ) : tab === 'mvps' ? (
+              mvps.length === 0 ? (
+                <Card style={{ marginTop: 8 }}>
+                  <Text style={styles.muted}>
+                    Ainda ninguém recebeu votos de MVP na tua cidade. Vai a um
+                    jogo validado e vota.
+                  </Text>
+                </Card>
+              ) : (
+                mvps.map((m, i) => (
+                  <Animated.View
+                    key={m.user_id}
+                    entering={FadeInDown.delay(120 + i * 25).springify()}
+                  >
+                    <RankRow
+                      rank={i + 1}
+                      title={m.name}
+                      subtitle={`${m.mvp_votes} voto${m.mvp_votes === 1 ? '' : 's'}`}
+                      photoUrl={m.photo_url}
+                      elo={m.mvp_votes}
+                      onPress={() => router.push(`/(app)/users/${m.user_id}`)}
+                    />
+                  </Animated.View>
+                ))
+              )
+            ) : scorers.length === 0 ? (
               <Card style={{ marginTop: 8 }}>
                 <Text style={styles.muted}>
-                  Ainda ninguém recebeu votos de MVP na tua cidade. Vai a um
-                  jogo validado e vota.
+                  Ainda ninguém marcou golos registados na tua cidade.
                 </Text>
               </Card>
             ) : (
-              mvps.map((m, i) => (
+              scorers.map((s, i) => (
                 <Animated.View
-                  key={m.user_id}
+                  key={s.user_id}
                   entering={FadeInDown.delay(120 + i * 25).springify()}
                 >
                   <RankRow
                     rank={i + 1}
-                    title={m.name}
-                    subtitle={`${m.mvp_votes} voto${m.mvp_votes === 1 ? '' : 's'}`}
-                    photoUrl={m.photo_url}
-                    elo={m.mvp_votes}
-                    onPress={() => router.push(`/(app)/users/${m.user_id}`)}
+                    title={s.name}
+                    subtitle={`${s.goals} golo${s.goals === 1 ? '' : 's'} · ${s.assists} ass.`}
+                    photoUrl={s.photo_url}
+                    elo={s.goals}
+                    onPress={() => router.push(`/(app)/users/${s.user_id}`)}
                   />
                 </Animated.View>
               ))
