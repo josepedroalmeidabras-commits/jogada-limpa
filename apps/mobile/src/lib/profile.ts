@@ -51,6 +51,33 @@ export type ProfileSubmission = {
   sports: { sport_id: number; declared_level: number }[];
 };
 
+export type ProfileUpdate = {
+  name?: string;
+  city?: string;
+  phone?: string | null;
+};
+
+export async function updateProfile(
+  userId: string,
+  input: ProfileUpdate,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.city !== undefined) patch.city = input.city;
+  if (input.phone !== undefined) patch.phone = input.phone;
+  const { error } = await supabase
+    .from('profiles')
+    .update(patch)
+    .eq('id', userId);
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível guardar.',
+    };
+  }
+  return { ok: true };
+}
+
 export async function createProfile(
   userId: string,
   input: ProfileSubmission,

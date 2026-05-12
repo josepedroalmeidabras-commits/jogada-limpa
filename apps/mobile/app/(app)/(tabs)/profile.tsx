@@ -90,6 +90,12 @@ export default function ProfileScreen() {
           <Text style={styles.name}>{profile?.name}</Text>
           <Text style={styles.city}>{profile?.city}</Text>
           <Text style={styles.email}>{session?.user.email}</Text>
+          <Pressable
+            style={styles.editBtn}
+            onPress={() => router.push('/(app)/profile/edit')}
+          >
+            <Text style={styles.editBtnText}>Editar perfil</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.section}>ELO por desporto</Text>
@@ -219,6 +225,16 @@ const styles = StyleSheet.create({
   name: { color: '#ffffff', fontSize: 22, fontWeight: '700' },
   city: { color: '#a3a3a3', fontSize: 14 },
   email: { color: '#737373', fontSize: 12 },
+  editBtn: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  editBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
   section: {
     color: '#a3a3a3',
     fontSize: 12,

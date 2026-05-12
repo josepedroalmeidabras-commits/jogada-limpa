@@ -19,6 +19,14 @@ export default function Home() {
           Beta fechado em breve. Sem spam.
         </p>
       </main>
+      <footer className="mt-16 flex gap-6 text-xs text-white/30">
+        <a href="/privacidade" className="hover:text-white/60">
+          Privacidade
+        </a>
+        <a href="/termos" className="hover:text-white/60">
+          Termos
+        </a>
+      </footer>
     </div>
   );
 }
