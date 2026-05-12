@@ -16,10 +16,11 @@ import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
 import {
   fetchPendingChallengesForUser,
   fetchPendingReviewsForUser,
-  formatMatchDate,
+  formatRelativeMatchDate,
   type PendingChallenge,
   type PendingReview,
 } from '@/lib/matches';
+import { RefreshControl } from 'react-native';
 
 export default function HomeScreen() {
   const { session } = useAuth();
@@ -29,6 +30,7 @@ export default function HomeScreen() {
   const [challenges, setChallenges] = useState<PendingChallenge[]>([]);
   const [reviews, setReviews] = useState<PendingReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -54,6 +56,12 @@ export default function HomeScreen() {
     setLoading(false);
   }, [session, router]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
   useEffect(() => {
     load();
   }, [load]);
@@ -77,7 +85,16 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
+        }
+      >
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.hello}>Olá, {profile?.name}</Text>
@@ -110,7 +127,7 @@ export default function HomeScreen() {
                     {c.opponent_team_name}
                   </Text>
                   <Text style={styles.cardMeta}>
-                    {formatMatchDate(c.scheduled_at)} ·{' '}
+                    {formatRelativeMatchDate(c.scheduled_at)} ·{' '}
                     {c.location_tbd ? 'A combinar' : c.location_name ?? '—'}
                   </Text>
                 </View>

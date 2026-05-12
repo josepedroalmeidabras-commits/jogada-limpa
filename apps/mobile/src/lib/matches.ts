@@ -277,6 +277,38 @@ export function formatMatchDate(iso: string): string {
   return `${day}/${month}/${year} · ${hour}:${min}`;
 }
 
+export function formatRelativeMatchDate(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const time = d.toLocaleTimeString('pt-PT', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  if (sameDay(d, now)) return `Hoje · ${time}`;
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (sameDay(d, tomorrow)) return `Amanhã · ${time}`;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (sameDay(d, yesterday)) return `Ontem · ${time}`;
+
+  const oneWeek = 7 * 24 * 60 * 60 * 1000;
+  const absDiff = Math.abs(d.getTime() - now.getTime());
+  if (absDiff < oneWeek) {
+    const weekday = d.toLocaleDateString('pt-PT', { weekday: 'long' });
+    const cap = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    return `${cap} · ${time}`;
+  }
+  return formatMatchDate(iso);
+}
+
 export type PendingChallenge = {
   match_id: string;
   scheduled_at: string;

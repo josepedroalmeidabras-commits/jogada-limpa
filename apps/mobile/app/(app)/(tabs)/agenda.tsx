@@ -13,21 +13,32 @@ import { useAuth } from '@/providers/auth';
 import {
   fetchMatchesForUser,
   formatMatchDate,
+  formatRelativeMatchDate,
   statusLabel,
   type MatchSummary,
 } from '@/lib/matches';
+import { RefreshControl } from 'react-native';
 
 export default function AgendaScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
     const data = await fetchMatchesForUser(session.user.id);
     setMatches(data);
     setLoading(false);
+  }, [session]);
+
+  const onRefresh = useCallback(async () => {
+    if (!session) return;
+    setRefreshing(true);
+    const data = await fetchMatchesForUser(session.user.id);
+    setMatches(data);
+    setRefreshing(false);
   }, [session]);
 
   useFocusEffect(
@@ -68,7 +79,16 @@ export default function AgendaScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
+        }
+      >
         <View style={styles.titleRow}>
           <Text style={styles.title}>Jogos</Text>
           <Pressable
@@ -147,7 +167,11 @@ function MatchRow({
         <Text style={styles.teams}>
           {match.side_a.name} vs {match.side_b.name}
         </Text>
-        <Text style={styles.meta}>{formatMatchDate(match.scheduled_at)}</Text>
+        <Text style={styles.meta}>
+          {match.status === 'validated'
+            ? formatMatchDate(match.scheduled_at)
+            : formatRelativeMatchDate(match.scheduled_at)}
+        </Text>
       </View>
       {match.status === 'validated' &&
       match.final_score_a !== null &&
