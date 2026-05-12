@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
+import { supabase } from '@/lib/supabase';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
 import {
