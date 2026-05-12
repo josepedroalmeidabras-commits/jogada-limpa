@@ -7,6 +7,8 @@ export type MatchParticipant = {
   side: 'A' | 'B';
   invitation_status: 'pending' | 'accepted' | 'declined';
   attendance: 'attended' | 'missed' | 'substitute_in' | 'substitute_out' | null;
+  goals: number;
+  assists: number;
   profile: { id: string; name: string; photo_url: string | null } | null;
 };
 
@@ -16,7 +18,7 @@ export async function fetchMatchParticipants(
   const { data, error } = await supabase
     .from('match_participants')
     .select(
-      `match_id, user_id, side, invitation_status, attendance,
+      `match_id, user_id, side, invitation_status, attendance, goals, assists,
        profile:profiles!inner(id, name, photo_url)`,
     )
     .eq('match_id', matchId);
@@ -25,7 +27,11 @@ export async function fetchMatchParticipants(
     console.error('fetchMatchParticipants error', error);
     return [];
   }
-  return data as unknown as MatchParticipant[];
+  return (data as unknown as MatchParticipant[]).map((p) => ({
+    ...p,
+    goals: p.goals ?? 0,
+    assists: p.assists ?? 0,
+  }));
 }
 
 export type OpenSubstitute = {
@@ -100,17 +106,29 @@ export async function inviteSubstitute(input: {
   return { ok: true };
 }
 
+export type ParticipantInput = {
+  user_id: string;
+  attended: boolean;
+  goals?: number;
+  assists?: number;
+};
+
 export async function submitMatchSideResult(input: {
   match_id: string;
   score_a: number;
   score_b: number;
-  attended_user_ids: string[];
+  participants: ParticipantInput[];
 }): Promise<{ ok: true } | { ok: false; message: string }> {
   const { error } = await supabase.rpc('submit_match_side_result', {
     p_match_id: input.match_id,
     p_score_a: input.score_a,
     p_score_b: input.score_b,
-    p_attended_user_ids: input.attended_user_ids,
+    p_participants: input.participants.map((p) => ({
+      user_id: p.user_id,
+      attended: p.attended,
+      goals: p.goals ?? 0,
+      assists: p.assists ?? 0,
+    })),
   });
   if (error) {
     return {

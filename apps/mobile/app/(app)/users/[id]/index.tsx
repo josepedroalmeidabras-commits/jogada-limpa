@@ -57,6 +57,7 @@ import {
   type FriendshipStatus,
   type MutualFriend,
 } from '@/lib/friends';
+import { fetchSeasonStats, type SeasonStats } from '@/lib/season-stats';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -126,11 +127,12 @@ export default function PublicProfileScreen() {
     list: [],
     total: 0,
   });
+  const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [p, s, a, h, mvp, ps, cv, fs, mf] = await Promise.all([
+    const [p, s, a, h, mvp, ps, cv, fs, mf, ss] = await Promise.all([
       fetchProfile(id),
       fetchUserSports(id),
       fetchReviewAggregate(id),
@@ -140,6 +142,7 @@ export default function PublicProfileScreen() {
       canVoteOnPlayer(id),
       isSelf ? Promise.resolve<FriendshipStatus>('none') : fetchFriendshipStatus(id),
       isSelf ? Promise.resolve({ list: [], total: 0 }) : fetchMutualFriends(id, 5),
+      fetchSeasonStats(id),
     ]);
     setProfile(p);
     setSports(s);
@@ -149,6 +152,7 @@ export default function PublicProfileScreen() {
     setCanVote(cv);
     setFriendStatus(fs);
     setMutual(mf);
+    setSeasonStats(ss);
     setMvpCount(mvp);
     setLoading(false);
   }, [id, isSelf]);
@@ -454,6 +458,39 @@ export default function PublicProfileScreen() {
           </Animated.View>
         )}
 
+        {seasonStats && seasonStats.matches_played > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(65).springify()}
+            style={styles.section}
+          >
+            <Eyebrow>Esta época</Eyebrow>
+            <Card style={{ marginTop: 8 }}>
+              <View style={styles.seasonRow}>
+                <View style={styles.seasonCell}>
+                  <Text style={styles.seasonValue}>
+                    {seasonStats.matches_played}
+                  </Text>
+                  <Text style={styles.seasonLabel}>
+                    {seasonStats.matches_played === 1 ? 'jogo' : 'jogos'}
+                  </Text>
+                </View>
+                <View style={styles.seasonCell}>
+                  <Text style={[styles.seasonValue, { color: '#fbbf24' }]}>
+                    {seasonStats.goals}
+                  </Text>
+                  <Text style={styles.seasonLabel}>⚽ golos</Text>
+                </View>
+                <View style={styles.seasonCell}>
+                  <Text style={[styles.seasonValue, { color: '#34d399' }]}>
+                    {seasonStats.assists}
+                  </Text>
+                  <Text style={styles.seasonLabel}>🎁 assist.</Text>
+                </View>
+              </View>
+            </Card>
+          </Animated.View>
+        )}
+
         <Animated.View
           entering={FadeInDown.delay(70).springify()}
           style={styles.section}
@@ -597,6 +634,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  seasonRow: { flexDirection: 'row' },
+  seasonCell: { flex: 1, alignItems: 'center' },
+  seasonValue: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+  seasonLabel: {
+    color: '#a3a3a3',
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   mutualAvatars: { flexDirection: 'row', alignItems: 'center' },
   mutualAvatarWrap: {

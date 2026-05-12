@@ -30,6 +30,7 @@ import {
   type EloHistoryPoint,
 } from '@/lib/elo-history';
 import { EloChart } from '@/components/EloChart';
+import { fetchSeasonStats, type SeasonStats } from '@/lib/season-stats';
 import { colors } from '@/theme';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
@@ -56,11 +57,12 @@ export default function ProfileScreen() {
   const [mvpCount, setMvpCount] = useState(0);
   const [isCaptain, setIsCaptain] = useState(false);
   const [eloHistory, setEloHistory] = useState<EloHistoryPoint[]>([]);
+  const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const [p, s, a, h, mvp, myTeams, eh] = await Promise.all([
+    const [p, s, a, h, mvp, myTeams, eh, ss] = await Promise.all([
       fetchProfile(session.user.id),
       fetchUserSports(session.user.id),
       fetchReviewAggregate(session.user.id),
@@ -68,6 +70,7 @@ export default function ProfileScreen() {
       fetchMvpCount(session.user.id),
       fetchMyTeams(session.user.id),
       fetchEloHistory(session.user.id, undefined, 30),
+      fetchSeasonStats(session.user.id),
     ]);
     setProfile(p);
     setSports(s);
@@ -76,6 +79,7 @@ export default function ProfileScreen() {
     setMvpCount(mvp);
     setIsCaptain(myTeams.some((t) => t.captain_id === session.user.id));
     setEloHistory(eh);
+    setSeasonStats(ss);
     setLoading(false);
   }, [session]);
 
@@ -167,6 +171,39 @@ export default function ProfileScreen() {
                 ))
               )}
             </Animated.View>
+
+            {seasonStats && seasonStats.matches_played > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(100).springify()}
+                style={styles.section}
+              >
+                <Eyebrow>Esta época</Eyebrow>
+                <Card style={{ marginTop: 8 }}>
+                  <View style={styles.seasonRow}>
+                    <View style={styles.seasonCell}>
+                      <Text style={styles.seasonValue}>
+                        {seasonStats.matches_played}
+                      </Text>
+                      <Text style={styles.seasonLabel}>
+                        {seasonStats.matches_played === 1 ? 'jogo' : 'jogos'}
+                      </Text>
+                    </View>
+                    <View style={styles.seasonCell}>
+                      <Text style={[styles.seasonValue, { color: '#fbbf24' }]}>
+                        {seasonStats.goals}
+                      </Text>
+                      <Text style={styles.seasonLabel}>⚽ golos</Text>
+                    </View>
+                    <View style={styles.seasonCell}>
+                      <Text style={[styles.seasonValue, { color: '#34d399' }]}>
+                        {seasonStats.assists}
+                      </Text>
+                      <Text style={styles.seasonLabel}>🎁 assist.</Text>
+                    </View>
+                  </View>
+                </Card>
+              </Animated.View>
+            )}
 
             {eloHistory.length >= 2 && (() => {
               const summary = summariseEloHistory(eloHistory);
@@ -513,6 +550,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     letterSpacing: -0.1,
+  },
+  seasonRow: { flexDirection: 'row' },
+  seasonCell: { flex: 1, alignItems: 'center' },
+  seasonValue: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+  seasonLabel: {
+    color: '#a3a3a3',
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   muted: { color: '#737373', fontSize: 13 },
   aggRow: { marginBottom: 12 },
