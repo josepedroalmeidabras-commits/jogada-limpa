@@ -23,6 +23,12 @@ import {
   type TeamMember,
   type TeamWithSport,
 } from '@/lib/teams';
+import {
+  fetchMatchesForTeam,
+  formatMatchDate,
+  statusLabel,
+  type MatchSummary,
+} from '@/lib/matches';
 
 export default function TeamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,17 +36,20 @@ export default function TeamDetailScreen() {
   const router = useRouter();
   const [team, setTeam] = useState<TeamWithSport | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [t, m] = await Promise.all([
+    const [t, m, ms] = await Promise.all([
       fetchTeamById(id),
       fetchTeamMembers(id),
+      fetchMatchesForTeam(id),
     ]);
     setTeam(t);
     setMembers(m);
+    setMatches(ms);
     setLoading(false);
   }, [id]);
 
@@ -112,7 +121,58 @@ export default function TeamDetailScreen() {
           </Text>
         </View>
 
-        <Text style={styles.section}>Plantel ({members.length})</Text>
+        {isCaptain && (
+          <Pressable
+            style={styles.primary}
+            onPress={() => router.push(`/(app)/teams/${team.id}/match/new`)}
+          >
+            <Text style={styles.primaryText}>Marcar jogo</Text>
+          </Pressable>
+        )}
+
+        <Text style={[styles.section, { marginTop: 24 }]}>
+          Jogos ({matches.length})
+        </Text>
+        {matches.length === 0 ? (
+          <Text style={styles.emptyMatches}>
+            Sem jogos ainda. {isCaptain ? 'Toca em "Marcar jogo" para começar.' : ''}
+          </Text>
+        ) : (
+          matches.map((m) => {
+            const opponent =
+              m.side_a.id === team.id ? m.side_b : m.side_a;
+            return (
+              <Pressable
+                key={m.id}
+                style={styles.matchCard}
+                onPress={() => router.push(`/(app)/matches/${m.id}`)}
+              >
+                <View style={styles.matchCardLeft}>
+                  <Text style={styles.matchOpponent}>vs {opponent.name}</Text>
+                  <Text style={styles.matchWhen}>
+                    {formatMatchDate(m.scheduled_at)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    m.status === 'confirmed' && styles.statusConfirmed,
+                    m.status === 'cancelled' && styles.statusCancelled,
+                    m.status === 'disputed' && styles.statusCancelled,
+                  ]}
+                >
+                  <Text style={styles.statusBadgeText}>
+                    {statusLabel(m.status)}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })
+        )}
+
+        <Text style={[styles.section, { marginTop: 24 }]}>
+          Plantel ({members.length})
+        </Text>
         {members.map((m) => (
           <View key={m.user_id} style={styles.member}>
             <View style={styles.avatar}>
@@ -170,9 +230,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   scroll: { padding: 24, paddingBottom: 48 },
-  header: { marginBottom: 24 },
+  header: { marginBottom: 16 },
   name: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
   meta: { color: '#a3a3a3', fontSize: 14, marginTop: 4 },
+  primary: {
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryText: { color: '#000000', fontSize: 16, fontWeight: '600' },
   section: {
     color: '#a3a3a3',
     fontSize: 12,
@@ -180,6 +247,45 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 12,
   },
+  emptyMatches: {
+    color: '#737373',
+    fontSize: 13,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  matchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: 8,
+  },
+  matchCardLeft: { flex: 1 },
+  matchOpponent: { color: '#ffffff', fontWeight: '600', fontSize: 15 },
+  matchWhen: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+  },
+  statusConfirmed: {
+    backgroundColor: 'rgba(52, 211, 153, 0.15)',
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  statusCancelled: {
+    backgroundColor: 'rgba(248, 113, 113, 0.15)',
+    borderColor: 'rgba(248, 113, 113, 0.4)',
+  },
+  statusBadgeText: { color: '#ffffff', fontSize: 11, fontWeight: '600' },
   member: {
     flexDirection: 'row',
     alignItems: 'center',
