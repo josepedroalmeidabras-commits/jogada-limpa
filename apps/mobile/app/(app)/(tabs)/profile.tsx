@@ -23,6 +23,7 @@ import {
 } from '@/lib/history';
 import { formatMatchDate } from '@/lib/matches';
 import { Avatar } from '@/components/Avatar';
+import { ADMIN_EMAIL } from '@/lib/admin';
 
 function levelLabel(elo: number): string {
   if (elo < 1100) return 'Casual';
@@ -171,6 +172,15 @@ export default function ProfileScreen() {
           ))
         )}
 
+        {session?.user.email === ADMIN_EMAIL && (
+          <Pressable
+            style={styles.adminBtn}
+            onPress={() => router.push('/(app)/admin/waitlist')}
+          >
+            <Text style={styles.adminBtnText}>Admin: ver waitlist</Text>
+          </Pressable>
+        )}
+
         <Pressable
           style={styles.signOut}
           onPress={async () => {
@@ -310,8 +320,19 @@ const styles = StyleSheet.create({
   },
   resultWin: { color: '#34d399' },
   resultLoss: { color: '#f87171' },
+  adminBtn: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+    alignSelf: 'center',
+  },
+  adminBtnText: { color: '#fbbf24', fontSize: 14, fontWeight: '600' },
   signOut: {
-    marginTop: 40,
+    marginTop: 24,
     paddingVertical: 12,
     alignItems: 'center',
   },
