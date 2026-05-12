@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
@@ -16,7 +16,7 @@ import {
   type AppNotification,
 } from '@/lib/notifications';
 import { Screen } from '@/components/Screen';
-import { Heading } from '@/components/Heading';
+import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
@@ -33,6 +33,48 @@ function relTime(iso: string): string {
   const diffD = Math.floor(diffH / 24);
   if (diffD < 7) return `${diffD}d`;
   return new Date(iso).toLocaleDateString('pt-PT');
+}
+
+function iconForType(type: string): string {
+  if (type.startsWith('match_invite') || type.startsWith('match_proposed')) return '⚔️';
+  if (type.startsWith('match_confirmed')) return '✅';
+  if (type.startsWith('match_cancelled')) return '❌';
+  if (type.startsWith('match_rescheduled')) return '📅';
+  if (type.startsWith('result')) return '⚽';
+  if (type.startsWith('review')) return '⭐';
+  if (type.startsWith('peladinha')) return '⚡';
+  if (type.startsWith('team_announcement')) return '📌';
+  if (type.startsWith('friend_request')) return '👋';
+  if (type.startsWith('friend_accepted')) return '🤝';
+  if (type.startsWith('substitute')) return '🆘';
+  if (type.startsWith('open_match')) return '🔔';
+  if (type.startsWith('match_chat') || type.startsWith('team_chat')) return '💬';
+  return '🔔';
+}
+
+function dayKey(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  if (
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate()
+  )
+    return 'HOJE';
+  const y = new Date(today);
+  y.setDate(today.getDate() - 1);
+  if (
+    d.getFullYear() === y.getFullYear() &&
+    d.getMonth() === y.getMonth() &&
+    d.getDate() === y.getDate()
+  )
+    return 'ONTEM';
+  const diff = Math.floor(
+    (today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diff < 7) return 'ESTA SEMANA';
+  if (diff < 30) return 'ESTE MÊS';
+  return 'MAIS ANTIGO';
 }
 
 export default function NotificationsScreen() {
@@ -75,9 +117,33 @@ export default function NotificationsScreen() {
         ),
       );
     }
-    const matchId = (n.payload as any)?.match_id as string | undefined;
-    if (matchId) router.push(`/(app)/matches/${matchId}`);
+    const payload = n.payload as any;
+    const matchId = payload?.match_id as string | undefined;
+    const teamId = payload?.team_id as string | undefined;
+    const fromId = (payload?.from_id ?? payload?.friend_id) as string | undefined;
+    if (matchId) {
+      router.push(`/(app)/matches/${matchId}`);
+    } else if (teamId) {
+      router.push(`/(app)/teams/${teamId}`);
+    } else if (fromId) {
+      router.push(`/(app)/users/${fromId}`);
+    }
   }
+
+  // Group items by day bucket while preserving order
+  const grouped = useMemo(() => {
+    const result: Array<{ key: string; items: AppNotification[] }> = [];
+    let currentKey: string | null = null;
+    for (const n of items) {
+      const k = dayKey(n.sent_at);
+      if (k !== currentKey) {
+        result.push({ key: k, items: [] });
+        currentKey = k;
+      }
+      result[result.length - 1]!.items.push(n);
+    }
+    return result;
+  }, [items]);
 
   return (
     <Screen>
@@ -139,30 +205,36 @@ export default function NotificationsScreen() {
             </Text>
           </Card>
         ) : (
-          items.map((n, i) => (
-            <Animated.View
-              key={n.id}
-              entering={FadeInDown.delay(60 + i * 25).springify()}
-            >
-              <Card
-                onPress={() => onTap(n)}
-                style={[
-                  { marginTop: 8 },
-                  !n.read_at && styles.unread,
-                ]}
-              >
-                <View style={styles.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.title}>{n.title}</Text>
-                    {n.body && <Text style={styles.body}>{n.body}</Text>}
-                  </View>
-                  <View style={styles.right}>
-                    {!n.read_at && <View style={styles.dot} />}
-                    <Text style={styles.time}>{relTime(n.sent_at)}</Text>
-                  </View>
-                </View>
-              </Card>
-            </Animated.View>
+          grouped.map((group, gi) => (
+            <View key={`g-${gi}`} style={{ marginTop: gi === 0 ? 16 : 24 }}>
+              <Eyebrow>{group.key}</Eyebrow>
+              {group.items.map((n, i) => (
+                <Animated.View
+                  key={n.id}
+                  entering={FadeInDown.delay(20 + i * 20).springify()}
+                >
+                  <Card
+                    onPress={() => onTap(n)}
+                    style={[
+                      { marginTop: 8 },
+                      !n.read_at && styles.unread,
+                    ]}
+                  >
+                    <View style={styles.row}>
+                      <Text style={styles.icon}>{iconForType(n.type)}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.title}>{n.title}</Text>
+                        {n.body && <Text style={styles.body}>{n.body}</Text>}
+                      </View>
+                      <View style={styles.right}>
+                        {!n.read_at && <View style={styles.dot} />}
+                        <Text style={styles.time}>{relTime(n.sent_at)}</Text>
+                      </View>
+                    </View>
+                  </Card>
+                </Animated.View>
+              ))}
+            </View>
           ))
         )}
       </ScrollView>
@@ -178,6 +250,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandSoft,
   },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  icon: { fontSize: 22, marginTop: 2 },
   title: {
     color: colors.text,
     fontSize: 15,
