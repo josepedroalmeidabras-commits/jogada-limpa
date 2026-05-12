@@ -127,7 +127,7 @@ export default function ReportUserScreen() {
           </Card>
 
           <Text style={styles.disclaimer}>
-            As denúncias são confidenciais. A equipa Jogada Limpa revê e toma
+            As denúncias são confidenciais. A equipa S7VN revê e toma
             acção quando aplicável.
           </Text>
 

@@ -346,7 +346,7 @@ function Stepper({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#0E1812' },
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   scroll: { padding: 24, paddingBottom: 48 },

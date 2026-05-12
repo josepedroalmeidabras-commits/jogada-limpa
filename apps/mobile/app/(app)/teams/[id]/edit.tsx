@@ -138,7 +138,7 @@ export default function EditTeamScreen() {
           options={{
             headerShown: true,
             headerTitle: 'Editar equipa',
-            headerStyle: { backgroundColor: '#0a0a0a' },
+            headerStyle: { backgroundColor: '#0E1812' },
             headerTintColor: '#ffffff',
           }}
         />
@@ -155,7 +155,7 @@ export default function EditTeamScreen() {
         options={{
           headerShown: true,
           headerTitle: 'Editar equipa',
-          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerStyle: { backgroundColor: '#0E1812' },
           headerTintColor: '#ffffff',
         }}
       />
@@ -382,7 +382,7 @@ export default function EditTeamScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#0E1812' },
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   scroll: { padding: 24, paddingBottom: 48 },

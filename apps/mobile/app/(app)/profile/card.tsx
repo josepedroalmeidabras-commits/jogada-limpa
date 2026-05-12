@@ -98,7 +98,7 @@ export default function PlayerCardScreen() {
       elo !== null ? `ELO ${elo}` : '',
       season ? `${season.matches_played} jogos · ${season.goals}G · ${season.assists}A` : '',
       '',
-      'Jogada Limpa — jogadalimpa.app',
+      'S7VN — jogadalimpa.app',
     ].filter(Boolean);
     try {
       await Share.share({ message: lines.join('\n') });
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: '#0f1a14',
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.35)',
+    borderColor: 'rgba(201,162,107,0.35)',
     overflow: 'hidden',
   },
   topRow: {
@@ -324,14 +324,14 @@ const styles = StyleSheet.create({
     height: 36,
     paddingHorizontal: 6,
     borderRadius: 18,
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C9A26B',
     borderWidth: 3,
     borderColor: '#0f1a14',
     alignItems: 'center',
     justifyContent: 'center',
   },
   jerseyText: {
-    color: '#0a0a0a',
+    color: '#0E1812',
     fontSize: 16,
     fontWeight: '900',
   },
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   brand: {
-    color: 'rgba(34,197,94,0.5)',
+    color: 'rgba(201,162,107,0.5)',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.5,

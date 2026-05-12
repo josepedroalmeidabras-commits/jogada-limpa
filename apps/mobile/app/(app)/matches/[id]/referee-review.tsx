@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  pickerTextActive: { color: '#0a0a0a' },
+  pickerTextActive: { color: '#0E1812' },
   input: {
     padding: 14,
     minHeight: 90,

@@ -123,7 +123,7 @@ export default function SubstitutesScreen() {
         options={{
           headerShown: true,
           headerTitle: 'Procurar substitutos',
-          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerStyle: { backgroundColor: '#0E1812' },
           headerTintColor: '#ffffff',
         }}
       />
@@ -181,7 +181,7 @@ export default function SubstitutesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#0E1812' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   scroll: { padding: 24, paddingBottom: 48 },
   heading: { color: '#ffffff', fontSize: 22, fontWeight: '800' },

@@ -25,6 +25,6 @@ export function Screen({ children, edges }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#0E1812' },
   inner: { flex: 1 },
 });

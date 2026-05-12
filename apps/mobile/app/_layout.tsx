@@ -24,7 +24,7 @@ function AuthGate() {
       <View
         style={{
           flex: 1,
-          backgroundColor: '#0a0a0a',
+          backgroundColor: '#0E1812',
           alignItems: 'center',
           justifyContent: 'center',
         }}

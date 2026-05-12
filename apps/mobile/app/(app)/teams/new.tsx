@@ -84,7 +84,7 @@ export default function NewTeamScreen() {
         options={{
           headerShown: true,
           headerTitle: 'Criar equipa',
-          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerStyle: { backgroundColor: '#0E1812' },
           headerTintColor: '#ffffff',
         }}
       />
@@ -180,7 +180,7 @@ export default function NewTeamScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#0E1812' },
   flex: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 48 },
   label: {

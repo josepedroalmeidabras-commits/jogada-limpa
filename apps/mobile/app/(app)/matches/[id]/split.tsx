@@ -263,7 +263,7 @@ function PlayerRow({
           style={[styles.sideBtn, side === 'A' && styles.sideBtnAActive]}
         >
           <Text
-            style={[styles.sideBtnText, side === 'A' && { color: '#0a0a0a' }]}
+            style={[styles.sideBtnText, side === 'A' && { color: '#0E1812' }]}
             numberOfLines={1}
           >
             {labelA}
@@ -274,7 +274,7 @@ function PlayerRow({
           style={[styles.sideBtn, side === 'B' && styles.sideBtnBActive]}
         >
           <Text
-            style={[styles.sideBtnText, side === 'B' && { color: '#0a0a0a' }]}
+            style={[styles.sideBtnText, side === 'B' && { color: '#0E1812' }]}
             numberOfLines={1}
           >
             {labelB}

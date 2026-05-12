@@ -596,7 +596,7 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#0E1812' },
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   footChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
-  footChipTextActive: { color: '#0a0a0a' },
+  footChipTextActive: { color: '#0E1812' },
   posSportLabel: {
     color: '#a3a3a3',
     fontSize: 12,
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   posChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
-  posChipTextActive: { color: '#0a0a0a' },
+  posChipTextActive: { color: '#0E1812' },
   avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
   changePhotoBtn: {
     paddingHorizontal: 16,

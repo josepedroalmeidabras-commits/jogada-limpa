@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Jogada Limpa",
+    "name": "S7VN",
     "slug": "jogada-limpa",
     "scheme": "jogadalimpa",
     "version": "0.1.0",
@@ -10,10 +10,10 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0a0a0a"
+      "backgroundColor": "#0E1812"
     },
     "androidStatusBar": {
-      "backgroundColor": "#0a0a0a",
+      "backgroundColor": "#0E1812",
       "barStyle": "light-content"
     },
     "userInterfaceStyle": "dark",
@@ -28,7 +28,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0a0a0a"
+        "backgroundColor": "#0E1812"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

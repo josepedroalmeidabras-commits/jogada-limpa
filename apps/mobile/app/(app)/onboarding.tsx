@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
   },
   chipText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  chipTextPicked: { color: '#0a0a0a' },
+  chipTextPicked: { color: '#0E1812' },
   levelBlock: {
     marginTop: 16,
     padding: 16,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   },
   dotActive: { backgroundColor: colors.brand },
   dotText: { color: colors.textMuted, fontSize: 12 },
-  dotTextActive: { color: '#0a0a0a', fontWeight: '700' },
+  dotTextActive: { color: '#0E1812', fontWeight: '700' },
   tosRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
     borderColor: colors.brand,
   },
-  checkboxMark: { color: '#0a0a0a', fontWeight: '800' },
+  checkboxMark: { color: '#0E1812', fontWeight: '800' },
   tosText: { color: '#d4d4d4', flex: 1, fontSize: 14, lineHeight: 20 },
   error: {
     color: colors.danger,

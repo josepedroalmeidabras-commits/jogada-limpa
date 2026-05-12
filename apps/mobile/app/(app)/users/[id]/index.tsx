@@ -336,7 +336,7 @@ export default function PublicProfileScreen() {
         options={{
           headerShown: true,
           headerTitle: profile.name,
-          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerStyle: { backgroundColor: '#0E1812' },
           headerTintColor: '#ffffff',
           headerRight: () =>
             isSelf ? null : (
@@ -684,14 +684,14 @@ const styles = StyleSheet.create({
     height: 32,
     paddingHorizontal: 6,
     borderRadius: 16,
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C9A26B',
     borderWidth: 3,
-    borderColor: '#0a0a0a',
+    borderColor: '#0E1812',
     alignItems: 'center',
     justifyContent: 'center',
   },
   jerseyText: {
-    color: '#0a0a0a',
+    color: '#0E1812',
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: -0.3,
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
   mutualAvatarWrap: {
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#0a0a0a',
+    borderColor: '#0E1812',
   },
   mutualText: {
     color: '#a3a3a3',

@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   },
   heroBlock: { alignItems: 'center', marginBottom: 32 },
   eyebrow: {
-    color: '#22c55e',
+    color: '#C9A26B',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 2,

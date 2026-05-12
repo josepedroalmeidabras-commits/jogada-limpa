@@ -166,7 +166,7 @@ export default function MatchDetailScreen() {
         options={{
           headerShown: true,
           headerTitle: 'Jogo',
-          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerStyle: { backgroundColor: '#0E1812' },
           headerTintColor: '#ffffff',
         }}
       />
@@ -756,7 +756,7 @@ export default function MatchDetailScreen() {
                 variant="secondary"
                 full
                 onPress={async () => {
-                  const result = `${match.side_a.name} ${match.final_score_a}–${match.final_score_b} ${match.side_b.name}\n${formatMatchDate(match.scheduled_at)}\n\nJogado na Jogada Limpa 🟢`;
+                  const result = `${match.side_a.name} ${match.final_score_a}–${match.final_score_b} ${match.side_b.name}\n${formatMatchDate(match.scheduled_at)}\n\nJogado na S7VN 🟢`;
                   try {
                     await Share.share({ message: result });
                   } catch {
@@ -874,13 +874,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(34,197,94,0.12)',
+    backgroundColor: 'rgba(201,162,107,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.3)',
+    borderColor: 'rgba(201,162,107,0.3)',
     marginBottom: 12,
   },
   internalBannerText: {
-    color: '#22c55e',
+    color: '#C9A26B',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -902,7 +902,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   refEdit: {
-    color: '#22c55e',
+    color: '#C9A26B',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1007,7 +1007,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   notesEdit: {
-    color: '#22c55e',
+    color: '#C9A26B',
     fontSize: 12,
     fontWeight: '700',
   },

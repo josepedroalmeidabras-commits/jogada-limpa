@@ -38,7 +38,7 @@ export async function fetchUserRatingHistory(
 }
 
 export function ratingTierColor(value: number): string {
-  if (value >= 4.2) return '#22c55e'; // green
+  if (value >= 4.2) return '#C9A26B'; // green
   if (value >= 3.5) return '#facc15'; // yellow
   if (value >= 2.8) return '#fb923c'; // orange
   return '#f87171'; // red

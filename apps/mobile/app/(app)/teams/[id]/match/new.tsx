@@ -177,7 +177,7 @@ export default function NewMatchScreen() {
         options={{
           headerShown: true,
           headerTitle: 'Marcar jogo',
-          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerStyle: { backgroundColor: '#0E1812' },
           headerTintColor: '#ffffff',
         }}
       />
@@ -441,7 +441,7 @@ export default function NewMatchScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  safe: { flex: 1, backgroundColor: '#0E1812' },
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
   },
   filterChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
-  filterChipTextActive: { color: '#0a0a0a' },
+  filterChipTextActive: { color: '#0E1812' },
   presetRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -522,12 +522,12 @@ const styles = StyleSheet.create({
   formDotDraw: { backgroundColor: colors.warning },
   formDotLoss: { backgroundColor: colors.danger },
   formDotText: {
-    color: '#0a0a0a',
+    color: '#0E1812',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: -0.2,
   },
-  formDotTextPicked: { color: '#0a0a0a' },
+  formDotTextPicked: { color: '#0E1812' },
   oppCard: {
     padding: 14,
     borderRadius: 12,

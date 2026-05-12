@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  filterChipTextActive: { color: '#0a0a0a', fontWeight: '700' },
+  filterChipTextActive: { color: '#0E1812', fontWeight: '700' },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

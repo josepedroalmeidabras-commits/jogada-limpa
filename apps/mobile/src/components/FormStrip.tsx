@@ -20,7 +20,7 @@ function letter(r: FormResult) {
 
 function bg(r: FormResult) {
   return r === 'win'
-    ? '#22c55e'
+    ? '#C9A26B'
     : r === 'loss'
       ? '#f87171'
       : '#a3a3a3';
@@ -64,6 +64,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxText: { color: '#0a0a0a', fontWeight: '900' },
+  boxText: { color: '#0E1812', fontWeight: '900' },
   empty: { color: colors.textDim, fontSize: 12 },
 });

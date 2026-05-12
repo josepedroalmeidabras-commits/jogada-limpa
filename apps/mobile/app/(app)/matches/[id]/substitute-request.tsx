@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   posChipActive: { borderColor: colors.brand, backgroundColor: colors.brand },
   posChipText: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
-  posChipTextActive: { color: '#0a0a0a' },
+  posChipTextActive: { color: '#0E1812' },
   countRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
   countBtn: {
     flex: 1,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
-  countTextActive: { color: '#0a0a0a' },
+  countTextActive: { color: '#0E1812' },
   input: {
     padding: 14,
     minHeight: 70,

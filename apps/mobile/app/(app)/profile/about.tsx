@@ -73,7 +73,7 @@ export default function AboutScreen() {
         >
           <LogoMark size={64} />
           <Heading level={1} style={{ marginTop: 16 }}>
-            Jogada Limpa
+            S7VN
           </Heading>
           <Text style={styles.tagline}>O Strava do futebol amador.</Text>
           <Text style={styles.version}>
@@ -123,7 +123,7 @@ export default function AboutScreen() {
 
         <View style={styles.foot}>
           <Text style={styles.footText}>
-            © 2026 Jogada Limpa. Todos os direitos reservados.
+            © 2026 S7VN. Todos os direitos reservados.
           </Text>
         </View>
       </ScrollView>

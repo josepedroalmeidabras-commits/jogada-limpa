@@ -1,23 +1,25 @@
-// Centralised colour + spacing tokens. Football-leaning premium dark theme.
+// Centralised colour + spacing tokens.
+// Brand: S7VN — premium gold-on-deep-forest aesthetic.
 
 export const colors = {
-  bg: '#0a0a0a',
+  // Deep forest green background (replaces pure black for richer feel)
+  bg: '#0E1812',
   bgElevated: 'rgba(255,255,255,0.04)',
   bgElevatedHover: 'rgba(255,255,255,0.06)',
   bgSubtle: 'rgba(255,255,255,0.02)',
 
   text: '#ffffff',
-  textMuted: '#a3a3a3',
-  textDim: '#737373',
-  textFaint: '#5a5a5a',
+  textMuted: '#a8b3ad',
+  textDim: '#737d77',
+  textFaint: '#5a635d',
 
-  // Brand — pitch green
-  brand: '#22c55e',
-  brandHover: '#16a34a',
-  brandSoft: 'rgba(34,197,94,0.12)',
-  brandSoftBorder: 'rgba(34,197,94,0.35)',
+  // Brand — warm bronze/gold from the S7VN crest
+  brand: '#C9A26B',
+  brandHover: '#B58E55',
+  brandSoft: 'rgba(201,162,107,0.12)',
+  brandSoftBorder: 'rgba(201,162,107,0.35)',
 
-  // Semantic
+  // Semantic — kept readable on dark green
   success: '#34d399',
   successSoft: 'rgba(52,211,153,0.12)',
   successSoftBorder: 'rgba(52,211,153,0.35)',

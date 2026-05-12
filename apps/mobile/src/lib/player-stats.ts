@@ -106,7 +106,7 @@ export function ratingLabel(value: number): string {
 }
 
 export function ratingColor(value: number): string {
-  if (value >= 85) return '#22c55e';
+  if (value >= 85) return '#C9A26B';
   if (value >= 70) return '#84cc16';
   if (value >= 55) return '#fbbf24';
   if (value >= 40) return '#fb923c';

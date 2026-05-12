@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 999 },
   tabActive: { backgroundColor: colors.brand },
   tabText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
-  tabTextActive: { color: '#0a0a0a' },
+  tabTextActive: { color: '#0E1812' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   left: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   right: { alignItems: 'flex-end', gap: 8 },

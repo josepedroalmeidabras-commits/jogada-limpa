@@ -83,7 +83,7 @@ export function RatingHistoryChart({ rows }: Props) {
           {`Média ${avg.toFixed(1)}/5 · ${rows.length} jogo${rows.length === 1 ? '' : 's'}`}
         </Text>
         <View style={styles.legendRow}>
-          <Legend color="#22c55e" label="≥4.2" />
+          <Legend color="#C9A26B" label="≥4.2" />
           <Legend color="#facc15" label="≥3.5" />
           <Legend color="#fb923c" label="≥2.8" />
           <Legend color="#f87171" label="<2.8" />
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     height: 1,
     borderStyle: 'dashed',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(34,197,94,0.5)',
+    borderTopColor: 'rgba(201,162,107,0.5)',
     zIndex: 1,
   },
   barsRow: {

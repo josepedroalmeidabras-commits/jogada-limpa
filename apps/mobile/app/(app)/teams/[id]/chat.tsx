@@ -214,9 +214,9 @@ export default function TeamChatScreen() {
             ]}
           >
             {sending ? (
-              <ActivityIndicator color="#0a0a0a" />
+              <ActivityIndicator color="#0E1812" />
             ) : (
-              <Ionicons name="arrow-up" size={20} color="#0a0a0a" />
+              <Ionicons name="arrow-up" size={20} color="#0E1812" />
             )}
           </Pressable>
         </View>
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     letterSpacing: -0.1,
   },
-  textMine: { color: '#0a0a0a' },
+  textMine: { color: '#0E1812' },
   time: {
     color: colors.textDim,
     fontSize: 10,

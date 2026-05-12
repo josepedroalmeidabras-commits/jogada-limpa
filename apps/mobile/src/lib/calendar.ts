@@ -40,7 +40,7 @@ export async function addMatchToCalendar(
       startDate: start,
       endDate: end,
       location: ev.location ?? undefined,
-      notes: ev.notes ?? 'Marcado via Jogada Limpa',
+      notes: ev.notes ?? 'Marcado via S7VN',
       alarms: [{ relativeOffset: -60 }],
     });
     return { ok: true, eventId };
@@ -92,7 +92,7 @@ export async function addMatchesBulkToCalendar(
         startDate: start,
         endDate: end,
         location: ev.location ?? undefined,
-        notes: ev.notes ?? 'Marcado via Jogada Limpa',
+        notes: ev.notes ?? 'Marcado via S7VN',
         alarms: [{ relativeOffset: -60 }],
       });
       added += 1;

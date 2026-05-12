@@ -43,8 +43,8 @@ function statusInfo(status: Status): {
     case 'validated':
       return {
         badge: 'FT',
-        color: '#0a0a0a',
-        background: '#22c55e',
+        color: '#0E1812',
+        background: '#C9A26B',
       };
     case 'proposed':
       return {

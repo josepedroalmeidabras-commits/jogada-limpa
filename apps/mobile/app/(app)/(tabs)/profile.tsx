@@ -636,10 +636,10 @@ export default function ProfileScreen() {
                     styles.achModalStatus,
                     {
                       backgroundColor: selectedAch?.unlocked
-                        ? 'rgba(34,197,94,0.18)'
+                        ? 'rgba(201,162,107,0.18)'
                         : 'rgba(255,255,255,0.06)',
                       borderColor: selectedAch?.unlocked
-                        ? 'rgba(34,197,94,0.4)'
+                        ? 'rgba(201,162,107,0.4)'
                         : 'rgba(255,255,255,0.12)',
                     },
                   ]}
@@ -648,7 +648,7 @@ export default function ProfileScreen() {
                     style={[
                       styles.achModalStatusText,
                       {
-                        color: selectedAch?.unlocked ? '#22c55e' : '#737373',
+                        color: selectedAch?.unlocked ? '#C9A26B' : '#737373',
                       },
                     ]}
                   >
@@ -712,14 +712,14 @@ const styles = StyleSheet.create({
     height: 32,
     paddingHorizontal: 6,
     borderRadius: 16,
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C9A26B',
     borderWidth: 3,
-    borderColor: '#0a0a0a',
+    borderColor: '#0E1812',
     alignItems: 'center',
     justifyContent: 'center',
   },
   jerseyText: {
-    color: '#0a0a0a',
+    color: '#0E1812',
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: -0.3,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
-  achModalUnlocked: { borderColor: 'rgba(34,197,94,0.5)' },
+  achModalUnlocked: { borderColor: 'rgba(201,162,107,0.5)' },
   achModalLocked: { borderColor: 'rgba(255,255,255,0.15)' },
   achModalEmoji: { fontSize: 64 },
   achModalTitle: {
@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
   },
   achProgressFill: {
     height: '100%',
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C9A26B',
     borderRadius: 3,
   },
   achProgressText: {

@@ -299,7 +299,7 @@ export default function HomeScreen() {
                           <Text
                             style={[
                               styles.nextMatchBadgeText,
-                              (urgent || live) && { color: '#0a0a0a' },
+                              (urgent || live) && { color: '#0E1812' },
                             ]}
                           >
                             {badge}
@@ -622,7 +622,7 @@ export default function HomeScreen() {
                               <Ionicons
                                 name="chatbubble"
                                 size={10}
-                                color="#0a0a0a"
+                                color="#0E1812"
                               />
                               <Text style={styles.chatBadgeText}>
                                 {unreadChat > 9 ? '9+' : String(unreadChat)}
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bellBadgeText: { color: '#0a0a0a', fontSize: 10, fontWeight: '800' },
+  bellBadgeText: { color: '#0E1812', fontSize: 10, fontWeight: '800' },
   section: { marginTop: 24 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   cardName: {
@@ -930,9 +930,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: 'rgba(34,197,94,0.18)',
+    backgroundColor: 'rgba(201,162,107,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.4)',
+    borderColor: 'rgba(201,162,107,0.4)',
   },
   nextMatchBadgeUrgent: {
     backgroundColor: '#fbbf24',
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
     borderColor: '#f87171',
   },
   nextMatchBadgeText: {
-    color: '#22c55e',
+    color: '#C9A26B',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.brand,
   },
-  chatBadgeText: { color: '#0a0a0a', fontSize: 11, fontWeight: '800' },
+  chatBadgeText: { color: '#0E1812', fontSize: 11, fontWeight: '800' },
   completeHeader: {
     flexDirection: 'row',
     alignItems: 'center',

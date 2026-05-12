@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 999 },
   tabActive: { backgroundColor: colors.brand },
   tabText: { color: colors.textMuted, fontWeight: '700', letterSpacing: 0.2 },
-  tabTextActive: { color: '#0a0a0a' },
+  tabTextActive: { color: '#0E1812' },
   muted: { color: colors.textDim, fontSize: 13 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rank: {

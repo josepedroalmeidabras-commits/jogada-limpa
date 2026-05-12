@@ -140,7 +140,7 @@ export default function TeamDetailScreen() {
 
   const isCaptain = team.captain_id === session?.user.id;
   const inviteMessage =
-    `Junta-te à minha equipa "${team.name}" na Jogada Limpa ⚽\n\n` +
+    `Junta-te à minha equipa "${team.name}" na S7VN ⚽\n\n` +
     `Código de entrada: ${team.invite_code.toUpperCase()}\n\n` +
     `Descarrega a app em jogadalimpa.app e insere o código.`;
 
@@ -178,7 +178,7 @@ export default function TeamDetailScreen() {
         options={{
           headerShown: true,
           headerTitle: team.name,
-          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerStyle: { backgroundColor: '#0E1812' },
           headerTintColor: '#ffffff',
         }}
       />
@@ -657,7 +657,7 @@ function PositionChip({ position }: { position: string }) {
       : position === 'def'
         ? 'rgba(56,189,248,0.14)'
         : position === 'med'
-          ? 'rgba(34,197,94,0.14)'
+          ? 'rgba(201,162,107,0.14)'
           : position === 'ata'
             ? 'rgba(248,113,113,0.14)'
             : 'rgba(255,255,255,0.06)';
@@ -667,7 +667,7 @@ function PositionChip({ position }: { position: string }) {
       : position === 'def'
         ? '#38bdf8'
         : position === 'med'
-          ? '#22c55e'
+          ? '#C9A26B'
           : position === 'ata'
             ? '#f87171'
             : '#a3a3a3';
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
   friendsAvatarWrap: {
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#0a0a0a',
+    borderColor: '#0E1812',
   },
   friendsPillText: {
     color: '#a3a3a3',
