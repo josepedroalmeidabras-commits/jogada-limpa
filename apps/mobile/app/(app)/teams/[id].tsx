@@ -32,6 +32,7 @@ import {
 import {
   computeTeamRecord,
   fetchMatchesForTeam,
+  formatRelativeMatchDate,
   type MatchSummary,
   type TeamRecord,
 } from '@/lib/matches';
@@ -153,6 +154,18 @@ export default function TeamDetailScreen() {
   }
 
   const record = computeTeamRecord(matches, team.id);
+  const nowMs = Date.now();
+  const nextTeamMatch = matches
+    .filter(
+      (m) =>
+        m.status === 'confirmed' &&
+        new Date(m.scheduled_at).getTime() > nowMs,
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.scheduled_at).getTime() -
+        new Date(b.scheduled_at).getTime(),
+    )[0];
 
   return (
     <Screen>
@@ -237,6 +250,33 @@ export default function TeamDetailScreen() {
                 </View>
                 <Text style={styles.arrow}>›</Text>
               </View>
+            </Card>
+          </Animated.View>
+        )}
+
+        {nextTeamMatch && (
+          <Animated.View
+            entering={FadeInDown.delay(75).springify()}
+            style={{ marginTop: 16 }}
+          >
+            <Card
+              onPress={() =>
+                router.push(`/(app)/matches/${nextTeamMatch.id}`)
+              }
+              variant="subtle"
+            >
+              <Text style={styles.nextLabel}>📅 Próximo jogo</Text>
+              <Text style={styles.nextTeams} numberOfLines={1}>
+                {nextTeamMatch.is_internal && nextTeamMatch.side_a_label
+                  ? `${nextTeamMatch.side_a_label} vs ${nextTeamMatch.side_b_label}`
+                  : `${nextTeamMatch.side_a.name} vs ${nextTeamMatch.side_b.name}`}
+              </Text>
+              <Text style={styles.nextWhen}>
+                {formatRelativeMatchDate(nextTeamMatch.scheduled_at)}
+              </Text>
+              <Text style={styles.nextWhere} numberOfLines={1}>
+                {`📍 ${nextTeamMatch.location_tbd ? 'A combinar' : (nextTeamMatch.location_name ?? '—')}`}
+              </Text>
             </Card>
           </Animated.View>
         )}
@@ -671,6 +711,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     letterSpacing: -0.1,
+  },
+  nextLabel: {
+    color: colors.brand,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  nextTeams: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    marginTop: 8,
+  },
+  nextWhen: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  nextWhere: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    marginTop: 4,
   },
   annHeader: {
     flexDirection: 'row',
