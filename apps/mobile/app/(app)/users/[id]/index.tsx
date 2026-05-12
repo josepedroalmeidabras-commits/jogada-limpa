@@ -63,6 +63,11 @@ import {
   type MutualFriend,
 } from '@/lib/friends';
 import { fetchSeasonStats, type SeasonStats } from '@/lib/season-stats';
+import {
+  fetchUserRatingHistory,
+  type RatingHistoryEntry,
+} from '@/lib/rating-history';
+import { RatingHistoryChart } from '@/components/RatingHistoryChart';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -138,11 +143,12 @@ export default function PublicProfileScreen() {
     total: 0,
   });
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
+  const [ratingHistory, setRatingHistory] = useState<RatingHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [p, s, a, h, mvp, cv, fs, mf, ss] = await Promise.all([
+    const [p, s, a, h, mvp, cv, fs, mf, ss, rh] = await Promise.all([
       fetchProfile(id),
       fetchUserSports(id),
       fetchReviewAggregate(id),
@@ -152,6 +158,7 @@ export default function PublicProfileScreen() {
       isSelf ? Promise.resolve<FriendshipStatus>('none') : fetchFriendshipStatus(id),
       isSelf ? Promise.resolve({ list: [], total: 0 }) : fetchMutualFriends(id, 5),
       fetchSeasonStats(id),
+      fetchUserRatingHistory(id, 12),
     ]);
     const positionRaw = s.find((x) => x.sport_id === 2)?.preferred_position ?? null;
     const ps = await fetchPlayerStats(id, positionRaw);
@@ -165,6 +172,7 @@ export default function PublicProfileScreen() {
     setFriendStatus(fs);
     setMutual(mf);
     setSeasonStats(ss);
+    setRatingHistory(rh);
     setMvpCount(mvp);
     setLoading(false);
   }, [id, isSelf]);
@@ -589,6 +597,18 @@ export default function PublicProfileScreen() {
             </Card>
           )}
         </Animated.View>
+
+        {ratingHistory.length >= 1 && (
+          <Animated.View
+            entering={FadeInDown.delay(180).springify()}
+            style={styles.section}
+          >
+            <Eyebrow>{`📈 Prestação (últimos ${ratingHistory.length} jogos)`}</Eyebrow>
+            <Card style={{ marginTop: 8 }}>
+              <RatingHistoryChart rows={ratingHistory} />
+            </Card>
+          </Animated.View>
+        )}
 
         <Animated.View
           entering={FadeInDown.delay(200).springify()}
