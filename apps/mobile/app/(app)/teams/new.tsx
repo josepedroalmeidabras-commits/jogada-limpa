@@ -101,6 +101,8 @@ export default function NewTeamScreen() {
             placeholderTextColor="#666"
             value={name}
             onChangeText={setName}
+            autoCapitalize="words"
+            autoCorrect={false}
             editable={!submitting}
           />
 
@@ -111,6 +113,8 @@ export default function NewTeamScreen() {
             placeholderTextColor="#666"
             value={city}
             onChangeText={setCity}
+            autoCapitalize="words"
+            autoCorrect={false}
             editable={!submitting}
           />
 
