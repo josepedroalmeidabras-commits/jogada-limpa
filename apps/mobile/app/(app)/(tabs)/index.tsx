@@ -21,7 +21,7 @@ import {
 } from '@/lib/matches';
 
 export default function HomeScreen() {
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [teams, setTeams] = useState<TeamWithSport[]>([]);
@@ -186,9 +186,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.signOut} onPress={signOut}>
-          <Text style={styles.signOutText}>Sair</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -276,10 +273,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   secondaryText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  signOut: {
-    marginTop: 40,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  signOutText: { color: '#737373', fontSize: 13 },
 });

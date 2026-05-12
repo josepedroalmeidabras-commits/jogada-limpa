@@ -54,6 +54,57 @@ const MATCH_SELECT = `
   )
 `;
 
+export async function fetchMatchesForUser(
+  userId: string,
+): Promise<MatchSummary[]> {
+  // teams I belong to
+  const { data: memberships, error: memErr } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId);
+  if (memErr || !memberships || memberships.length === 0) return [];
+
+  const teamIds = memberships.map((m) => m.team_id);
+
+  const { data: sideRows, error: sideErr } = await supabase
+    .from('match_sides')
+    .select('match_id')
+    .in('team_id', teamIds);
+  if (sideErr || !sideRows || sideRows.length === 0) return [];
+
+  const matchIds = Array.from(new Set(sideRows.map((r) => r.match_id)));
+
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .in('id', matchIds)
+    .in('status', ['proposed', 'confirmed', 'result_pending', 'disputed', 'validated'])
+    .order('scheduled_at', { ascending: true });
+
+  if (error || !data) return [];
+
+  return data
+    .map((m: any): MatchSummary | null => {
+      const { a, b } = unwrapSides(m.sides ?? []);
+      if (!a || !b) return null;
+      return {
+        id: m.id,
+        sport_id: m.sport_id,
+        scheduled_at: m.scheduled_at,
+        status: m.status,
+        location_name: m.location_name,
+        location_tbd: m.location_tbd,
+        message: m.message,
+        proposed_by: m.proposed_by,
+        final_score_a: m.final_score_a,
+        final_score_b: m.final_score_b,
+        side_a: a,
+        side_b: b,
+      };
+    })
+    .filter((m): m is MatchSummary => !!m);
+}
+
 export async function fetchMatchesForTeam(
   teamId: string,
 ): Promise<MatchSummary[]> {
