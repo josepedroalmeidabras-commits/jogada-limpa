@@ -1,8 +1,11 @@
 import { useCallback, useState } from 'react';
 import {
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -28,7 +31,7 @@ import {
 import { formatMatchDate } from '@/lib/matches';
 import { fetchMvpCount } from '@/lib/mvp';
 import { fetchMyTeams } from '@/lib/teams';
-import { computeAchievements } from '@/lib/achievements';
+import { computeAchievements, type Achievement } from '@/lib/achievements';
 import {
   fetchEloHistory,
   summariseEloHistory,
@@ -69,6 +72,7 @@ export default function ProfileScreen() {
   const [eloHistory, setEloHistory] = useState<EloHistoryPoint[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
   const [selfSummary, setSelfSummary] = useState<SelfRatingSummary | null>(null);
+  const [selectedAch, setSelectedAch] = useState<Achievement | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -390,8 +394,9 @@ export default function ProfileScreen() {
                 return (
                   <View style={styles.achGrid}>
                     {achievements.map((a) => (
-                      <View
+                      <Pressable
                         key={a.id}
+                        onPress={() => setSelectedAch(a)}
                         style={[
                           styles.ach,
                           !a.unlocked && styles.achLocked,
@@ -414,7 +419,7 @@ export default function ProfileScreen() {
                         >
                           {a.title}
                         </Text>
-                      </View>
+                      </Pressable>
                     ))}
                   </View>
                 );
@@ -504,6 +509,67 @@ export default function ProfileScreen() {
           </>
         )}
       </ScrollView>
+
+      <Modal
+        visible={selectedAch !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedAch(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setSelectedAch(null)}>
+          <View style={styles.achModalBg}>
+            <TouchableWithoutFeedback>
+              <View
+                style={[
+                  styles.achModal,
+                  selectedAch?.unlocked
+                    ? styles.achModalUnlocked
+                    : styles.achModalLocked,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.achModalEmoji,
+                    !selectedAch?.unlocked && { opacity: 0.4 },
+                  ]}
+                >
+                  {selectedAch?.emoji ?? ''}
+                </Text>
+                <Text style={styles.achModalTitle}>
+                  {selectedAch?.title ?? ''}
+                </Text>
+                <Text style={styles.achModalDesc}>
+                  {selectedAch?.description ?? ''}
+                </Text>
+                <View
+                  style={[
+                    styles.achModalStatus,
+                    {
+                      backgroundColor: selectedAch?.unlocked
+                        ? 'rgba(34,197,94,0.18)'
+                        : 'rgba(255,255,255,0.06)',
+                      borderColor: selectedAch?.unlocked
+                        ? 'rgba(34,197,94,0.4)'
+                        : 'rgba(255,255,255,0.12)',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.achModalStatusText,
+                      {
+                        color: selectedAch?.unlocked ? '#22c55e' : '#737373',
+                      },
+                    ]}
+                  >
+                    {selectedAch?.unlocked ? '✓ Desbloqueado' : '🔒 Por desbloquear'}
+                  </Text>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </Screen>
   );
 }
@@ -577,6 +643,52 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   formRow: { marginTop: 12, alignItems: 'center' },
+  achModalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.78)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  achModal: {
+    width: '100%',
+    maxWidth: 320,
+    padding: 28,
+    borderRadius: 24,
+    backgroundColor: '#0f1a14',
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  achModalUnlocked: { borderColor: 'rgba(34,197,94,0.5)' },
+  achModalLocked: { borderColor: 'rgba(255,255,255,0.15)' },
+  achModalEmoji: { fontSize: 64 },
+  achModalTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  achModalDesc: {
+    color: '#a3a3a3',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  achModalStatus: {
+    marginTop: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  achModalStatusText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
   badge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
