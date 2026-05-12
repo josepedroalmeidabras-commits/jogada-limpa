@@ -35,6 +35,7 @@ import {
   type MatchParticipant,
 } from '@/lib/result';
 import { respondToMatchInvite } from '@/lib/internal-match';
+import { fetchMatchMvpWinner, type MvpWinner } from '@/lib/mvp';
 import { Screen } from '@/components/Screen';
 import { Heading } from '@/components/Heading';
 import { Card } from '@/components/Card';
@@ -52,6 +53,7 @@ export default function MatchDetailScreen() {
   const [h2h, setH2h] = useState<HeadToHead | null>(null);
   const [referee, setReferee] = useState<RefereeProfile | null>(null);
   const [participants, setParticipants] = useState<MatchParticipant[]>([]);
+  const [mvp, setMvp] = useState<MvpWinner | null>(null);
   const [respondBusy, setRespondBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
@@ -62,20 +64,25 @@ export default function MatchDetailScreen() {
     const m = await fetchMatchById(id);
     setMatch(m);
     if (m && session) {
-      const [part, unread, hh, ref, parts] = await Promise.all([
+      const needsParticipants = m.is_internal || m.status === 'validated';
+      const [part, unread, hh, ref, parts, mvpWin] = await Promise.all([
         isMatchParticipant(m.id, session.user.id),
         fetchMatchUnreadCount(m.id, session.user.id),
         fetchHeadToHead(m.side_a.id, m.side_b.id),
         m.referee_id ? fetchReferee(m.referee_id) : Promise.resolve(null),
-        m.is_internal
+        needsParticipants
           ? fetchMatchParticipants(m.id)
           : Promise.resolve<MatchParticipant[]>([]),
+        m.status === 'validated'
+          ? fetchMatchMvpWinner(m.id)
+          : Promise.resolve<MvpWinner | null>(null),
       ]);
       setIsParticipant(part);
       setChatUnread(unread);
       setH2h(hh);
       setReferee(ref);
       setParticipants(parts);
+      setMvp(mvpWin);
     }
     setLoading(false);
   }, [id, session]);
@@ -192,6 +199,87 @@ export default function MatchDetailScreen() {
             </View>
           </Card>
         </Animated.View>
+
+        {match.status === 'validated' && (() => {
+          const topGoal = participants
+            .filter((p) => p.goals > 0)
+            .sort((a, b) => b.goals - a.goals)[0];
+          const topAssist = participants
+            .filter((p) => p.assists > 0)
+            .sort((a, b) => b.assists - a.assists)[0];
+          if (!mvp && !topGoal && !topAssist) return null;
+          return (
+            <Animated.View
+              entering={FadeInDown.delay(70).springify()}
+              style={styles.section}
+            >
+              <Text style={styles.recapLabel}>🏆 Recap</Text>
+              <View style={styles.recapRow}>
+                {mvp && (
+                  <Pressable
+                    onPress={() => router.push(`/(app)/users/${mvp.user_id}`)}
+                    style={styles.recapCell}
+                  >
+                    <Avatar
+                      url={mvp.photo_url}
+                      name={mvp.name}
+                      size={44}
+                    />
+                    <Text style={styles.recapCellLabel}>👑 MVP</Text>
+                    <Text style={styles.recapCellName} numberOfLines={1}>
+                      {mvp.name.split(' ')[0]}
+                    </Text>
+                    <Text style={styles.recapCellMeta}>
+                      {`${mvp.votes} voto${mvp.votes === 1 ? '' : 's'}`}
+                    </Text>
+                  </Pressable>
+                )}
+                {topGoal && (
+                  <Pressable
+                    onPress={() =>
+                      router.push(`/(app)/users/${topGoal.user_id}`)
+                    }
+                    style={styles.recapCell}
+                  >
+                    <Avatar
+                      url={topGoal.profile?.photo_url ?? null}
+                      name={topGoal.profile?.name ?? '?'}
+                      size={44}
+                    />
+                    <Text style={styles.recapCellLabel}>⚽ Goleador</Text>
+                    <Text style={styles.recapCellName} numberOfLines={1}>
+                      {(topGoal.profile?.name ?? 'Jogador').split(' ')[0]}
+                    </Text>
+                    <Text style={styles.recapCellMeta}>
+                      {`${topGoal.goals} golo${topGoal.goals === 1 ? '' : 's'}`}
+                    </Text>
+                  </Pressable>
+                )}
+                {topAssist && (
+                  <Pressable
+                    onPress={() =>
+                      router.push(`/(app)/users/${topAssist.user_id}`)
+                    }
+                    style={styles.recapCell}
+                  >
+                    <Avatar
+                      url={topAssist.profile?.photo_url ?? null}
+                      name={topAssist.profile?.name ?? '?'}
+                      size={44}
+                    />
+                    <Text style={styles.recapCellLabel}>🎁 Assistente</Text>
+                    <Text style={styles.recapCellName} numberOfLines={1}>
+                      {(topAssist.profile?.name ?? 'Jogador').split(' ')[0]}
+                    </Text>
+                    <Text style={styles.recapCellMeta}>
+                      {`${topAssist.assists} ass.`}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </Animated.View>
+          );
+        })()}
 
         <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.section}>
           <Card>
@@ -779,6 +867,46 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  recapLabel: {
+    color: '#a3a3a3',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  recapRow: { flexDirection: 'row', gap: 8 },
+  recapCell: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'center',
+  },
+  recapCellLabel: {
+    color: '#a3a3a3',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginTop: 8,
+  },
+  recapCellName: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 4,
+    letterSpacing: -0.2,
+  },
+  recapCellMeta: {
+    color: '#737373',
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   section: { marginTop: 16 },
   notesHeader: {
