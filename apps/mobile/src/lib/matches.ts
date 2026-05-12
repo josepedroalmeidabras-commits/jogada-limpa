@@ -355,6 +355,40 @@ export async function rejectMatch(
   return { ok: true };
 }
 
+export async function cancelConfirmedMatch(
+  matchId: string,
+  reason: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('cancel_confirmed_match', {
+    p_match_id: matchId,
+    p_reason: reason,
+  });
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível cancelar.',
+    };
+  }
+  return { ok: true };
+}
+
+export async function rescheduleMatch(
+  matchId: string,
+  scheduledAt: Date,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('reschedule_match', {
+    p_match_id: matchId,
+    p_scheduled_at: scheduledAt.toISOString(),
+  });
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível remarcar.',
+    };
+  }
+  return { ok: true };
+}
+
 export function formatMatchDate(iso: string): string {
   const d = new Date(iso);
   const day = String(d.getDate()).padStart(2, '0');

@@ -217,6 +217,29 @@ export default function MatchDetailScreen() {
             />
           )}
 
+          {(match.status === 'confirmed' || match.status === 'proposed') &&
+            isCaptain && (
+              <Button
+                label="📅 Remarcar"
+                variant="secondary"
+                full
+                onPress={() =>
+                  router.push(`/(app)/matches/${match.id}/reschedule`)
+                }
+              />
+            )}
+
+          {match.status === 'confirmed' && isCaptain && (
+            <Button
+              label="Cancelar jogo"
+              variant="ghost"
+              full
+              onPress={() =>
+                router.push(`/(app)/matches/${match.id}/cancel`)
+              }
+            />
+          )}
+
           {canSubmitResult && (
             <Button
               label="Submeter resultado"
