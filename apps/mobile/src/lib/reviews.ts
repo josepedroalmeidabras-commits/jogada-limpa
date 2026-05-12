@@ -86,6 +86,8 @@ export type UserSportElo = {
   matches_played: number;
   is_open_to_sub: boolean;
   open_until: string | null;
+  is_open_to_team: boolean;
+  open_to_team_until: string | null;
   sport: { id: number; name: string; code: string } | null;
 };
 
@@ -97,6 +99,7 @@ export async function fetchUserSports(
     .select(
       `sport_id, declared_level, elo, matches_played,
        is_open_to_sub, open_until,
+       is_open_to_team, open_to_team_until,
        sport:sports!inner(id, name, code, is_active)`,
     )
     .eq('user_id', userId);

@@ -24,6 +24,7 @@ import {
   setSportAvailability,
   type UserSportElo,
 } from '@/lib/reviews';
+import { setOpenToTeam } from '@/lib/market';
 import { pickImage, uploadAvatar } from '@/lib/photos';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
@@ -99,6 +100,34 @@ export default function EditProfileScreen() {
     }
     setPhotoUrl(up.publicUrl);
     void saved;
+  }
+
+  async function toggleOpenToTeam(sportId: number, current: boolean) {
+    if (!session) return;
+    setSports((prev) =>
+      prev.map((s) =>
+        s.sport_id === sportId
+          ? {
+              ...s,
+              is_open_to_team: !current,
+              open_to_team_until: !current
+                ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+                : null,
+            }
+          : s,
+      ),
+    );
+    const r = await setOpenToTeam(session.user.id, sportId, !current);
+    if (!r.ok) {
+      setError(r.message);
+      setSports((prev) =>
+        prev.map((s) =>
+          s.sport_id === sportId
+            ? { ...s, is_open_to_team: current }
+            : s,
+        ),
+      );
+    }
   }
 
   async function toggleAvailability(sportId: number, current: boolean) {
@@ -273,6 +302,44 @@ export default function EditProfileScreen() {
                   style={[
                     styles.toggleKnob,
                     s.is_open_to_sub && styles.toggleKnobOn,
+                  ]}
+                />
+              </View>
+            </Pressable>
+          ))}
+
+          <Text style={[styles.label, { marginTop: 32 }]}>
+            Mercado livre — quero entrar numa equipa
+          </Text>
+          <Text style={styles.subhint}>
+            Aparece a capitães em "Mercado livre" para te convidarem para a
+            equipa deles. Expira em 30 dias.
+          </Text>
+          {sports.map((s) => (
+            <Pressable
+              key={`team-${s.sport_id}`}
+              style={styles.availRow}
+              onPress={() => toggleOpenToTeam(s.sport_id, s.is_open_to_team)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.availName}>{s.sport?.name}</Text>
+                {s.is_open_to_team && s.open_to_team_until && (
+                  <Text style={styles.availMeta}>
+                    Disponível até{' '}
+                    {new Date(s.open_to_team_until).toLocaleDateString('pt-PT')}
+                  </Text>
+                )}
+              </View>
+              <View
+                style={[
+                  styles.toggle,
+                  s.is_open_to_team && styles.toggleOn,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.toggleKnob,
+                    s.is_open_to_team && styles.toggleKnobOn,
                   ]}
                 />
               </View>

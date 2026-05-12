@@ -251,6 +251,13 @@ export default function HomeScreen() {
                 full
                 onPress={() => router.push('/(app)/teams/join')}
               />
+              <Button
+                label="🏟️ Mercado livre"
+                variant="ghost"
+                size="md"
+                full
+                onPress={() => router.push('/(app)/market')}
+              />
             </Animated.View>
           </>
         )}
