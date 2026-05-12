@@ -121,6 +121,44 @@ export async function createTeam(
   return { ok: true, team: data };
 }
 
+export async function updateTeam(
+  teamId: string,
+  input: { name?: string; city?: string },
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const patch: Record<string, unknown> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.city !== undefined) patch.city = input.city;
+  const { error } = await supabase
+    .from('teams')
+    .update(patch)
+    .eq('id', teamId);
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível atualizar a equipa.',
+    };
+  }
+  return { ok: true };
+}
+
+export async function leaveTeam(
+  teamId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase
+    .from('team_members')
+    .delete()
+    .eq('team_id', teamId)
+    .eq('user_id', userId);
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível sair.',
+    };
+  }
+  return { ok: true };
+}
+
 export async function joinTeamByCode(
   userId: string,
   inviteCode: string,

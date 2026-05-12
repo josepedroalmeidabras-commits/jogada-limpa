@@ -1,0 +1,202 @@
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useAuth } from '@/providers/auth';
+import { fetchTeamById, updateTeam } from '@/lib/teams';
+
+export default function EditTeamScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { session } = useAuth();
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [city, setCity] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isCaptain, setIsCaptain] = useState(false);
+
+  useEffect(() => {
+    if (!id || !session) return;
+    let cancelled = false;
+    (async () => {
+      const t = await fetchTeamById(id);
+      if (cancelled || !t) {
+        setLoading(false);
+        return;
+      }
+      setName(t.name);
+      setCity(t.city);
+      setIsCaptain(t.captain_id === session.user.id);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, session]);
+
+  async function handleSubmit() {
+    setError(null);
+    if (!id) return;
+    if (!name.trim()) {
+      setError('Diz o nome.');
+      return;
+    }
+    if (!city.trim()) {
+      setError('Cidade obrigatória.');
+      return;
+    }
+    setSubmitting(true);
+    const r = await updateTeam(id, { name: name.trim(), city: city.trim() });
+    setSubmitting(false);
+    if (!r.ok) {
+      setError(r.message);
+      return;
+    }
+    router.back();
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <ActivityIndicator color="#ffffff" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isCaptain) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            headerTitle: 'Editar equipa',
+            headerStyle: { backgroundColor: '#0a0a0a' },
+            headerTintColor: '#ffffff',
+          }}
+        />
+        <View style={styles.center}>
+          <Text style={styles.deny}>Só o capitão pode editar a equipa.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTitle: 'Editar equipa',
+          headerStyle: { backgroundColor: '#0a0a0a' },
+          headerTintColor: '#ffffff',
+        }}
+      />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Text style={styles.label}>Nome</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            editable={!submitting}
+          />
+
+          <Text style={styles.label}>Cidade</Text>
+          <TextInput
+            style={styles.input}
+            value={city}
+            onChangeText={setCity}
+            autoCapitalize="words"
+            autoCorrect={false}
+            editable={!submitting}
+          />
+
+          {error && <Text style={styles.error}>{error}</Text>}
+
+          <Pressable
+            onPress={handleSubmit}
+            disabled={submitting}
+            style={[styles.submit, submitting && styles.submitDisabled]}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={styles.submitText}>Guardar</Text>
+            )}
+          </Pressable>
+
+          <Text style={styles.hint}>
+            Para mudar de desporto ou eliminar a equipa, contacta o suporte
+            por enquanto.
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#0a0a0a' },
+  flex: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  scroll: { padding: 24, paddingBottom: 48 },
+  label: {
+    color: '#a3a3a3',
+    fontSize: 13,
+    marginTop: 16,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#ffffff',
+    fontSize: 16,
+  },
+  submit: {
+    backgroundColor: '#ffffff',
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  submitDisabled: { opacity: 0.5 },
+  submitText: { color: '#000000', fontSize: 16, fontWeight: '600' },
+  hint: {
+    color: '#737373',
+    fontSize: 12,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  error: {
+    color: '#f87171',
+    textAlign: 'center',
+    marginTop: 12,
+    fontSize: 13,
+  },
+  deny: { color: '#a3a3a3', textAlign: 'center' },
+});

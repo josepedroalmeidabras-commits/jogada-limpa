@@ -20,9 +20,11 @@ import { useAuth } from '@/providers/auth';
 import {
   fetchTeamById,
   fetchTeamMembers,
+  leaveTeam,
   type TeamMember,
   type TeamWithSport,
 } from '@/lib/teams';
+import { Alert } from 'react-native';
 import {
   fetchMatchesForTeam,
   formatMatchDate,
@@ -122,11 +124,48 @@ export default function TeamDetailScreen() {
         </View>
 
         {isCaptain && (
+          <View style={styles.actions}>
+            <Pressable
+              style={styles.primary}
+              onPress={() => router.push(`/(app)/teams/${team.id}/match/new`)}
+            >
+              <Text style={styles.primaryText}>Marcar jogo</Text>
+            </Pressable>
+            <Pressable
+              style={styles.secondary}
+              onPress={() => router.push(`/(app)/teams/${team.id}/edit`)}
+            >
+              <Text style={styles.secondaryText}>Editar</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {!isCaptain && session && (
           <Pressable
-            style={styles.primary}
-            onPress={() => router.push(`/(app)/teams/${team.id}/match/new`)}
+            style={styles.secondary}
+            onPress={() =>
+              Alert.alert(
+                'Sair da equipa?',
+                `Vais deixar de ser membro de ${team.name}. Podes voltar com o código de convite.`,
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Sair',
+                    style: 'destructive',
+                    onPress: async () => {
+                      const r = await leaveTeam(team.id, session.user.id);
+                      if (!r.ok) {
+                        Alert.alert('Erro', r.message);
+                        return;
+                      }
+                      router.replace('/(app)');
+                    },
+                  },
+                ],
+              )
+            }
           >
-            <Text style={styles.primaryText}>Marcar jogo</Text>
+            <Text style={styles.secondaryText}>Sair da equipa</Text>
           </Pressable>
         )}
 
@@ -238,13 +277,25 @@ const styles = StyleSheet.create({
   header: { marginBottom: 16 },
   name: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
   meta: { color: '#a3a3a3', fontSize: 14, marginTop: 4 },
+  actions: { flexDirection: 'row', gap: 8 },
   primary: {
+    flex: 1,
     backgroundColor: '#ffffff',
     borderRadius: 999,
     paddingVertical: 14,
     alignItems: 'center',
   },
   primaryText: { color: '#000000', fontSize: 16, fontWeight: '600' },
+  secondary: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 999,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  secondaryText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
   section: {
     color: '#a3a3a3',
     fontSize: 12,
