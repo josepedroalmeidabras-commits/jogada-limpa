@@ -26,6 +26,7 @@ import {
 } from '@/lib/matches';
 import { addMatchToCalendar } from '@/lib/calendar';
 import { fetchMatchUnreadCount } from '@/lib/match-chat';
+import { fetchHeadToHead, type HeadToHead } from '@/lib/h2h';
 import { Screen } from '@/components/Screen';
 import { Heading } from '@/components/Heading';
 import { Card } from '@/components/Card';
@@ -40,6 +41,7 @@ export default function MatchDetailScreen() {
   const [match, setMatch] = useState<MatchSummary | null>(null);
   const [isParticipant, setIsParticipant] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+  const [h2h, setH2h] = useState<HeadToHead | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +51,14 @@ export default function MatchDetailScreen() {
     const m = await fetchMatchById(id);
     setMatch(m);
     if (m && session) {
-      const [part, unread] = await Promise.all([
+      const [part, unread, hh] = await Promise.all([
         isMatchParticipant(m.id, session.user.id),
         fetchMatchUnreadCount(m.id, session.user.id),
+        fetchHeadToHead(m.side_a.id, m.side_b.id),
       ]);
       setIsParticipant(part);
       setChatUnread(unread);
+      setH2h(hh);
     }
     setLoading(false);
   }, [id, session]);
@@ -175,6 +179,40 @@ export default function MatchDetailScreen() {
             {match.message && <InfoRow label="Mensagem" value={match.message} last />}
           </Card>
         </Animated.View>
+
+        {h2h && h2h.played > 1 && (
+          <Animated.View
+            entering={FadeInDown.delay(100).springify()}
+            style={styles.section}
+          >
+            <Card variant="subtle">
+              <Text style={styles.h2hLabel}>📊 Head-to-head</Text>
+              <View style={styles.h2hRow}>
+                <View style={styles.h2hCell}>
+                  <Text style={styles.h2hValue}>{h2h.a_wins}</Text>
+                  <Text style={styles.h2hMeta} numberOfLines={1}>
+                    {match.side_a.name}
+                  </Text>
+                </View>
+                <View style={styles.h2hCell}>
+                  <Text style={[styles.h2hValue, styles.h2hDraws]}>
+                    {h2h.draws}
+                  </Text>
+                  <Text style={styles.h2hMeta}>Empates</Text>
+                </View>
+                <View style={styles.h2hCell}>
+                  <Text style={styles.h2hValue}>{h2h.b_wins}</Text>
+                  <Text style={styles.h2hMeta} numberOfLines={1}>
+                    {match.side_b.name}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.h2hFoot}>
+                {`${h2h.played} jogos · ${h2h.a_goals}–${h2h.b_goals} no total`}
+              </Text>
+            </Card>
+          </Animated.View>
+        )}
 
         {(match.notes || (isCaptain && match.status !== 'validated' && match.status !== 'cancelled')) && (
           <Animated.View
@@ -478,6 +516,36 @@ const styles = StyleSheet.create({
     color: '#737373',
     fontSize: 13,
     fontStyle: 'italic',
+  },
+  h2hLabel: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
+  h2hRow: { flexDirection: 'row' },
+  h2hCell: { flex: 1, alignItems: 'center' },
+  h2hValue: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+  h2hDraws: { color: '#a3a3a3' },
+  h2hMeta: {
+    color: '#737373',
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  h2hFoot: {
+    color: '#737373',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 12,
   },
   infoRow: {
     paddingVertical: 12,

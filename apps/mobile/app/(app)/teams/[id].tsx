@@ -32,6 +32,10 @@ import {
   type MatchSummary,
   type TeamRecord,
 } from '@/lib/matches';
+import {
+  fetchSuggestedOpponents,
+  type SuggestedOpponent,
+} from '@/lib/h2h';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -48,6 +52,7 @@ export default function TeamDetailScreen() {
   const [team, setTeam] = useState<TeamWithSport | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [matches, setMatches] = useState<MatchSummary[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedOpponent[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -61,8 +66,12 @@ export default function TeamDetailScreen() {
     setTeam(t);
     setMembers(m);
     setMatches(ms);
+    if (t && session && t.captain_id === session.user.id) {
+      const sug = await fetchSuggestedOpponents(t.id, 5);
+      setSuggested(sug);
+    }
     setLoading(false);
-  }, [id]);
+  }, [id, session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -285,6 +294,43 @@ export default function TeamDetailScreen() {
           )}
         </Animated.View>
 
+        {isCaptain && suggested.length > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(260).springify()}
+            style={styles.section}
+          >
+            <Eyebrow>Adversários do teu nível</Eyebrow>
+            {suggested.map((s, i) => (
+              <Animated.View
+                key={s.team_id}
+                entering={FadeInDown.delay(300 + i * 30).springify()}
+              >
+                <Card
+                  onPress={() => router.push(`/(app)/teams/${s.team_id}`)}
+                  style={{ marginTop: 8 }}
+                >
+                  <View style={styles.row}>
+                    <Avatar
+                      url={s.photo_url}
+                      name={s.name}
+                      size={40}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.itemName}>{s.name}</Text>
+                      <Text style={styles.itemMeta}>
+                        {`Δ ELO ${Math.round(s.elo_diff)}${s.played_us > 0 ? ` · ${s.played_us} jogos` : ''}`}
+                      </Text>
+                    </View>
+                    <Text style={styles.suggestedElo}>
+                      {Math.round(s.elo_avg)}
+                    </Text>
+                  </View>
+                </Card>
+              </Animated.View>
+            ))}
+          </Animated.View>
+        )}
+
         <Animated.View
           entering={FadeInDown.delay(280).springify()}
           style={styles.section}
@@ -448,6 +494,12 @@ const styles = StyleSheet.create({
   actions: { marginTop: 20, gap: 8 },
   section: { marginTop: 28 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  suggestedElo: {
+    color: colors.brand,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
   itemName: {
     color: '#ffffff',
     fontSize: 15,
