@@ -6,10 +6,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { ADMIN_EMAIL, fetchWaitlist, type WaitlistEntry } from '@/lib/admin';
+import { Screen } from '@/components/Screen';
+import { Card } from '@/components/Card';
+import { colors } from '@/theme';
 
 export default function WaitlistAdminScreen() {
   const { session } = useAuth();
@@ -38,64 +41,73 @@ export default function WaitlistAdminScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator color="#ffffff" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: `Waitlist (${entries.length})`,
-          headerStyle: { backgroundColor: '#0a0a0a' },
-          headerTintColor: '#ffffff',
+          headerTitle: `Waitlist · ${entries.length}`,
+          headerStyle: { backgroundColor: colors.bg },
+          headerTintColor: colors.text,
         }}
       />
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         {error && <Text style={styles.error}>{error}</Text>}
         {entries.length === 0 && !error ? (
-          <Text style={styles.empty}>Ninguém na lista ainda.</Text>
+          <Card>
+            <Text style={styles.empty}>Ninguém na lista ainda.</Text>
+          </Card>
         ) : (
-          entries.map((e) => (
-            <View key={e.id} style={styles.row}>
-              <Text style={styles.email}>{e.email}</Text>
-              <Text style={styles.meta}>
-                {e.city ?? '—'} · {e.source ?? '—'} ·{' '}
-                {new Date(e.created_at).toLocaleDateString('pt-PT')}
-              </Text>
-            </View>
+          entries.map((e, i) => (
+            <Animated.View
+              key={e.id}
+              entering={FadeInDown.delay(i * 30).springify()}
+            >
+              <Card style={{ marginTop: 8 }}>
+                <Text style={styles.email}>{e.email}</Text>
+                <Text style={styles.meta}>
+                  {`${e.city ?? '—'} · ${e.source ?? '—'} · ${new Date(e.created_at).toLocaleDateString('pt-PT')}`}
+                </Text>
+              </Card>
+            </Animated.View>
           ))
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
-  empty: {
-    color: '#737373',
+  empty: { color: colors.textDim, fontSize: 13 },
+  email: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  meta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    letterSpacing: -0.1,
+  },
+  error: {
+    color: colors.danger,
+    textAlign: 'center',
+    marginBottom: 16,
     fontSize: 13,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  row: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginBottom: 8,
-  },
-  email: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  meta: { color: '#a3a3a3', fontSize: 12, marginTop: 4 },
-  error: { color: '#f87171', textAlign: 'center', marginBottom: 16, fontSize: 13 },
 });

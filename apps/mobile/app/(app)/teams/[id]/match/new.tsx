@@ -10,7 +10,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchTeamById, type TeamWithSport } from '@/lib/teams';
@@ -22,6 +21,9 @@ import {
   type TeamEloStats,
   type TeamLite,
 } from '@/lib/matches';
+import { Screen } from '@/components/Screen';
+import { Button } from '@/components/Button';
+import { colors } from '@/theme';
 
 function formatDateInput(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 8);
@@ -142,26 +144,26 @@ export default function NewMatchScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator color="#ffffff" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!team) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <Text style={styles.error}>Equipa não encontrada.</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -310,23 +312,18 @@ export default function NewMatchScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
+          <Button
+            label="Enviar desafio"
+            size="lg"
+            haptic="medium"
+            loading={submitting}
+            disabled={opponents.length === 0}
             onPress={handleSubmit}
-            disabled={submitting || opponents.length === 0}
-            style={[
-              styles.submit,
-              (submitting || opponents.length === 0) && styles.submitDisabled,
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.submitText}>Enviar desafio</Text>
-            )}
-          </Pressable>
+            full
+          />
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

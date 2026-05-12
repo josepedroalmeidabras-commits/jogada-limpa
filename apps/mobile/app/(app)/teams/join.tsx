@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { joinTeamByCode } from '@/lib/teams';
+import { Screen } from '@/components/Screen';
+import { Heading, Eyebrow } from '@/components/Heading';
+import { Button } from '@/components/Button';
+import { colors } from '@/theme';
 
 export default function JoinTeamScreen() {
   const { session } = useAuth();
@@ -42,13 +44,13 @@ export default function JoinTeamScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
           headerTitle: 'Entrar com código',
-          headerStyle: { backgroundColor: '#0a0a0a' },
-          headerTintColor: '#ffffff',
+          headerStyle: { backgroundColor: colors.bg },
+          headerTintColor: colors.text,
         }}
       />
       <KeyboardAvoidingView
@@ -56,79 +58,79 @@ export default function JoinTeamScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Tens um código?</Text>
-          <Text style={styles.subtitle}>
-            Cola aqui o código de 8 caracteres que recebeste do capitão.
-          </Text>
+          <Animated.View
+            entering={FadeInDown.duration(400).springify()}
+            style={{ alignItems: 'center' }}
+          >
+            <Eyebrow>Convite</Eyebrow>
+            <Heading level={1} style={{ marginTop: 6, textAlign: 'center' }}>
+              Tens um código?
+            </Heading>
+            <Text style={styles.subtitle}>
+              Cola o código de 8 caracteres que o capitão te passou.
+            </Text>
+          </Animated.View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="ex: 3f2a8b1c"
-            placeholderTextColor="#666"
-            value={code}
-            onChangeText={(v) => setCode(v.trim().toLowerCase())}
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={8}
-            editable={!submitting}
-          />
+          <Animated.View entering={FadeInDown.delay(120).springify()}>
+            <TextInput
+              style={styles.input}
+              placeholder="3f2a8b1c"
+              placeholderTextColor={colors.textFaint}
+              value={code}
+              onChangeText={(v) => setCode(v.trim().toLowerCase())}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={8}
+              editable={!submitting}
+            />
+          </Animated.View>
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
-            onPress={handleSubmit}
-            disabled={submitting}
-            style={[styles.submit, submitting && styles.submitDisabled]}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.submitText}>Entrar</Text>
-            )}
-          </Pressable>
+          <Animated.View entering={FadeInDown.delay(180).springify()}>
+            <Button
+              label="Entrar"
+              size="lg"
+              haptic="medium"
+              loading={submitting}
+              onPress={handleSubmit}
+              full
+            />
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
   flex: { flex: 1 },
-  container: { flex: 1, padding: 24, justifyContent: 'center', gap: 12 },
-  title: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
+  container: { flex: 1, padding: 28, justifyContent: 'center', gap: 16 },
   subtitle: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: 24,
+    marginTop: 8,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.borderSubtle,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    color: '#ffffff',
-    fontSize: 20,
+    paddingVertical: 20,
+    color: colors.text,
+    fontSize: 24,
     textAlign: 'center',
-    letterSpacing: 2,
-    fontFamily: 'Courier',
+    letterSpacing: 6,
+    fontFamily: 'Menlo',
+    fontWeight: '800',
   },
-  submit: {
-    backgroundColor: '#ffffff',
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
+  error: {
+    color: colors.danger,
+    textAlign: 'center',
+    fontSize: 13,
   },
-  submitDisabled: { opacity: 0.5 },
-  submitText: { color: '#000000', fontSize: 16, fontWeight: '600' },
-  error: { color: '#f87171', textAlign: 'center', fontSize: 13 },
 });

@@ -11,7 +11,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import {
@@ -25,6 +24,9 @@ import {
 import { pickImage, uploadTeamLogo } from '@/lib/photos';
 import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabase';
+import { Screen } from '@/components/Screen';
+import { Button } from '@/components/Button';
+import { colors } from '@/theme';
 
 export default function EditTeamScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -111,17 +113,17 @@ export default function EditTeamScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator color="#ffffff" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!isCaptain) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <Stack.Screen
           options={{
             headerShown: true,
@@ -133,12 +135,12 @@ export default function EditTeamScreen() {
         <View style={styles.center}>
           <Text style={styles.deny}>Só o capitão pode editar a equipa.</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -194,17 +196,14 @@ export default function EditTeamScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
+          <Button
+            label="Guardar"
+            size="lg"
+            haptic="medium"
+            loading={submitting}
             onPress={handleSubmit}
-            disabled={submitting}
-            style={[styles.submit, submitting && styles.submitDisabled]}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.submitText}>Guardar</Text>
-            )}
-          </Pressable>
+            full
+          />
 
           {members.filter((m) => m.role !== 'captain').length > 0 && (
             <>
@@ -290,7 +289,7 @@ export default function EditTeamScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

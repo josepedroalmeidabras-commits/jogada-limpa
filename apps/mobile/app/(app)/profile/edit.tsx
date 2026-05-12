@@ -10,7 +10,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import {
@@ -27,6 +26,9 @@ import {
 } from '@/lib/reviews';
 import { pickImage, uploadAvatar } from '@/lib/photos';
 import { Avatar } from '@/components/Avatar';
+import { Screen } from '@/components/Screen';
+import { Button } from '@/components/Button';
+import { colors } from '@/theme';
 
 export default function EditProfileScreen() {
   const { session } = useAuth();
@@ -156,22 +158,22 @@ export default function EditProfileScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator color="#ffffff" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
           headerTitle: 'Editar perfil',
-          headerStyle: { backgroundColor: '#0a0a0a' },
-          headerTintColor: '#ffffff',
+          headerStyle: { backgroundColor: colors.bg },
+          headerTintColor: colors.text,
         }}
       />
       <KeyboardAvoidingView
@@ -230,17 +232,14 @@ export default function EditProfileScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
+          <Button
+            label="Guardar"
+            size="lg"
+            haptic="medium"
+            loading={submitting}
             onPress={handleSubmit}
-            disabled={submitting}
-            style={[styles.submit, submitting && styles.submitDisabled]}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.submitText}>Guardar</Text>
-            )}
-          </Pressable>
+            full
+          />
 
           <Text style={[styles.label, { marginTop: 32 }]}>
             Disponibilidade para substituir
@@ -320,7 +319,7 @@ export default function EditProfileScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -390,7 +389,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   availName: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  availMeta: { color: '#34d399', fontSize: 12, marginTop: 2 },
+  availMeta: { color: colors.brand, fontSize: 12, marginTop: 2 },
   toggle: {
     width: 44,
     height: 26,
@@ -399,7 +398,7 @@ const styles = StyleSheet.create({
     padding: 3,
     justifyContent: 'center',
   },
-  toggleOn: { backgroundColor: '#34d399' },
+  toggleOn: { backgroundColor: colors.brand },
   toggleKnob: {
     width: 20,
     height: 20,
