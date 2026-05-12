@@ -60,6 +60,7 @@ export default function NewMatchScreen() {
   const [opponents, setOpponents] = useState<TeamLite[]>([]);
   const [eloStats, setEloStats] = useState<Record<string, TeamEloStats>>({});
   const [myTeamElo, setMyTeamElo] = useState<number>(1200);
+  const [eloFilter, setEloFilter] = useState<'all' | '100' | '200'>('all');
   const [loading, setLoading] = useState(true);
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [date, setDate] = useState('');
@@ -196,7 +197,43 @@ export default function NewMatchScreen() {
               <Text style={styles.myEloLine}>
                 A tua equipa: ELO médio {Math.round(myTeamElo)}
               </Text>
-              {opponents.map((o) => {
+
+              <View style={styles.filterRow}>
+                {(
+                  [
+                    { v: 'all' as const, label: 'Qualquer' },
+                    { v: '200' as const, label: '±200' },
+                    { v: '100' as const, label: '±100' },
+                  ]
+                ).map((f) => {
+                  const active = eloFilter === f.v;
+                  return (
+                    <Pressable
+                      key={f.v}
+                      onPress={() => setEloFilter(f.v)}
+                      style={[styles.filterChip, active && styles.filterChipActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          active && styles.filterChipTextActive,
+                        ]}
+                      >
+                        {f.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {opponents
+                .filter((o) => {
+                  if (eloFilter === 'all') return true;
+                  const oppElo = eloStats[o.id]?.elo_avg ?? 1200;
+                  const range = eloFilter === '100' ? 100 : 200;
+                  return Math.abs(oppElo - myTeamElo) <= range;
+                })
+                .map((o) => {
                 const picked = o.id === opponentId;
                 const stat = eloStats[o.id];
                 const oppElo = stat?.elo_avg ?? 1200;
@@ -357,10 +394,29 @@ const styles = StyleSheet.create({
   myEloLine: {
     color: '#a3a3a3',
     fontSize: 12,
-    marginBottom: 8,
+    marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 12,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+  },
+  filterChipActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  filterChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  filterChipTextActive: { color: '#0a0a0a' },
   oppCard: {
     padding: 14,
     borderRadius: 12,

@@ -55,6 +55,53 @@ const MATCH_SELECT = `
   )
 `;
 
+export type CityActivity = {
+  match_id: string;
+  scheduled_at: string;
+  side_a_name: string;
+  side_b_name: string;
+  final_score_a: number;
+  final_score_b: number;
+};
+
+export async function fetchCityActivity(
+  city: string,
+  limit = 10,
+): Promise<CityActivity[]> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select(
+      `id, scheduled_at, final_score_a, final_score_b,
+       sides:match_sides!inner(
+         side,
+         team:teams!inner(name, city)
+       )`,
+    )
+    .eq('status', 'validated')
+    .order('scheduled_at', { ascending: false })
+    .limit(50);
+
+  if (error || !data) return [];
+
+  return (data as any[])
+    .map((m): CityActivity | null => {
+      const a = (m.sides as any[]).find((s) => s.side === 'A')?.team;
+      const b = (m.sides as any[]).find((s) => s.side === 'B')?.team;
+      if (!a || !b) return null;
+      if (a.city !== city && b.city !== city) return null;
+      return {
+        match_id: m.id,
+        scheduled_at: m.scheduled_at,
+        side_a_name: a.name,
+        side_b_name: b.name,
+        final_score_a: m.final_score_a,
+        final_score_b: m.final_score_b,
+      };
+    })
+    .filter((x): x is CityActivity => x !== null)
+    .slice(0, limit);
+}
+
 export async function fetchMatchesForUser(
   userId: string,
 ): Promise<MatchSummary[]> {

@@ -16,9 +16,12 @@ import { supabase } from '@/lib/supabase';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
 import {
+  fetchCityActivity,
   fetchPendingChallengesForUser,
   fetchPendingReviewsForUser,
+  formatMatchDate,
   formatRelativeMatchDate,
+  type CityActivity,
   type PendingChallenge,
   type PendingReview,
 } from '@/lib/matches';
@@ -36,6 +39,7 @@ export default function HomeScreen() {
   const [teams, setTeams] = useState<TeamWithSport[]>([]);
   const [challenges, setChallenges] = useState<PendingChallenge[]>([]);
   const [reviews, setReviews] = useState<PendingReview[]>([]);
+  const [activity, setActivity] = useState<CityActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -52,14 +56,16 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const [myTeams, ch, rv] = await Promise.all([
+    const [myTeams, ch, rv, act] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
       fetchPendingReviewsForUser(session.user.id),
+      fetchCityActivity(p.city, 5),
     ]);
     setTeams(myTeams);
     setChallenges(ch);
     setReviews(rv);
+    setActivity(act);
     setLoading(false);
   }, [session, router]);
 
@@ -233,8 +239,39 @@ export default function HomeScreen() {
               )}
             </Animated.View>
 
+            {activity.length > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(300).springify()}
+                style={styles.section}
+              >
+                <Eyebrow>{`Atividade em ${profile?.city ?? ''}`}</Eyebrow>
+                {activity.map((m, i) => (
+                  <Animated.View
+                    key={m.match_id}
+                    entering={FadeInDown.delay(340 + i * 30).springify()}
+                  >
+                    <Card
+                      onPress={() => router.push(`/(app)/matches/${m.match_id}`)}
+                      style={{ marginTop: 8 }}
+                    >
+                      <View style={styles.cardRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardName}>
+                            {`${m.side_a_name} ${m.final_score_a} – ${m.final_score_b} ${m.side_b_name}`}
+                          </Text>
+                          <Text style={styles.cardMeta}>
+                            {formatMatchDate(m.scheduled_at)}
+                          </Text>
+                        </View>
+                      </View>
+                    </Card>
+                  </Animated.View>
+                ))}
+              </Animated.View>
+            )}
+
             <Animated.View
-              entering={FadeIn.delay(360).duration(400)}
+              entering={FadeIn.delay(400).duration(400)}
               style={styles.actions}
             >
               <Button

@@ -22,6 +22,8 @@ import {
 } from '@/lib/history';
 import { formatMatchDate } from '@/lib/matches';
 import { fetchMvpCount } from '@/lib/mvp';
+import { fetchMyTeams } from '@/lib/teams';
+import { computeAchievements } from '@/lib/achievements';
 import { colors } from '@/theme';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
@@ -46,22 +48,25 @@ export default function ProfileScreen() {
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
   const [mvpCount, setMvpCount] = useState(0);
+  const [isCaptain, setIsCaptain] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const [p, s, a, h, mvp] = await Promise.all([
+    const [p, s, a, h, mvp, myTeams] = await Promise.all([
       fetchProfile(session.user.id),
       fetchUserSports(session.user.id),
       fetchReviewAggregate(session.user.id),
-      fetchUserMatchHistory(session.user.id, 30),
+      fetchUserMatchHistory(session.user.id, 100),
       fetchMvpCount(session.user.id),
+      fetchMyTeams(session.user.id),
     ]);
     setProfile(p);
     setSports(s);
     setAggregate(a);
     setHistory(h);
     setMvpCount(mvp);
+    setIsCaptain(myTeams.some((t) => t.captain_id === session.user.id));
     setLoading(false);
   }, [session]);
 
@@ -185,7 +190,55 @@ export default function ProfileScreen() {
             </Animated.View>
 
             <Animated.View
-              entering={FadeInDown.delay(200).springify()}
+              entering={FadeInDown.delay(190).springify()}
+              style={styles.section}
+            >
+              <Eyebrow>Conquistas</Eyebrow>
+              {(() => {
+                const streak = computeWinStreak(history);
+                const achievements = computeAchievements({
+                  history,
+                  mvpCount,
+                  isCaptain,
+                  currentStreak: streak.current,
+                  bestStreak: streak.best,
+                });
+                return (
+                  <View style={styles.achGrid}>
+                    {achievements.map((a) => (
+                      <View
+                        key={a.id}
+                        style={[
+                          styles.ach,
+                          !a.unlocked && styles.achLocked,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.achEmoji,
+                            !a.unlocked && styles.achEmojiLocked,
+                          ]}
+                        >
+                          {a.emoji}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.achTitle,
+                            !a.unlocked && styles.achTitleLocked,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {a.title}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+            </Animated.View>
+
+            <Animated.View
+              entering={FadeInDown.delay(220).springify()}
               style={styles.section}
             >
               <Eyebrow>Histórico</Eyebrow>
@@ -332,6 +385,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.1,
   },
+  achGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  ach: {
+    width: '30.5%',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+  },
+  achLocked: {
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+  },
+  achEmoji: { fontSize: 26 },
+  achEmojiLocked: { opacity: 0.25 },
+  achTitle: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  achTitleLocked: { color: colors.textDim },
   section: { marginTop: 24 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowName: {

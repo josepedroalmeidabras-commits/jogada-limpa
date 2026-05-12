@@ -16,8 +16,10 @@ import { fetchProfile, type Profile } from '@/lib/profile';
 import { fetchActiveSports, type ActiveSport } from '@/lib/profile';
 import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
 import {
+  fetchDiscoverableTeams,
   fetchFreeAgents,
   inviteFreeAgent,
+  type DiscoverableTeam,
   type FreeAgent,
 } from '@/lib/market';
 import { Avatar } from '@/components/Avatar';
@@ -28,11 +30,15 @@ import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 import { colors } from '@/theme';
 
+type Tab = 'players' | 'teams';
+
 export default function MarketScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [tab, setTab] = useState<Tab>('players');
   const [agents, setAgents] = useState<FreeAgent[]>([]);
+  const [teams, setTeams] = useState<DiscoverableTeam[]>([]);
   const [myTeams, setMyTeams] = useState<TeamWithSport[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState<string | null>(null);
@@ -46,13 +52,18 @@ export default function MarketScreen() {
     const sport = sports[0];
     if (!sport) {
       setAgents([]);
+      setTeams([]);
       setLoading(false);
       return;
     }
-    const teams = await fetchMyTeams(session.user.id);
-    setMyTeams(teams);
-    const a = await fetchFreeAgents(sport.id, [session.user.id]);
+    const mine = await fetchMyTeams(session.user.id);
+    setMyTeams(mine);
+    const [a, t] = await Promise.all([
+      fetchFreeAgents(sport.id, [session.user.id]),
+      fetchDiscoverableTeams(sport.id, p.city, mine.map((m) => m.id)),
+    ]);
     setAgents(a);
+    setTeams(t);
     setLoading(false);
   }, [session]);
 
@@ -128,7 +139,7 @@ export default function MarketScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: 'Mercado livre',
+          headerTitle: 'Mercado',
           headerStyle: { backgroundColor: colors.bg },
           headerTintColor: colors.text,
         }}
@@ -140,12 +151,40 @@ export default function MarketScreen() {
         <Animated.View entering={FadeInDown.duration(300).springify()}>
           <Eyebrow>{profile?.city ?? ''}</Eyebrow>
           <Heading level={1} style={{ marginTop: 4 }}>
-            Jogadores livres
+            Mercado
           </Heading>
-          <Text style={styles.sub}>
-            Jogadores que querem entrar numa equipa de Futebol 7. Se és
-            capitão, adiciona à tua equipa em um toque.
-          </Text>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInDown.delay(60).springify()}
+          style={styles.tabRow}
+        >
+          <Pressable
+            onPress={() => setTab('players')}
+            style={[styles.tab, tab === 'players' && styles.tabActive]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                tab === 'players' && styles.tabTextActive,
+              ]}
+            >
+              {`Jogadores · ${agents.length}`}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setTab('teams')}
+            style={[styles.tab, tab === 'teams' && styles.tabActive]}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                tab === 'teams' && styles.tabTextActive,
+              ]}
+            >
+              {`Equipas · ${teams.length}`}
+            </Text>
+          </Pressable>
         </Animated.View>
 
         {loading ? (
@@ -154,66 +193,103 @@ export default function MarketScreen() {
               <Skeleton key={i} height={84} radius={16} />
             ))}
           </View>
-        ) : agents.length === 0 ? (
+        ) : tab === 'players' ? (
+          agents.length === 0 ? (
+            <Card style={{ marginTop: 16 }}>
+              <Text style={styles.emptyTitle}>Mercado vazio</Text>
+              <Text style={styles.emptyBody}>
+                Ninguém marcou disponibilidade. Activa no teu perfil para
+                apareceres aqui.
+              </Text>
+              <View style={{ marginTop: 12 }}>
+                <Button
+                  label="Ativar disponibilidade"
+                  variant="secondary"
+                  onPress={() => router.push('/(app)/profile/edit')}
+                  full
+                />
+              </View>
+            </Card>
+          ) : (
+            agents.map((a, i) => {
+              const isCaptain = myCaptainTeams.some(
+                (t) => t.sport_id === a.sport_id,
+              );
+              return (
+                <Animated.View
+                  key={a.user_id}
+                  entering={FadeInDown.delay(80 + i * 30).springify()}
+                >
+                  <Card style={{ marginTop: 8 }}>
+                    <View style={styles.row}>
+                      <Pressable
+                        style={styles.left}
+                        onPress={() => router.push(`/(app)/users/${a.user_id}`)}
+                      >
+                        <Avatar
+                          url={a.photo_url}
+                          name={a.name}
+                          size={48}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.name}>{a.name}</Text>
+                          <Text style={styles.meta}>
+                            {`${a.city} · ${a.matches_played} jogos`}
+                          </Text>
+                        </View>
+                      </Pressable>
+                      <View style={styles.right}>
+                        <Text style={styles.elo}>{Math.round(a.elo)}</Text>
+                        {isCaptain && (
+                          <Button
+                            label="Adicionar"
+                            size="sm"
+                            loading={inviting === a.user_id}
+                            onPress={() => handleInvite(a)}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  </Card>
+                </Animated.View>
+              );
+            })
+          )
+        ) : teams.length === 0 ? (
           <Card style={{ marginTop: 16 }}>
-            <Text style={styles.emptyTitle}>Mercado vazio</Text>
+            <Text style={styles.emptyTitle}>Sem equipas para descobrir</Text>
             <Text style={styles.emptyBody}>
-              Ninguém marcou disponibilidade. Quando alguém ativar no perfil,
-              aparece aqui — e é o capitão que decide.
+              Ainda não há outras equipas activas em {profile?.city}. Quando
+              alguém criar uma, aparece aqui.
             </Text>
-            <View style={{ marginTop: 12 }}>
-              <Button
-                label="Ativar disponibilidade no meu perfil"
-                variant="secondary"
-                onPress={() => router.push('/(app)/profile/edit')}
-                full
-              />
-            </View>
           </Card>
         ) : (
-          agents.map((a, i) => {
-            const isCaptain = myCaptainTeams.some(
-              (t) => t.sport_id === a.sport_id,
-            );
-            return (
-              <Animated.View
-                key={a.user_id}
-                entering={FadeInDown.delay(80 + i * 30).springify()}
+          teams.map((t, i) => (
+            <Animated.View
+              key={t.team_id}
+              entering={FadeInDown.delay(80 + i * 30).springify()}
+            >
+              <Card
+                onPress={() => router.push(`/(app)/teams/${t.team_id}`)}
+                style={{ marginTop: 8 }}
               >
-                <Card style={{ marginTop: 8 }}>
-                  <View style={styles.row}>
-                    <Pressable
-                      style={styles.left}
-                      onPress={() => router.push(`/(app)/users/${a.user_id}`)}
-                    >
-                      <Avatar
-                        url={a.photo_url}
-                        name={a.name}
-                        size={48}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.name}>{a.name}</Text>
-                        <Text style={styles.meta}>
-                          {`${a.city} · ${a.matches_played} jogos`}
-                        </Text>
-                      </View>
-                    </Pressable>
-                    <View style={styles.right}>
-                      <Text style={styles.elo}>{Math.round(a.elo)}</Text>
-                      {isCaptain && (
-                        <Button
-                          label="Adicionar"
-                          size="sm"
-                          loading={inviting === a.user_id}
-                          onPress={() => handleInvite(a)}
-                        />
-                      )}
-                    </View>
+                <View style={styles.row}>
+                  <Avatar
+                    url={t.photo_url}
+                    name={t.name}
+                    size={48}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{t.name}</Text>
+                    <Text style={styles.meta}>
+                      {`${t.city} · ${t.member_count} membros`}
+                    </Text>
                   </View>
-                </Card>
-              </Animated.View>
-            );
-          })
+                  <Text style={styles.elo}>{Math.round(t.elo_avg)}</Text>
+                </View>
+              </Card>
+            </Animated.View>
+          ))
         )}
       </ScrollView>
     </Screen>
@@ -222,19 +298,19 @@ export default function MarketScreen() {
 
 const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
-  sub: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginTop: 8,
-    marginBottom: 16,
-    lineHeight: 20,
-    letterSpacing: -0.1,
-  },
-  row: {
+  tabRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    backgroundColor: colors.bgElevated,
+    borderRadius: 999,
+    padding: 4,
+    marginTop: 20,
+    marginBottom: 4,
   },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 999 },
+  tabActive: { backgroundColor: colors.brand },
+  tabText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+  tabTextActive: { color: '#0a0a0a' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   left: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   right: { alignItems: 'flex-end', gap: 8 },
   name: {

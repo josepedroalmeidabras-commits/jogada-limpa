@@ -72,6 +72,68 @@ export async function setOpenToTeam(
   return { ok: true };
 }
 
+export type DiscoverableTeam = {
+  team_id: string;
+  name: string;
+  city: string;
+  photo_url: string | null;
+  sport_id: number;
+  captain_id: string;
+  invite_code: string;
+  elo_avg: number;
+  member_count: number;
+};
+
+export async function fetchDiscoverableTeams(
+  sportId: number,
+  city: string,
+  excludeTeamIds: string[],
+): Promise<DiscoverableTeam[]> {
+  const { data: teams, error } = await supabase
+    .from('teams')
+    .select(
+      'id, name, city, photo_url, sport_id, captain_id, invite_code, is_active',
+    )
+    .eq('sport_id', sportId)
+    .eq('city', city)
+    .eq('is_active', true);
+  if (error || !teams) return [];
+
+  const filtered = teams.filter((t) => !excludeTeamIds.includes(t.id));
+  if (filtered.length === 0) return [];
+
+  const { data: stats } = await supabase
+    .from('team_elo')
+    .select('team_id, elo_avg, member_count')
+    .in(
+      'team_id',
+      filtered.map((t) => t.id),
+    );
+
+  const statMap = new Map(
+    (stats ?? []).map((s: any) => [
+      s.team_id,
+      { elo_avg: Number(s.elo_avg), member_count: s.member_count },
+    ]),
+  );
+
+  return filtered
+    .map(
+      (t): DiscoverableTeam => ({
+        team_id: t.id,
+        name: t.name,
+        city: t.city,
+        photo_url: t.photo_url,
+        sport_id: t.sport_id,
+        captain_id: t.captain_id,
+        invite_code: t.invite_code,
+        elo_avg: statMap.get(t.id)?.elo_avg ?? 1200,
+        member_count: statMap.get(t.id)?.member_count ?? 0,
+      }),
+    )
+    .sort((a, b) => b.elo_avg - a.elo_avg);
+}
+
 export async function inviteFreeAgent(input: {
   team_id: string;
   user_id: string;
