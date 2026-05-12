@@ -13,4 +13,8 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
+// Enable package exports (needed for semver subpath imports in
+// react-native-reanimated and friends).
+config.resolver.unstable_enablePackageExports = true;
+
 module.exports = config;
