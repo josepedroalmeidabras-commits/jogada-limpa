@@ -20,9 +20,12 @@ import {
   type UserSportElo,
 } from '@/lib/reviews';
 import {
+  computeWinStreak,
   fetchUserMatchHistory,
   type MatchHistoryEntry,
 } from '@/lib/history';
+import { fetchMvpCount } from '@/lib/mvp';
+import { colors } from '@/theme';
 import { formatMatchDate } from '@/lib/matches';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
@@ -46,20 +49,23 @@ export default function PublicProfileScreen() {
   const [sports, setSports] = useState<UserSportElo[]>([]);
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
+  const [mvpCount, setMvpCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [p, s, a, h] = await Promise.all([
+    const [p, s, a, h, mvp] = await Promise.all([
       fetchProfile(id),
       fetchUserSports(id),
       fetchReviewAggregate(id),
-      fetchUserMatchHistory(id, 5),
+      fetchUserMatchHistory(id, 20),
+      fetchMvpCount(id),
     ]);
     setProfile(p);
     setSports(s);
     setAggregate(a);
     setHistory(h);
+    setMvpCount(mvp);
     setLoading(false);
   }, [id]);
 
@@ -118,6 +124,30 @@ export default function PublicProfileScreen() {
             {profile.name}
           </Heading>
           <Text style={styles.city}>{profile.city}</Text>
+
+          {(() => {
+            const streak = computeWinStreak(history);
+            const show = streak.current >= 2 || mvpCount > 0;
+            if (!show) return null;
+            return (
+              <View style={styles.badgeRow}>
+                {streak.current >= 2 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {`🔥 ${streak.current}`}
+                    </Text>
+                  </View>
+                )}
+                {mvpCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {`👑 ${mvpCount}`}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
         </Animated.View>
 
         <Animated.View
@@ -247,6 +277,27 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   city: { color: '#a3a3a3', fontSize: 14, letterSpacing: -0.1 },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+  },
+  badgeText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
   section: { marginTop: 24 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowName: {

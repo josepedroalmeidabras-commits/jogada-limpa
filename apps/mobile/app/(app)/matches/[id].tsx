@@ -235,6 +235,15 @@ export default function MatchDetailScreen() {
               onPress={() => router.push(`/(app)/matches/${match.id}/review`)}
             />
           )}
+
+          {canReview && (
+            <Button
+              label="👑 Votar MVP"
+              variant="secondary"
+              full
+              onPress={() => router.push(`/(app)/matches/${match.id}/mvp`)}
+            />
+          )}
         </Animated.View>
       </ScrollView>
     </Screen>

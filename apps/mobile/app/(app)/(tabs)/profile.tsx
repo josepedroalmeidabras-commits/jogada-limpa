@@ -16,10 +16,13 @@ import {
   type UserSportElo,
 } from '@/lib/reviews';
 import {
+  computeWinStreak,
   fetchUserMatchHistory,
   type MatchHistoryEntry,
 } from '@/lib/history';
 import { formatMatchDate } from '@/lib/matches';
+import { fetchMvpCount } from '@/lib/mvp';
+import { colors } from '@/theme';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
 import { Screen } from '@/components/Screen';
@@ -42,20 +45,23 @@ export default function ProfileScreen() {
   const [sports, setSports] = useState<UserSportElo[]>([]);
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
+  const [mvpCount, setMvpCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const [p, s, a, h] = await Promise.all([
+    const [p, s, a, h, mvp] = await Promise.all([
       fetchProfile(session.user.id),
       fetchUserSports(session.user.id),
       fetchReviewAggregate(session.user.id),
-      fetchUserMatchHistory(session.user.id, 10),
+      fetchUserMatchHistory(session.user.id, 30),
+      fetchMvpCount(session.user.id),
     ]);
     setProfile(p);
     setSports(s);
     setAggregate(a);
     setHistory(h);
+    setMvpCount(mvp);
     setLoading(false);
   }, [session]);
 
@@ -89,6 +95,31 @@ export default function ProfileScreen() {
               </Heading>
               <Text style={styles.city}>{profile?.city}</Text>
               <Text style={styles.email}>{session?.user.email}</Text>
+
+              {(() => {
+                const streak = computeWinStreak(history);
+                const showStreak = streak.current >= 2 || mvpCount > 0;
+                if (!showStreak) return null;
+                return (
+                  <View style={styles.badgeRow}>
+                    {streak.current >= 2 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {`🔥 ${streak.current} vitórias seguidas`}
+                        </Text>
+                      </View>
+                    )}
+                    {mvpCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {`👑 ${mvpCount} MVP${mvpCount === 1 ? '' : 's'}`}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+
               <Button
                 label="Editar perfil"
                 variant="secondary"
@@ -280,6 +311,27 @@ const styles = StyleSheet.create({
   },
   city: { color: '#a3a3a3', fontSize: 14, letterSpacing: -0.1 },
   email: { color: '#5a5a5a', fontSize: 12, marginBottom: 12 },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+  },
+  badgeText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
   section: { marginTop: 24 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowName: {

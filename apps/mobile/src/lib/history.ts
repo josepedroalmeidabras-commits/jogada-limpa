@@ -30,6 +30,36 @@ type RawHistoryRow = {
   } | null;
 };
 
+export type WinStreak = {
+  current: number;
+  best: number;
+};
+
+export function computeWinStreak(history: MatchHistoryEntry[]): WinStreak {
+  // history is sorted desc by date (most recent first)
+  let current = 0;
+  let best = 0;
+  let running = 0;
+  // current: count consecutive wins from most recent backwards
+  for (let i = 0; i < history.length; i += 1) {
+    if (history[i]!.result === 'win') {
+      if (i === current) current += 1;
+    } else if (i === current) {
+      break;
+    }
+  }
+  // best: walk through, track max win run
+  for (const h of history) {
+    if (h.result === 'win') {
+      running += 1;
+      if (running > best) best = running;
+    } else {
+      running = 0;
+    }
+  }
+  return { current, best };
+}
+
 export async function fetchUserMatchHistory(
   userId: string,
   limit = 10,
