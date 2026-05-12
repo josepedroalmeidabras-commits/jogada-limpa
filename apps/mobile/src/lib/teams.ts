@@ -44,10 +44,10 @@ export async function fetchMyTeams(
     return [];
   }
 
-  // unwrap nested shape
+  // unwrap nested shape, hide deactivated teams
   return (data ?? [])
     .map((row: any) => row.team)
-    .filter((t: any): t is TeamWithSport => !!t);
+    .filter((t: any): t is TeamWithSport => !!t && t.is_active !== false);
 }
 
 export async function fetchTeamById(
