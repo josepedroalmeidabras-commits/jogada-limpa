@@ -9,7 +9,7 @@ export default function Home() {
             Em breve em Coimbra
           </span>
           <h1 className="text-5xl font-bold leading-tight sm:text-6xl">
-            Jogada Limpa
+            S7VN
           </h1>
           <p className="max-w-md text-lg text-white/70">
             A casa do <strong className="text-white">Futebol de 7</strong>{' '}
@@ -136,7 +136,7 @@ export default function Home() {
       </section>
 
       <footer className="flex w-full justify-between border-t border-white/5 px-6 py-8 text-xs text-white/30">
-        <span>© 2026 Jogada Limpa · Coimbra</span>
+        <span>© 2026 S7VN · Coimbra</span>
         <div className="flex gap-6">
           <a href="/privacidade" className="hover:text-white/60">
             Privacidade

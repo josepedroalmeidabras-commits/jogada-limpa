@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Jogada Limpa — a casa do Futebol de 7 amador",
+  title: "S7VN — a casa do Futebol de 7 amador",
   description:
     "A app para equipas de Futebol de 7 marcarem jogos com adversários do seu nível em Coimbra. Reviews bilaterais, ELO automático, jogo limpo.",
 };

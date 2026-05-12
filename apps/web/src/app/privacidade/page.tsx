@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Política de Privacidade — Jogada Limpa',
+  title: 'Política de Privacidade — S7VN',
   description:
-    'Como recolhemos, usamos e protegemos os teus dados na Jogada Limpa.',
+    'Como recolhemos, usamos e protegemos os teus dados na S7VN.',
 };
 
 export default function PrivacyPage() {
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-16 text-white/85">
       <div className="flex items-center justify-between text-sm text-white/40">
         <Link href="/" className="hover:text-white/80">
-          ← Jogada Limpa
+          ← S7VN
         </Link>
         <span>Última atualização: 12 maio 2026</span>
       </div>
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
 
       <Section title="1. Quem somos">
         <p>
-          A Jogada Limpa é uma aplicação destinada a maiores de 18 anos para a
+          A S7VN é uma aplicação destinada a maiores de 18 anos para a
           marcação de jogos de futebol amador entre equipas em Coimbra. O
           serviço é operado por José Pedro Almeida Bras como pessoa singular,
           contactável em josepedroalmeidabras@gmail.com.
