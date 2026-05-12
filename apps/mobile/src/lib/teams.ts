@@ -30,8 +30,40 @@ export type Team = {
   invite_code: string;
   is_active: boolean;
   description: string | null;
+  coach_id: string | null;
   created_at: string;
 };
+
+export async function setTeamCoach(
+  teamId: string,
+  coachId: string | null,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('set_team_coach', {
+    p_team_id: teamId,
+    p_coach_id: coachId,
+  });
+  if (error) return { ok: false, message: error.message ?? 'Falhou.' };
+  return { ok: true };
+}
+
+export type CoachProfile = {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  city: string;
+};
+
+export async function fetchCoach(
+  coachId: string,
+): Promise<CoachProfile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, photo_url, city')
+    .eq('id', coachId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as CoachProfile;
+}
 
 export type TeamWithSport = Team & {
   sport: Pick<ActiveSport, 'id' | 'code' | 'name'> | null;
@@ -55,7 +87,7 @@ export async function fetchMyTeams(
     .select(
       `team:teams!inner(
          id, name, photo_url, sport_id, city, captain_id,
-         invite_code, is_active, description, created_at,
+         invite_code, is_active, description, coach_id, created_at,
          sport:sports!inner(id, code, name)
        )`,
     )
@@ -158,7 +190,7 @@ export async function createTeam(
       captain_id: captainId,
     })
     .select(
-      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, created_at',
+      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, coach_id, created_at',
     )
     .single();
 
@@ -280,7 +312,7 @@ export async function joinTeamByCode(
   const { data: team, error: findError } = await supabase
     .from('teams')
     .select(
-      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, created_at',
+      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, coach_id, created_at',
     )
     .eq('invite_code', code)
     .eq('is_active', true)

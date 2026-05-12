@@ -224,6 +224,20 @@ export default function EditTeamScreen() {
             full
           />
 
+          <Pressable
+            style={styles.coachLink}
+            onPress={() => id && router.push(`/(app)/teams/${id}/coach`)}
+          >
+            <Text style={styles.coachLinkIcon}>📋</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.coachLinkTitle}>Treinador</Text>
+              <Text style={styles.coachLinkHint}>
+                Opcional. Define quem treina a equipa.
+              </Text>
+            </View>
+            <Text style={styles.coachLinkChevron}>›</Text>
+          </Pressable>
+
           {members.filter((m) => m.role !== 'captain').length > 0 && (
             <>
               <Text style={[styles.label, { marginTop: 32 }]}>
@@ -350,6 +364,21 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
+  coachLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    marginTop: 24,
+    gap: 12,
+  },
+  coachLinkIcon: { fontSize: 22 },
+  coachLinkTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  coachLinkHint: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  coachLinkChevron: { color: colors.textDim, fontSize: 24, fontWeight: '300' },
   error: {
     color: '#f87171',
     textAlign: 'center',

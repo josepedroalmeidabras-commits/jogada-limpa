@@ -18,10 +18,12 @@ import {
 } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import {
+  fetchCoach,
   fetchTeamById,
   fetchTeamMembers,
   leaveTeam,
   positionShort,
+  type CoachProfile,
   type TeamMember,
   type TeamWithSport,
 } from '@/lib/teams';
@@ -56,6 +58,7 @@ export default function TeamDetailScreen() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [suggested, setSuggested] = useState<SuggestedOpponent[]>([]);
+  const [coach, setCoach] = useState<CoachProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -69,6 +72,12 @@ export default function TeamDetailScreen() {
     setTeam(t);
     setMembers(m);
     setMatches(ms);
+    if (t?.coach_id) {
+      const c = await fetchCoach(t.coach_id);
+      setCoach(c);
+    } else {
+      setCoach(null);
+    }
     if (t && session && t.captain_id === session.user.id) {
       const sug = await fetchSuggestedOpponents(t.id, 5);
       setSuggested(sug);
@@ -184,6 +193,25 @@ export default function TeamDetailScreen() {
           <Animated.View entering={FadeInDown.delay(60).springify()}>
             <Card style={{ marginTop: 16 }}>
               <Text style={styles.description}>{team.description}</Text>
+            </Card>
+          </Animated.View>
+        )}
+
+        {coach && (
+          <Animated.View entering={FadeInDown.delay(70).springify()}>
+            <Card
+              onPress={() => router.push(`/(app)/users/${coach.id}`)}
+              style={{ marginTop: 12 }}
+            >
+              <View style={styles.coachRow}>
+                <Text style={styles.coachIcon}>📋</Text>
+                <Avatar url={coach.photo_url} name={coach.name} size={32} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.coachLabel}>Treinador</Text>
+                  <Text style={styles.coachName}>{coach.name}</Text>
+                </View>
+                <Text style={styles.arrow}>›</Text>
+              </View>
             </Card>
           </Animated.View>
         )}
@@ -497,6 +525,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     letterSpacing: -0.1,
+  },
+  coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  coachIcon: { fontSize: 22 },
+  coachLabel: {
+    color: '#737373',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  coachName: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
   },
   chatBtn: {
     width: 44,

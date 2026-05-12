@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sendPushToUser } from './push';
 
 export type CreateInternalInput = {
   team_id: string;
@@ -44,6 +45,105 @@ export type InternalParticipantInput = {
   goals?: number;
   assists?: number;
 };
+
+export type AnnounceInput = {
+  team_id: string;
+  scheduled_at: string;
+  location_name?: string;
+  location_tbd?: boolean;
+  notes?: string;
+  side_a_label?: string;
+  side_b_label?: string;
+};
+
+export async function announceInternalMatch(
+  input: AnnounceInput,
+): Promise<{ ok: true; match_id: string } | { ok: false; message: string }> {
+  const { data, error } = await supabase.rpc('announce_internal_match', {
+    p_team_id: input.team_id,
+    p_scheduled_at: input.scheduled_at,
+    p_location_name: input.location_name ?? null,
+    p_location_tbd: input.location_tbd ?? false,
+    p_notes: input.notes ?? null,
+    p_side_a_label: input.side_a_label ?? null,
+    p_side_b_label: input.side_b_label ?? null,
+  });
+  if (error || !data) {
+    return {
+      ok: false,
+      message: error?.message ?? 'Não foi possível anunciar.',
+    };
+  }
+  const matchId = data as string;
+
+  // Fan-out push notifications to every member except the announcer
+  void (async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    const me = auth.user?.id;
+    const [{ data: members }, { data: team }] = await Promise.all([
+      supabase.from('team_members').select('user_id').eq('team_id', input.team_id),
+      supabase.from('teams').select('name').eq('id', input.team_id).maybeSingle(),
+    ]);
+    if (!members) return;
+    const teamName = team?.name ?? 'A tua equipa';
+    const when = new Date(input.scheduled_at).toLocaleString('pt-PT', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    await Promise.all(
+      members
+        .filter((m) => m.user_id !== me)
+        .map((m) =>
+          sendPushToUser(m.user_id, {
+            title: `Peladinha · ${teamName}`,
+            body: `${when} — vais?`,
+            data: {
+              type: 'peladinha_invite',
+              match_id: matchId,
+              team_id: input.team_id,
+            },
+          }),
+        ),
+    );
+  })();
+
+  return { ok: true, match_id: matchId };
+}
+
+export async function assignInternalSides(
+  matchId: string,
+  sideA: string[],
+  sideB: string[],
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('assign_internal_sides', {
+    p_match_id: matchId,
+    p_side_a_user_ids: sideA,
+    p_side_b_user_ids: sideB,
+  });
+  if (error) return { ok: false, message: error.message ?? 'Falhou.' };
+  return { ok: true };
+}
+
+export async function respondToMatchInvite(
+  matchId: string,
+  accept: boolean,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { data: auth } = await supabase.auth.getUser();
+  const me = auth.user?.id;
+  if (!me) return { ok: false, message: 'Sem sessão.' };
+  const { error } = await supabase
+    .from('match_participants')
+    .update({
+      invitation_status: accept ? 'accepted' : 'declined',
+      responded_at: new Date().toISOString(),
+    })
+    .eq('match_id', matchId)
+    .eq('user_id', me);
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
 
 export async function submitInternalMatchResult(input: {
   match_id: string;

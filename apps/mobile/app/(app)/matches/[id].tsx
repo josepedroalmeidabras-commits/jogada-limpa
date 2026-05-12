@@ -30,6 +30,11 @@ import { fetchMatchUnreadCount } from '@/lib/match-chat';
 import { fetchHeadToHead, type HeadToHead } from '@/lib/h2h';
 import { fetchReferee, type RefereeProfile } from '@/lib/referee';
 import { Avatar } from '@/components/Avatar';
+import {
+  fetchMatchParticipants,
+  type MatchParticipant,
+} from '@/lib/result';
+import { respondToMatchInvite } from '@/lib/internal-match';
 import { Screen } from '@/components/Screen';
 import { Heading } from '@/components/Heading';
 import { Card } from '@/components/Card';
@@ -46,6 +51,8 @@ export default function MatchDetailScreen() {
   const [chatUnread, setChatUnread] = useState(0);
   const [h2h, setH2h] = useState<HeadToHead | null>(null);
   const [referee, setReferee] = useState<RefereeProfile | null>(null);
+  const [participants, setParticipants] = useState<MatchParticipant[]>([]);
+  const [respondBusy, setRespondBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,16 +62,20 @@ export default function MatchDetailScreen() {
     const m = await fetchMatchById(id);
     setMatch(m);
     if (m && session) {
-      const [part, unread, hh, ref] = await Promise.all([
+      const [part, unread, hh, ref, parts] = await Promise.all([
         isMatchParticipant(m.id, session.user.id),
         fetchMatchUnreadCount(m.id, session.user.id),
         fetchHeadToHead(m.side_a.id, m.side_b.id),
         m.referee_id ? fetchReferee(m.referee_id) : Promise.resolve(null),
+        m.is_internal
+          ? fetchMatchParticipants(m.id)
+          : Promise.resolve<MatchParticipant[]>([]),
       ]);
       setIsParticipant(part);
       setChatUnread(unread);
       setH2h(hh);
       setReferee(ref);
+      setParticipants(parts);
     }
     setLoading(false);
   }, [id, session]);
@@ -311,6 +322,109 @@ export default function MatchDetailScreen() {
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
+
+        {match.is_internal && (() => {
+          const myPart = participants.find((p) => p.user_id === session?.user.id);
+          const accepted = participants.filter((p) => p.invitation_status === 'accepted').length;
+          const declined = participants.filter((p) => p.invitation_status === 'declined').length;
+          const pending = participants.filter((p) => p.invitation_status === 'pending').length;
+          const canRespond =
+            myPart &&
+            match.status !== 'validated' &&
+            match.status !== 'cancelled';
+          return (
+            <Animated.View
+              entering={FadeInDown.delay(125).springify()}
+              style={styles.section}
+            >
+              <Card variant="subtle">
+                <Text style={styles.confirmTitle}>Convocatória</Text>
+                <View style={styles.confirmRow}>
+                  <View style={styles.confirmCell}>
+                    <Text style={[styles.confirmValue, { color: '#34d399' }]}>
+                      {accepted}
+                    </Text>
+                    <Text style={styles.confirmLabel}>Vão</Text>
+                  </View>
+                  <View style={styles.confirmCell}>
+                    <Text style={[styles.confirmValue, { color: '#f87171' }]}>
+                      {declined}
+                    </Text>
+                    <Text style={styles.confirmLabel}>Não vão</Text>
+                  </View>
+                  <View style={styles.confirmCell}>
+                    <Text style={styles.confirmValue}>{pending}</Text>
+                    <Text style={styles.confirmLabel}>Pendentes</Text>
+                  </View>
+                </View>
+
+                {canRespond && (
+                  <View style={styles.confirmActions}>
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        label={myPart!.invitation_status === 'accepted' ? '✓ Vou' : 'Vou'}
+                        variant={
+                          myPart!.invitation_status === 'accepted' ? 'primary' : 'secondary'
+                        }
+                        size="sm"
+                        haptic="light"
+                        loading={respondBusy}
+                        onPress={async () => {
+                          setRespondBusy(true);
+                          const r = await respondToMatchInvite(match.id, true);
+                          setRespondBusy(false);
+                          if (!r.ok) {
+                            Alert.alert('Erro', r.message);
+                            return;
+                          }
+                          await load();
+                        }}
+                        full
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Button
+                        label={myPart!.invitation_status === 'declined' ? '✗ Não vou' : 'Não vou'}
+                        variant={
+                          myPart!.invitation_status === 'declined' ? 'danger' : 'ghost'
+                        }
+                        size="sm"
+                        loading={respondBusy}
+                        onPress={async () => {
+                          setRespondBusy(true);
+                          const r = await respondToMatchInvite(match.id, false);
+                          setRespondBusy(false);
+                          if (!r.ok) {
+                            Alert.alert('Erro', r.message);
+                            return;
+                          }
+                          await load();
+                        }}
+                        full
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {isCaptain &&
+                  match.status !== 'validated' &&
+                  match.status !== 'cancelled' && (
+                    <View style={{ marginTop: 12 }}>
+                      <Button
+                        label="Distribuir lados"
+                        variant="secondary"
+                        size="sm"
+                        onPress={() =>
+                          router.push(`/(app)/matches/${match.id}/split`)
+                        }
+                        full
+                      />
+                    </View>
+                  )}
+              </Card>
+            </Animated.View>
+          );
+        })()}
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.actions}>
           {isParticipant && match.status !== 'cancelled' && (
@@ -624,6 +738,37 @@ const styles = StyleSheet.create({
     color: '#a3a3a3',
     fontSize: 13,
     fontWeight: '600',
+  },
+  confirmTitle: {
+    color: '#a3a3a3',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
+  confirmRow: { flexDirection: 'row' },
+  confirmCell: { flex: 1, alignItems: 'center' },
+  confirmValue: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  confirmLabel: {
+    color: '#737373',
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
   },
   section: { marginTop: 16 },
   notesHeader: {

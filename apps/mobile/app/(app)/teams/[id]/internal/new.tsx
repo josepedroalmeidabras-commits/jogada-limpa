@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -12,17 +12,9 @@ import {
   View,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/providers/auth';
-import {
-  fetchTeamById,
-  fetchTeamMembers,
-  positionShort,
-  type TeamMember,
-  type TeamWithSport,
-} from '@/lib/teams';
-import { createInternalMatch } from '@/lib/internal-match';
-import { Avatar } from '@/components/Avatar';
+import { fetchTeamById, type TeamWithSport } from '@/lib/teams';
+import { announceInternalMatch } from '@/lib/internal-match';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -59,14 +51,11 @@ function parseDateTime(date: string, time: string): Date | null {
   return d;
 }
 
-type Assignment = Record<string, 'A' | 'B' | undefined>;
-
 export default function NewInternalMatchScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { session } = useAuth();
   const [team, setTeam] = useState<TeamWithSport | null>(null);
-  const [members, setMembers] = useState<TeamMember[]>([]);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [locationTbd, setLocationTbd] = useState(false);
@@ -74,7 +63,6 @@ export default function NewInternalMatchScreen() {
   const [notes, setNotes] = useState('');
   const [labelA, setLabelA] = useState('Coletes');
   const [labelB, setLabelB] = useState('Sem coletes');
-  const [assign, setAssign] = useState<Assignment>({});
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,13 +71,9 @@ export default function NewInternalMatchScreen() {
     if (!id) return;
     let cancelled = false;
     (async () => {
-      const [t, m] = await Promise.all([
-        fetchTeamById(id),
-        fetchTeamMembers(id),
-      ]);
+      const t = await fetchTeamById(id);
       if (cancelled) return;
       setTeam(t);
-      setMembers(m);
       setLoading(false);
     })();
     return () => {
@@ -99,19 +83,6 @@ export default function NewInternalMatchScreen() {
 
   const isCaptain = team?.captain_id === session?.user.id;
   const parsed = parseDateTime(date, time);
-
-  const sideA = useMemo(
-    () => members.filter((m) => assign[m.user_id] === 'A'),
-    [members, assign],
-  );
-  const sideB = useMemo(
-    () => members.filter((m) => assign[m.user_id] === 'B'),
-    [members, assign],
-  );
-  const unassigned = useMemo(
-    () => members.filter((m) => !assign[m.user_id]),
-    [members, assign],
-  );
 
   function applyPreset(day: number, hour: number, minute = 0) {
     const target = new Date();
@@ -124,43 +95,15 @@ export default function NewInternalMatchScreen() {
     );
   }
 
-  function assignTo(uid: string, side: 'A' | 'B' | undefined) {
-    setAssign((prev) => ({ ...prev, [uid]: side }));
-  }
-
-  function autoShuffle() {
-    const picks = [...members]
-      .filter((m) => assign[m.user_id] !== undefined)
-      .map((m) => m.user_id);
-    // include all members for an even split
-    const all = [...members].map((m) => m.user_id);
-    const shuffled = [...all].sort(() => Math.random() - 0.5);
-    const half = Math.ceil(shuffled.length / 2);
-    const next: Assignment = {};
-    shuffled.forEach((uid, i) => {
-      next[uid] = i < half ? 'A' : 'B';
-    });
-    setAssign(next);
-    void picks;
-  }
-
-  function clearAll() {
-    setAssign({});
-  }
-
   async function handleSubmit() {
     if (!id || !parsed) return;
-    if (sideA.length === 0 || sideB.length === 0) {
-      setError('Cada lado precisa de pelo menos 1 jogador.');
-      return;
-    }
     if (!locationTbd && locationName.trim().length === 0) {
       setError('Indica onde se joga (ou marca "A combinar").');
       return;
     }
     setError(null);
     setSubmitting(true);
-    const r = await createInternalMatch({
+    const r = await announceInternalMatch({
       team_id: id,
       scheduled_at: parsed.toISOString(),
       location_name: locationTbd ? undefined : locationName.trim(),
@@ -168,15 +111,22 @@ export default function NewInternalMatchScreen() {
       notes: notes.trim() || undefined,
       side_a_label: labelA.trim() || undefined,
       side_b_label: labelB.trim() || undefined,
-      side_a_user_ids: sideA.map((m) => m.user_id),
-      side_b_user_ids: sideB.map((m) => m.user_id),
     });
     setSubmitting(false);
     if (!r.ok) {
       setError(r.message);
       return;
     }
-    router.replace(`/(app)/matches/${r.match_id}`);
+    Alert.alert(
+      'Peladinha anunciada',
+      'Todos os membros receberam o convite. Aguarda confirmações e depois divide os lados.',
+      [
+        {
+          text: 'Ver convocatória',
+          onPress: () => router.replace(`/(app)/matches/${r.match_id}`),
+        },
+      ],
+    );
   }
 
   if (loading) return <Screen>{null}</Screen>;
@@ -193,32 +143,12 @@ export default function NewInternalMatchScreen() {
     );
   }
 
-  if (members.length < 2) {
-    return (
-      <Screen>
-        <Stack.Screen
-          options={{
-            headerShown: true,
-            headerTitle: 'Peladinha interna',
-            headerStyle: { backgroundColor: colors.bg },
-            headerTintColor: colors.text,
-          }}
-        />
-        <View style={styles.center}>
-          <Text style={styles.muted}>
-            Precisas de pelo menos 2 membros na equipa.
-          </Text>
-        </View>
-      </Screen>
-    );
-  }
-
   return (
     <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: 'Peladinha interna',
+          headerTitle: 'Marcar peladinha',
           headerStyle: { backgroundColor: colors.bg },
           headerTintColor: colors.text,
         }}
@@ -234,11 +164,12 @@ export default function NewInternalMatchScreen() {
         >
           <Eyebrow>{team.name}</Eyebrow>
           <Heading level={2} style={{ marginTop: 4 }}>
-            Coletes vs Sem coletes
+            Anunciar peladinha
           </Heading>
           <Text style={styles.hint}>
-            Dividir o grupo em dois lados ad-hoc. Não conta para o ELO — golos,
-            assistências e reviews continuam a contar.
+            Marcas o dia e o local; todos os membros recebem convite e
+            confirmam se vão. Depois divides os lados entre quem aceitou.
+            Sem limite de jogadores — pode ser 5v5, 7v7, 8v8 ou mais.
           </Text>
 
           <Eyebrow style={{ marginTop: 24 }}>Atalhos</Eyebrow>
@@ -335,81 +266,13 @@ export default function NewInternalMatchScreen() {
             </Card>
           </View>
 
-          <View style={styles.actionsRow}>
-            <Eyebrow style={{ flex: 1 }}>
-              {`Plantel · ${sideA.length + sideB.length}/${members.length}`}
-            </Eyebrow>
-            <Pressable onPress={autoShuffle} style={styles.utilBtn}>
-              <Ionicons name="shuffle" size={14} color={colors.brand} />
-              <Text style={styles.utilBtnText}>Sortear</Text>
-            </Pressable>
-            <Pressable onPress={clearAll} style={styles.utilBtn}>
-              <Text style={styles.utilBtnText}>Limpar</Text>
-            </Pressable>
-          </View>
-
-          {/* Side A list */}
-          <Text style={[styles.sideHeader, { color: '#34d399' }]}>
-            {`${labelA || 'Lado A'} · ${sideA.length}`}
-          </Text>
-          {sideA.length === 0 && (
-            <Text style={styles.sideEmpty}>Ninguém atribuído ainda.</Text>
-          )}
-          {sideA.map((m) => (
-            <PlayerRow
-              key={m.user_id}
-              member={m}
-              side="A"
-              labelA={labelA}
-              labelB={labelB}
-              onAssign={(side) => assignTo(m.user_id, side)}
-            />
-          ))}
-
-          {/* Side B list */}
-          <Text style={[styles.sideHeader, { color: '#fbbf24', marginTop: 16 }]}>
-            {`${labelB || 'Lado B'} · ${sideB.length}`}
-          </Text>
-          {sideB.length === 0 && (
-            <Text style={styles.sideEmpty}>Ninguém atribuído ainda.</Text>
-          )}
-          {sideB.map((m) => (
-            <PlayerRow
-              key={m.user_id}
-              member={m}
-              side="B"
-              labelA={labelA}
-              labelB={labelB}
-              onAssign={(side) => assignTo(m.user_id, side)}
-            />
-          ))}
-
-          {/* Unassigned */}
-          {unassigned.length > 0 && (
-            <>
-              <Text style={[styles.sideHeader, { marginTop: 16 }]}>
-                {`Por atribuir · ${unassigned.length}`}
-              </Text>
-              {unassigned.map((m) => (
-                <PlayerRow
-                  key={m.user_id}
-                  member={m}
-                  side={undefined}
-                  labelA={labelA}
-                  labelB={labelB}
-                  onAssign={(side) => assignTo(m.user_id, side)}
-                />
-              ))}
-            </>
-          )}
-
           <Eyebrow style={{ marginTop: 24 }}>Notas (opcional)</Eyebrow>
           <Card style={{ marginTop: 8, padding: 0 }}>
             <TextInput
               style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Combinações, balneário..."
+              placeholder="Cor de equipamento, o que levar..."
               placeholderTextColor={colors.textFaint}
               multiline
               maxLength={200}
@@ -421,7 +284,7 @@ export default function NewInternalMatchScreen() {
 
           <View style={{ marginTop: 24 }}>
             <Button
-              label="Criar peladinha"
+              label="Anunciar e convocar plantel"
               size="lg"
               haptic="medium"
               loading={submitting}
@@ -433,72 +296,6 @@ export default function NewInternalMatchScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
-  );
-}
-
-function PlayerRow({
-  member,
-  side,
-  labelA,
-  labelB,
-  onAssign,
-}: {
-  member: TeamMember;
-  side: 'A' | 'B' | undefined;
-  labelA: string;
-  labelB: string;
-  onAssign: (side: 'A' | 'B' | undefined) => void;
-}) {
-  return (
-    <View style={styles.playerRow}>
-      <Avatar
-        url={member.profile?.photo_url ?? null}
-        name={member.profile?.name ?? ''}
-        size={32}
-      />
-      <View style={{ flex: 1 }}>
-        <Text style={styles.playerName} numberOfLines={1}>
-          {member.preferred_position === 'gr' ? '🧤 ' : ''}
-          {member.profile?.name ?? 'Jogador'}
-        </Text>
-        {member.preferred_position && (
-          <Text style={styles.playerSub}>
-            {positionShort(member.preferred_position)}
-            {member.elo !== null ? ` · ${Math.round(member.elo)}` : ''}
-          </Text>
-        )}
-      </View>
-      <View style={styles.sideBtns}>
-        <Pressable
-          onPress={() => onAssign(side === 'A' ? undefined : 'A')}
-          style={[styles.sideBtn, side === 'A' && styles.sideBtnAActive]}
-        >
-          <Text
-            style={[
-              styles.sideBtnText,
-              side === 'A' && { color: '#0a0a0a' },
-            ]}
-            numberOfLines={1}
-          >
-            {labelA || 'A'}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onAssign(side === 'B' ? undefined : 'B')}
-          style={[styles.sideBtn, side === 'B' && styles.sideBtnBActive]}
-        >
-          <Text
-            style={[
-              styles.sideBtnText,
-              side === 'B' && { color: '#0a0a0a' },
-            ]}
-            numberOfLines={1}
-          >
-            {labelB || 'B'}
-          </Text>
-        </Pressable>
-      </View>
-    </View>
   );
 }
 
@@ -532,65 +329,5 @@ const styles = StyleSheet.create({
   },
   toggleLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
   labelsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 28,
-  },
-  utilBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: colors.brandSoft,
-    borderWidth: 1,
-    borderColor: colors.brandSoftBorder,
-  },
-  utilBtnText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
-  sideHeader: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  sideEmpty: {
-    color: colors.textDim,
-    fontSize: 12,
-    fontStyle: 'italic',
-    marginBottom: 8,
-  },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  playerName: { color: colors.text, fontSize: 14, fontWeight: '500' },
-  playerSub: {
-    color: colors.textDim,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginTop: 2,
-  },
-  sideBtns: { flexDirection: 'row', gap: 6 },
-  sideBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.bgElevated,
-    maxWidth: 100,
-  },
-  sideBtnAActive: { backgroundColor: '#34d399', borderColor: '#34d399' },
-  sideBtnBActive: { backgroundColor: '#fbbf24', borderColor: '#fbbf24' },
-  sideBtnText: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
   error: { color: '#f87171', textAlign: 'center', marginTop: 12, fontSize: 13 },
 });
