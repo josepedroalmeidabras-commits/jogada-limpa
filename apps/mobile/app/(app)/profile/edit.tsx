@@ -350,6 +350,19 @@ export default function EditProfileScreen() {
             Para editar desportos ou nível inicial, contacta o suporte.
           </Text>
 
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/(app)/profile/notifications')}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.linkRowLabel}>Notificações</Text>
+              <Text style={styles.linkRowHint}>
+                Escolhe que avisos queres receber.
+              </Text>
+            </View>
+            <Text style={styles.linkRowChevron}>›</Text>
+          </Pressable>
+
           <View style={styles.dangerBlock}>
             <Text style={styles.dangerTitle}>Zona perigosa</Text>
             <Pressable
@@ -474,6 +487,33 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   toggleKnobOn: { alignSelf: 'flex-end' },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginTop: 24,
+    gap: 12,
+  },
+  linkRowLabel: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  linkRowHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  linkRowChevron: {
+    color: colors.textDim,
+    fontSize: 24,
+    fontWeight: '300',
+  },
   dangerBlock: {
     marginTop: 40,
     padding: 16,

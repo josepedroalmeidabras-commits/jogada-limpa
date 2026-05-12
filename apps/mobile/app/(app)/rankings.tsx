@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -37,6 +38,7 @@ export default function RankingsScreen() {
   const [teams, setTeams] = useState<RankedTeam[]>([]);
   const [mvps, setMvps] = useState<RankedMvp[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -55,26 +57,36 @@ export default function RankingsScreen() {
     }, [load]),
   );
 
+  const loadRankings = useCallback(async () => {
+    if (!sportId || !profile) return;
+    const [pl, tm, mv] = await Promise.all([
+      fetchTopPlayers(sportId, profile.city, 20),
+      fetchTopTeams(sportId, profile.city, 20),
+      fetchTopMvps(profile.city, 20),
+    ]);
+    setPlayers(pl);
+    setTeams(tm);
+    setMvps(mv);
+  }, [sportId, profile]);
+
   useFocusEffect(
     useCallback(() => {
-      if (!sportId || !profile) return;
       let cancelled = false;
       (async () => {
-        const [pl, tm, mv] = await Promise.all([
-          fetchTopPlayers(sportId, profile.city, 20),
-          fetchTopTeams(sportId, profile.city, 20),
-          fetchTopMvps(profile.city, 20),
-        ]);
         if (cancelled) return;
-        setPlayers(pl);
-        setTeams(tm);
-        setMvps(mv);
+        await loadRankings();
       })();
       return () => {
         cancelled = true;
       };
-    }, [sportId, profile]),
+    }, [loadRankings]),
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([load(), loadRankings()]);
+    setRefreshing(false);
+  }, [load, loadRankings]);
 
   return (
     <Screen>
@@ -88,6 +100,13 @@ export default function RankingsScreen() {
       />
       <ScrollView
         contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         {loading ? (

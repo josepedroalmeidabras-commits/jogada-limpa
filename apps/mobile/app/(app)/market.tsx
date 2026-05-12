@@ -5,6 +5,7 @@ import {
   Alert,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -44,6 +45,7 @@ export default function MarketScreen() {
   const [teams, setTeams] = useState<DiscoverableTeam[]>([]);
   const [myTeams, setMyTeams] = useState<TeamWithSport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [inviting, setInviting] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
@@ -96,6 +98,12 @@ export default function MarketScreen() {
       load();
     }, [load]),
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   const myCaptainTeams = myTeams.filter(
     (t) => t.captain_id === session?.user.id,
@@ -170,6 +178,13 @@ export default function MarketScreen() {
       />
       <ScrollView
         contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.duration(300).springify()}>
