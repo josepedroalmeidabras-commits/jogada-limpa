@@ -38,11 +38,21 @@ import {
 import { fetchMvpCount } from '@/lib/mvp';
 import { colors } from '@/theme';
 import { formatMatchDate } from '@/lib/matches';
+import {
+  canVoteOnPlayer,
+  emptyStats,
+  fetchPlayerStats,
+  overallRating,
+  totalVotes,
+  type AggregateStat,
+} from '@/lib/player-stats';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Skeleton } from '@/components/Skeleton';
+import { PlayerStatsCard } from '@/components/PlayerStatsCard';
+import { Button } from '@/components/Button';
 
 const MIN_REVIEWS_TO_SHOW = 5;
 
@@ -63,21 +73,27 @@ export default function PublicProfileScreen() {
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
   const [mvpCount, setMvpCount] = useState(0);
+  const [stats, setStats] = useState<AggregateStat[]>(emptyStats());
+  const [canVote, setCanVote] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [p, s, a, h, mvp] = await Promise.all([
+    const [p, s, a, h, mvp, ps, cv] = await Promise.all([
       fetchProfile(id),
       fetchUserSports(id),
       fetchReviewAggregate(id),
       fetchUserMatchHistory(id, 20),
       fetchMvpCount(id),
+      fetchPlayerStats(id),
+      canVoteOnPlayer(id),
     ]);
     setProfile(p);
     setSports(s);
     setAggregate(a);
     setHistory(h);
+    setStats(ps);
+    setCanVote(cv);
     setMvpCount(mvp);
     setLoading(false);
   }, [id]);
@@ -249,6 +265,29 @@ export default function PublicProfileScreen() {
             </Card>
           </Animated.View>
         )}
+
+        <Animated.View
+          entering={FadeInDown.delay(70).springify()}
+          style={styles.section}
+        >
+          <PlayerStatsCard
+            stats={stats}
+            overall={overallRating(stats)}
+            totalVotes={totalVotes(stats)}
+          />
+          {canVote && (
+            <View style={{ marginTop: 12 }}>
+              <Button
+                label={isSelf ? 'Sugerir os meus atributos' : 'Votar atributos'}
+                variant="secondary"
+                full
+                onPress={() =>
+                  router.push(`/(app)/users/${id}/stats-vote`)
+                }
+              />
+            </View>
+          )}
+        </Animated.View>
 
         <Animated.View
           entering={FadeInDown.delay(80).springify()}
