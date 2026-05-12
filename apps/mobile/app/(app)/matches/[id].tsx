@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import {
   Alert,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -244,6 +245,24 @@ export default function MatchDetailScreen() {
               onPress={() => router.push(`/(app)/matches/${match.id}/mvp`)}
             />
           )}
+
+          {match.status === 'validated' &&
+            match.final_score_a !== null &&
+            match.final_score_b !== null && (
+              <Button
+                label="↗ Partilhar resultado"
+                variant="secondary"
+                full
+                onPress={async () => {
+                  const result = `${match.side_a.name} ${match.final_score_a}–${match.final_score_b} ${match.side_b.name}\n${formatMatchDate(match.scheduled_at)}\n\nJogado na Jogada Limpa 🟢`;
+                  try {
+                    await Share.share({ message: result });
+                  } catch {
+                    // user cancelled
+                  }
+                }}
+              />
+            )}
         </Animated.View>
       </ScrollView>
     </Screen>

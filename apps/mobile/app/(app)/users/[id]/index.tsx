@@ -1,10 +1,15 @@
 import { useCallback, useState } from 'react';
 import {
+  ActionSheetIOS,
+  Alert,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Stack,
@@ -12,7 +17,13 @@ import {
   useLocalSearchParams,
   useRouter,
 } from 'expo-router';
+import { useAuth } from '@/providers/auth';
 import { fetchProfile, type Profile } from '@/lib/profile';
+import {
+  blockUser,
+  REPORT_REASON_LABELS,
+  type ReportReason,
+} from '@/lib/moderation';
 import {
   fetchReviewAggregate,
   fetchUserSports,
@@ -45,6 +56,8 @@ function levelLabel(elo: number): string {
 export default function PublicProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { session } = useAuth();
+  const isSelf = session?.user.id === id;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sports, setSports] = useState<UserSportElo[]>([]);
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
@@ -101,6 +114,68 @@ export default function PublicProfileScreen() {
   const enoughReviews =
     aggregate && aggregate.total_reviews >= MIN_REVIEWS_TO_SHOW;
 
+  function handleConfirmBlock() {
+    if (!profile) return;
+    Alert.alert(
+      'Bloquear jogador?',
+      `${profile.name} deixa de te ver no mercado e tu não vês ${profile.name}.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Bloquear',
+          style: 'destructive',
+          onPress: async () => {
+            const r = await blockUser(profile.id);
+            if (!r.ok) {
+              Alert.alert('Erro', r.message ?? 'Não foi possível bloquear.');
+              return;
+            }
+            router.back();
+          },
+        },
+      ],
+    );
+  }
+
+  function handleReport() {
+    if (!profile) return;
+    const reasons = Object.keys(REPORT_REASON_LABELS) as ReportReason[];
+    router.push({
+      pathname: '/(app)/users/[id]/report',
+      params: { id: profile.id, name: profile.name },
+    });
+    void reasons;
+  }
+
+  function openActions() {
+    if (!profile) return;
+    const options = ['Reportar', 'Bloquear', 'Cancelar'];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: 2,
+          destructiveButtonIndex: 1,
+          title: profile.name,
+        },
+        (idx) => {
+          if (idx === 0) handleReport();
+          if (idx === 1) handleConfirmBlock();
+        },
+      );
+    } else {
+      Alert.alert(profile.name, undefined, [
+        { text: 'Reportar', onPress: handleReport },
+        {
+          text: 'Bloquear',
+          style: 'destructive',
+          onPress: handleConfirmBlock,
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ]);
+    }
+  }
+
   return (
     <Screen>
       <Stack.Screen
@@ -109,6 +184,20 @@ export default function PublicProfileScreen() {
           headerTitle: profile.name,
           headerStyle: { backgroundColor: '#0a0a0a' },
           headerTintColor: '#ffffff',
+          headerRight: () =>
+            isSelf ? null : (
+              <Pressable
+                onPress={openActions}
+                hitSlop={12}
+                style={{ paddingHorizontal: 4 }}
+              >
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={22}
+                  color={colors.text}
+                />
+              </Pressable>
+            ),
         }}
       />
       <ScrollView

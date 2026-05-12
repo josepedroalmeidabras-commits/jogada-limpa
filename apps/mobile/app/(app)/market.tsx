@@ -26,6 +26,7 @@ import {
   type DiscoverableTeam,
   type FreeAgent,
 } from '@/lib/market';
+import { fetchBlockedIds } from '@/lib/moderation';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -84,11 +85,12 @@ export default function MarketScreen() {
     }
     const mine = await fetchMyTeams(session.user.id);
     setMyTeams(mine);
-    const [a, t] = await Promise.all([
+    const [a, t, blocked] = await Promise.all([
       fetchFreeAgents(sport.id, [session.user.id]),
       fetchDiscoverableTeams(sport.id, p.city, mine.map((m) => m.id)),
+      fetchBlockedIds(session.user.id),
     ]);
-    setAgents(a);
+    setAgents(a.filter((agent) => !blocked.has(agent.user_id)));
     setTeams(t);
     setLoading(false);
   }, [session]);

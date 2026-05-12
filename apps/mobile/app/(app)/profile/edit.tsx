@@ -363,6 +363,32 @@ export default function EditProfileScreen() {
             <Text style={styles.linkRowChevron}>›</Text>
           </Pressable>
 
+          <Pressable
+            style={[styles.linkRow, { marginTop: 8 }]}
+            onPress={() => router.push('/(app)/profile/blocked')}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.linkRowLabel}>Jogadores bloqueados</Text>
+              <Text style={styles.linkRowHint}>
+                Gere a lista de quem bloqueaste.
+              </Text>
+            </View>
+            <Text style={styles.linkRowChevron}>›</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.linkRow, { marginTop: 8 }]}
+            onPress={() => router.push('/(app)/profile/about')}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.linkRowLabel}>Sobre a app</Text>
+              <Text style={styles.linkRowHint}>
+                Versão, termos, privacidade e suporte.
+              </Text>
+            </View>
+            <Text style={styles.linkRowChevron}>›</Text>
+          </Pressable>
+
           <View style={styles.dangerBlock}>
             <Text style={styles.dangerTitle}>Zona perigosa</Text>
             <Pressable
