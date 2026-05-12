@@ -1,7 +1,373 @@
+-- =============================================================================
+-- Jogada Limpa — Migrations PENDENTES (0011 → 0021)
+-- =============================================================================
+-- Estado verificado via REST API em 2026-05-12:
+--   ✓ Corridas: 0001, 0002, 0003, 0004, 0005, 0006, 0007, 0008, 0009, 0010
+--   ✗ Falta:    0011, 0012, 0013, 0014, 0015, 0016, 0017, 0018, 0019, 0020, 0021
+--
+-- Como correr: cola tudo isto no SQL Editor (https://supabase.com/dashboard/
+-- project/pcdxfwprsenpztpbgspy/sql/new) e clica em Run. Deve correr de uma só
+-- vez sem erros.
+-- =============================================================================
 
--- ================================================================
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- FILE: 0011_match_reminders.sql
+-- ──────────────────────────────────────────────────────────────────────────
+
+-- =============================================================================
+-- Reminders automáticos 24h e 2h antes do jogo — pg_cron + pg_net
+-- =============================================================================
+-- NOTAS:
+-- 1) pg_cron e pg_net costumam estar disponíveis no Supabase, mas podem
+--    precisar de ser ativados manualmente em "Database > Extensions" do
+--    dashboard. Os CREATE EXTENSION abaixo não dão erro se já existirem.
+-- 2) Tolerância de janela: 30 min. Se um cron run falhar, o seguinte
+--    apanha matches que ainda estejam dentro da janela.
+-- 3) Sem idempotência sofisticada — duplicados raros são preferíveis a
+--    notificações perdidas em MVP.
+
+create extension if not exists pg_cron  with schema extensions;
+create extension if not exists pg_net   with schema extensions;
+
+-- Helper: envia push via Expo Push API (assíncrono, fire-and-forget).
+create or replace function public.send_push_via_net(
+  p_user_id uuid,
+  p_title   text,
+  p_body    text,
+  p_data    jsonb default '{}'::jsonb
+) returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_token text;
+begin
+  for v_token in
+    select token from public.push_tokens where user_id = p_user_id
+  loop
+    perform net.http_post(
+      url     := 'https://exp.host/--/api/v2/push/send',
+      headers := jsonb_build_object('Content-Type', 'application/json'),
+      body    := jsonb_build_object(
+        'to',       v_token,
+        'title',    p_title,
+        'body',     p_body,
+        'data',     p_data,
+        'sound',    'default',
+        'priority', 'high'
+      )
+    );
+  end loop;
+end;
+$$;
+
+revoke all on function public.send_push_via_net(uuid, text, text, jsonb)
+  from public, anon, authenticated;
+
+-- Reminder dispatcher: 24h e 2h windows.
+create or replace function public.dispatch_match_reminders()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_match       record;
+  v_participant record;
+  v_title       text;
+begin
+  for v_match in
+    select
+      m.id,
+      m.scheduled_at,
+      ta.name as a_name,
+      tb.name as b_name,
+      case
+        when m.scheduled_at between now() + interval '23 hours 30 minutes'
+                                and now() + interval '24 hours 30 minutes'
+          then '24h'
+        when m.scheduled_at between now() + interval '1 hour 30 minutes'
+                                and now() + interval '2 hours 30 minutes'
+          then '2h'
+        else null
+      end as window_label
+    from public.matches m
+    join public.match_sides sa on sa.match_id = m.id and sa.side = 'A'
+    join public.match_sides sb on sb.match_id = m.id and sb.side = 'B'
+    join public.teams ta on ta.id = sa.team_id
+    join public.teams tb on tb.id = sb.team_id
+    where m.status = 'confirmed'
+  loop
+    if v_match.window_label is null then
+      continue;
+    end if;
+
+    v_title := case v_match.window_label
+      when '24h' then 'Jogo amanhã ⚽'
+      else            'Jogo daqui a 2h ⏰'
+    end;
+
+    for v_participant in
+      select mp.user_id
+        from public.match_participants mp
+        where mp.match_id = v_match.id
+          and mp.invitation_status = 'accepted'
+    loop
+      perform public.send_push_via_net(
+        v_participant.user_id,
+        v_title,
+        v_match.a_name || ' vs ' || v_match.b_name,
+        jsonb_build_object('match_id', v_match.id, 'window', v_match.window_label)
+      );
+    end loop;
+  end loop;
+end;
+$$;
+
+revoke all on function public.dispatch_match_reminders() from public, anon, authenticated;
+
+-- Agendar a cada hora (à minuto 0). Se o nome já existir, recria.
+select cron.unschedule('dispatch-match-reminders')
+  where exists (select 1 from cron.job where jobname = 'dispatch-match-reminders');
+
+select cron.schedule(
+  'dispatch-match-reminders',
+  '0 * * * *',
+  $$ select public.dispatch_match_reminders(); $$
+);
+
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- FILE: 0012_mvp_votes.sql
+-- ──────────────────────────────────────────────────────────────────────────
+
+-- =============================================================================
+-- MVP voting: cada participante de um match validated vota 1 colega
+-- =============================================================================
+-- Regras:
+--  * Votar = INSERT em match_mvp_votes (match_id, voter_id, mvp_user_id).
+--  * Voter tem de ter sido participante COM presença ('attended' / 'substitute_in').
+--  * Voto único por (match_id, voter_id). Para mudar, terias de DELETE + INSERT.
+--  * Match tem de estar 'validated'.
+--  * mvp_user_id pode ser de qualquer lado (votas em colegas OU adversários).
+
+create table public.match_mvp_votes (
+  match_id     uuid not null references public.matches(id) on delete cascade,
+  voter_id     uuid not null references public.profiles(id) on delete cascade,
+  mvp_user_id  uuid not null references public.profiles(id) on delete cascade,
+  created_at   timestamptz default now(),
+  primary key (match_id, voter_id),
+  check (voter_id <> mvp_user_id)
+);
+
+create index idx_mvp_votes_mvp on public.match_mvp_votes(mvp_user_id);
+create index idx_mvp_votes_match on public.match_mvp_votes(match_id);
+
+alter table public.match_mvp_votes enable row level security;
+
+-- Voter pode escrever só o seu voto, se cumprir critérios
+create policy "mvp_votes_insert"
+  on public.match_mvp_votes for insert to authenticated
+  with check (
+    auth.uid() = voter_id
+    and exists (
+      select 1 from public.matches m
+      where m.id = match_id and m.status = 'validated'
+    )
+    and exists (
+      select 1 from public.match_participants mp
+      where mp.match_id = match_mvp_votes.match_id
+        and mp.user_id = auth.uid()
+        and mp.attendance in ('attended','substitute_in')
+    )
+  );
+
+-- Voter pode ler/eliminar o próprio voto; todos podem ler agregados via view
+create policy "mvp_votes_select_own"
+  on public.match_mvp_votes for select to authenticated
+  using (auth.uid() = voter_id);
+
+create policy "mvp_votes_delete_own"
+  on public.match_mvp_votes for delete to authenticated
+  using (auth.uid() = voter_id);
+
+-- View agregada com total de votos por user (pública)
+create or replace view public.mvp_totals as
+select
+  mvp_user_id as user_id,
+  count(*)::int as mvp_votes
+from public.match_mvp_votes
+group by mvp_user_id;
+
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- FILE: 0013_free_agents.sql
+-- ──────────────────────────────────────────────────────────────────────────
+
+-- =============================================================================
+-- Mercado livre — jogadores disponíveis para entrar numa equipa
+-- =============================================================================
+-- Diferença de is_open_to_sub:
+--   * is_open_to_sub = "aceito ser convidado para um jogo pontual"
+--   * is_open_to_team = "quero juntar-me a uma equipa permanente"
+-- Ambos coexistem na mesma row de user_sports.
+
+alter table public.user_sports
+  add column if not exists is_open_to_team    boolean default false,
+  add column if not exists open_to_team_until timestamptz;
+
+create index if not exists idx_user_sports_open_team
+  on public.user_sports(sport_id, is_open_to_team)
+  where is_open_to_team;
+
+-- =============================================================================
+-- invite_free_agent: capitão adiciona free agent à sua equipa.
+-- Bypass RLS via SECURITY DEFINER porque team_members tem policy
+-- "tm_join" que só permite auth.uid() = user_id (o próprio).
+-- =============================================================================
+create or replace function public.invite_free_agent(
+  p_team_id uuid,
+  p_user_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_captain  uuid := auth.uid();
+  v_team     public.teams%rowtype;
+begin
+  if v_captain is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  select * into v_team
+    from public.teams
+    where id = p_team_id and is_active;
+  if not found then
+    raise exception 'Equipa não encontrada';
+  end if;
+
+  if v_team.captain_id <> v_captain then
+    raise exception 'Só o capitão pode adicionar membros';
+  end if;
+
+  -- target tem de estar disponível para este desporto
+  if not exists (
+    select 1 from public.user_sports us
+    where us.user_id  = p_user_id
+      and us.sport_id = v_team.sport_id
+      and us.is_open_to_team
+      and (us.open_to_team_until is null or us.open_to_team_until > now())
+  ) then
+    raise exception 'Este jogador não está disponível para esta equipa';
+  end if;
+
+  -- adicionar (idempotente)
+  insert into public.team_members(team_id, user_id, role)
+    values (p_team_id, p_user_id, 'member')
+    on conflict (team_id, user_id) do nothing;
+
+  -- entrou numa equipa → fecha a disponibilidade para esse desporto
+  update public.user_sports
+    set is_open_to_team    = false,
+        open_to_team_until = null
+    where user_id  = p_user_id
+      and sport_id = v_team.sport_id;
+end;
+$$;
+
+revoke all on function public.invite_free_agent(uuid, uuid)
+  from public, anon;
+grant execute on function public.invite_free_agent(uuid, uuid) to authenticated;
+
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- FILE: 0014_team_chat.sql
+-- ──────────────────────────────────────────────────────────────────────────
+
+-- =============================================================================
+-- Chat por equipa — só membros leem/escrevem; tempo real via supabase_realtime
+-- =============================================================================
+
+create table public.team_messages (
+  id         uuid primary key default uuid_generate_v4(),
+  team_id    uuid not null references public.teams(id)    on delete cascade,
+  author_id  uuid not null references public.profiles(id) on delete cascade,
+  text       text not null check (char_length(text) between 1 and 1000),
+  created_at timestamptz default now()
+);
+
+create index idx_team_messages_team_created
+  on public.team_messages(team_id, created_at desc);
+
+alter table public.team_messages enable row level security;
+
+-- Membros lêem
+create policy "team_msg_read"
+  on public.team_messages for select to authenticated
+  using (
+    exists (
+      select 1 from public.team_members
+      where team_id = team_messages.team_id and user_id = auth.uid()
+    )
+  );
+
+-- Membros escrevem
+create policy "team_msg_insert"
+  on public.team_messages for insert to authenticated
+  with check (
+    auth.uid() = author_id
+    and exists (
+      select 1 from public.team_members
+      where team_id = team_messages.team_id and user_id = auth.uid()
+    )
+  );
+
+-- Autor ou capitão da equipa pode apagar
+create policy "team_msg_delete"
+  on public.team_messages for delete to authenticated
+  using (
+    auth.uid() = author_id
+    or auth.uid() = (select captain_id from public.teams where id = team_messages.team_id)
+  );
+
+-- Activar realtime para esta tabela
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'team_messages'
+  ) then
+    alter publication supabase_realtime add table public.team_messages;
+  end if;
+end $$;
+
+
+-- ──────────────────────────────────────────────────────────────────────────
+-- FILE: 0015_notifications_insert.sql
+-- ──────────────────────────────────────────────────────────────────────────
+
+-- =============================================================================
+-- Permitir que qualquer authenticated user escreva na caixa de outro (push fan-out)
+-- =============================================================================
+-- Compromisso pragmático: o mesmo argumento usado para push_tokens.read.
+-- A alternativa "limpa" seria um SECURITY DEFINER por cada tipo de evento;
+-- para a Fase 1 com pool fechado de utilizadores, este é aceitável.
+
+create policy "notif_insert_authenticated"
+  on public.notifications for insert to authenticated
+  with check (true);
+
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- FILE: 0016_blocks_reports.sql
--- ================================================================
+-- ──────────────────────────────────────────────────────────────────────────
 
 -- =============================================================================
 -- BLOCKED USERS + USER REPORTS
@@ -63,9 +429,10 @@ create policy "reports_own_select"
   on public.user_reports for select
   using (auth.uid() = reporter_id);
 
--- ================================================================
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- FILE: 0017_cancel_reschedule_match.sql
--- ================================================================
+-- ──────────────────────────────────────────────────────────────────────────
 
 -- =============================================================================
 -- CANCEL + RESCHEDULE CONFIRMED MATCHES
@@ -252,9 +619,10 @@ $$;
 revoke all on function public.reschedule_match(uuid, timestamptz) from public, anon;
 grant execute on function public.reschedule_match(uuid, timestamptz) to authenticated;
 
--- ================================================================
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- FILE: 0018_match_photos.sql
--- ================================================================
+-- ──────────────────────────────────────────────────────────────────────────
 
 -- =============================================================================
 -- MATCH PHOTOS
@@ -345,9 +713,10 @@ create policy "match_photo_delete_own"
     and owner = auth.uid()
   );
 
--- ================================================================
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- FILE: 0019_team_chat_reads.sql
--- ================================================================
+-- ──────────────────────────────────────────────────────────────────────────
 
 -- =============================================================================
 -- TEAM CHAT READ RECEIPTS
@@ -409,9 +778,10 @@ $$;
 revoke all on function public.mark_team_chat_read(uuid) from public, anon;
 grant execute on function public.mark_team_chat_read(uuid) to authenticated;
 
--- ================================================================
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- FILE: 0020_match_notes.sql
--- ================================================================
+-- ──────────────────────────────────────────────────────────────────────────
 
 -- =============================================================================
 -- MATCH NOTES (kit colour, what to bring, etc.)
@@ -540,9 +910,10 @@ $$;
 revoke all on function public.update_match_notes(uuid, text) from public, anon;
 grant execute on function public.update_match_notes(uuid, text) to authenticated;
 
--- ================================================================
+
+-- ──────────────────────────────────────────────────────────────────────────
 -- FILE: 0021_match_chat.sql
--- ================================================================
+-- ──────────────────────────────────────────────────────────────────────────
 
 -- =============================================================================
 -- MATCH CHAT — shared chat across both teams of a match
