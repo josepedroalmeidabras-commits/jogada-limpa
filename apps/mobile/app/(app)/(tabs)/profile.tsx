@@ -1,14 +1,12 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import {
@@ -24,6 +22,11 @@ import {
 import { formatMatchDate } from '@/lib/matches';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
+import { Screen } from '@/components/Screen';
+import { Heading, Eyebrow } from '@/components/Heading';
+import { Card } from '@/components/Card';
+import { Button } from '@/components/Button';
+import { Skeleton } from '@/components/Skeleton';
 
 function levelLabel(elo: number): string {
   if (elo < 1100) return 'Casual';
@@ -62,136 +65,178 @@ export default function ProfileScreen() {
     }, [load]),
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <ActivityIndicator color="#ffffff" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.safe}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerTitle: 'Perfil',
-          headerStyle: { backgroundColor: '#0a0a0a' },
-          headerTintColor: '#ffffff',
-        }}
-      />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.headerBlock}>
-          <Avatar url={profile?.photo_url} name={profile?.name} size={80} />
-          <Text style={styles.name}>{profile?.name}</Text>
-          <Text style={styles.city}>{profile?.city}</Text>
-          <Text style={styles.email}>{session?.user.email}</Text>
-          <Pressable
-            style={styles.editBtn}
-            onPress={() => router.push('/(app)/profile/edit')}
-          >
-            <Text style={styles.editBtnText}>Editar perfil</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.section}>ELO por desporto</Text>
-        {sports.length === 0 ? (
-          <Text style={styles.empty}>Sem desportos no perfil.</Text>
+    <Screen>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {loading ? (
+          <ProfileSkeleton />
         ) : (
-          sports.map((s) => (
-            <View key={s.sport_id} style={styles.row}>
-              <View style={styles.rowLeft}>
-                <Text style={styles.rowName}>{s.sport?.name}</Text>
-                <Text style={styles.rowMeta}>
-                  {levelLabel(s.elo)} · {s.matches_played} jogos
-                </Text>
-              </View>
-              <Text style={styles.rowValue}>{Math.round(s.elo)}</Text>
-            </View>
-          ))
-        )}
-
-        <Text style={[styles.section, { marginTop: 24 }]}>Reputação</Text>
-        {aggregate ? (
-          <View style={styles.aggBlock}>
-            <AggBar label="Fair play" value={aggregate.avg_fair_play} />
-            <AggBar label="Pontualidade" value={aggregate.avg_punctuality} />
-            <AggBar label="Nível técnico" value={aggregate.avg_technical_level} />
-            <AggBar label="Atitude" value={aggregate.avg_attitude} />
-            <Text style={styles.aggFoot}>
-              {aggregate.total_reviews} avaliação(ões) recebidas
-            </Text>
-          </View>
-        ) : (
-          <Text style={styles.empty}>
-            Em construção — joga mais jogos para ver a tua reputação.
-          </Text>
-        )}
-
-        <Text style={[styles.section, { marginTop: 24 }]}>Histórico</Text>
-        {history.length === 0 ? (
-          <Text style={styles.empty}>Sem jogos validados ainda.</Text>
-        ) : (
-          history.map((h) => (
-            <Pressable
-              key={h.match_id}
-              style={styles.matchRow}
-              onPress={() => router.push(`/(app)/matches/${h.match_id}`)}
+          <>
+            <Animated.View
+              entering={FadeInDown.duration(300).springify()}
+              style={styles.headerBlock}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.matchTeams}>
-                  {h.my_team_name} vs {h.opponent_team_name}
-                </Text>
-                <Text style={styles.matchMeta}>
-                  {h.sport_name} · {formatMatchDate(h.scheduled_at)}
-                </Text>
-              </View>
-              <View style={styles.matchScore}>
-                <Text
-                  style={[
-                    styles.matchResult,
-                    h.result === 'win' && styles.resultWin,
-                    h.result === 'loss' && styles.resultLoss,
-                  ]}
-                >
-                  {h.my_side === 'A'
-                    ? `${h.final_score_a}–${h.final_score_b}`
-                    : `${h.final_score_b}–${h.final_score_a}`}
-                </Text>
-                <Text style={styles.matchResultLabel}>
-                  {h.result === 'win'
-                    ? 'V'
-                    : h.result === 'loss'
-                      ? 'D'
-                      : 'E'}
-                </Text>
-              </View>
-            </Pressable>
-          ))
-        )}
+              <Avatar
+                url={profile?.photo_url}
+                name={profile?.name}
+                size={96}
+              />
+              <Heading level={1} style={{ marginTop: 16, textAlign: 'center' }}>
+                {profile?.name ?? ''}
+              </Heading>
+              <Text style={styles.city}>{profile?.city}</Text>
+              <Text style={styles.email}>{session?.user.email}</Text>
+              <Button
+                label="Editar perfil"
+                variant="secondary"
+                size="sm"
+                onPress={() => router.push('/(app)/profile/edit')}
+              />
+            </Animated.View>
 
-        {session?.user.email === ADMIN_EMAIL && (
-          <Pressable
-            style={styles.adminBtn}
-            onPress={() => router.push('/(app)/admin/waitlist')}
-          >
-            <Text style={styles.adminBtnText}>Admin: ver waitlist</Text>
-          </Pressable>
-        )}
+            <Animated.View
+              entering={FadeInDown.delay(80).springify()}
+              style={styles.section}
+            >
+              <Eyebrow>ELO por desporto</Eyebrow>
+              {sports.length === 0 ? (
+                <Card style={{ marginTop: 8 }}>
+                  <Text style={styles.muted}>Sem desportos no perfil.</Text>
+                </Card>
+              ) : (
+                sports.map((s) => (
+                  <Card key={s.sport_id} style={{ marginTop: 8 }}>
+                    <View style={styles.row}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowName}>{s.sport?.name}</Text>
+                        <Text style={styles.rowMeta}>
+                          {`${levelLabel(s.elo)} · ${s.matches_played} jogos`}
+                        </Text>
+                      </View>
+                      <Text style={styles.elo}>{Math.round(s.elo)}</Text>
+                    </View>
+                  </Card>
+                ))
+              )}
+            </Animated.View>
 
-        <Pressable
-          style={styles.signOut}
-          onPress={async () => {
-            await signOut();
-            router.replace('/(auth)/login');
-          }}
-        >
-          <Text style={styles.signOutText}>Sair</Text>
-        </Pressable>
+            <Animated.View
+              entering={FadeInDown.delay(140).springify()}
+              style={styles.section}
+            >
+              <Eyebrow>Reputação</Eyebrow>
+              {aggregate ? (
+                <Card style={{ marginTop: 8 }}>
+                  <AggBar label="Fair play" value={aggregate.avg_fair_play} />
+                  <AggBar
+                    label="Pontualidade"
+                    value={aggregate.avg_punctuality}
+                  />
+                  <AggBar
+                    label="Nível técnico"
+                    value={aggregate.avg_technical_level}
+                  />
+                  <AggBar label="Atitude" value={aggregate.avg_attitude} />
+                  <Text style={styles.aggFoot}>
+                    {`${aggregate.total_reviews} avaliação(ões) recebidas`}
+                  </Text>
+                </Card>
+              ) : (
+                <Card style={{ marginTop: 8 }}>
+                  <Text style={styles.muted}>
+                    Em construção — joga mais jogos para ver a tua reputação.
+                  </Text>
+                </Card>
+              )}
+            </Animated.View>
+
+            <Animated.View
+              entering={FadeInDown.delay(200).springify()}
+              style={styles.section}
+            >
+              <Eyebrow>Histórico</Eyebrow>
+              {history.length === 0 ? (
+                <Card style={{ marginTop: 8 }}>
+                  <Text style={styles.muted}>Sem jogos validados ainda.</Text>
+                </Card>
+              ) : (
+                history.map((h) => (
+                  <Card
+                    key={h.match_id}
+                    onPress={() => router.push(`/(app)/matches/${h.match_id}`)}
+                    style={{ marginTop: 8 }}
+                  >
+                    <View style={styles.row}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowName}>
+                          {`${h.my_team_name} vs ${h.opponent_team_name}`}
+                        </Text>
+                        <Text style={styles.rowMeta}>
+                          {`${h.sport_name} · ${formatMatchDate(h.scheduled_at)}`}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text
+                          style={[
+                            styles.score,
+                            h.result === 'win' && styles.win,
+                            h.result === 'loss' && styles.loss,
+                          ]}
+                        >
+                          {h.my_side === 'A'
+                            ? `${h.final_score_a}–${h.final_score_b}`
+                            : `${h.final_score_b}–${h.final_score_a}`}
+                        </Text>
+                        <Text style={styles.resultLabel}>
+                          {h.result === 'win'
+                            ? 'V'
+                            : h.result === 'loss'
+                              ? 'D'
+                              : 'E'}
+                        </Text>
+                      </View>
+                    </View>
+                  </Card>
+                ))
+              )}
+            </Animated.View>
+
+            {session?.user.email === ADMIN_EMAIL && (
+              <Animated.View
+                entering={FadeInDown.delay(260).springify()}
+                style={{ marginTop: 24 }}
+              >
+                <Button
+                  label="Admin · Waitlist"
+                  variant="secondary"
+                  onPress={() => router.push('/(app)/admin/waitlist')}
+                  full
+                />
+              </Animated.View>
+            )}
+
+            <Animated.View
+              entering={FadeInDown.delay(300).springify()}
+              style={{ marginTop: 24, alignItems: 'center' }}
+            >
+              <Button
+                label="Sair"
+                variant="ghost"
+                size="sm"
+                haptic="none"
+                onPress={async () => {
+                  await signOut();
+                  router.replace('/(auth)/login');
+                }}
+              />
+            </Animated.View>
+          </>
+        )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -210,73 +255,42 @@ function AggBar({ label, value }: { label: string; value: number }) {
   );
 }
 
+function ProfileSkeleton() {
+  return (
+    <View style={{ gap: 16 }}>
+      <View style={{ alignItems: 'center', gap: 12, marginTop: 32 }}>
+        <Skeleton width={96} height={96} radius={48} />
+        <Skeleton width={180} height={28} />
+        <Skeleton width={120} height={14} />
+      </View>
+      <Skeleton height={80} radius={16} style={{ marginTop: 24 }} />
+      <Skeleton height={140} radius={16} />
+      <Skeleton height={80} radius={16} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
   headerBlock: {
     alignItems: 'center',
-    marginBottom: 24,
     gap: 6,
-  },
-  bigAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 8,
+    marginTop: 16,
   },
-  bigAvatarText: { color: '#ffffff', fontSize: 32, fontWeight: '800' },
-  name: { color: '#ffffff', fontSize: 22, fontWeight: '700' },
-  city: { color: '#a3a3a3', fontSize: 14 },
-  email: { color: '#737373', fontSize: 12 },
-  editBtn: {
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+  city: { color: '#a3a3a3', fontSize: 14, letterSpacing: -0.1 },
+  email: { color: '#5a5a5a', fontSize: 12, marginBottom: 12 },
+  section: { marginTop: 24 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rowName: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
-  editBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
-  section: {
-    color: '#a3a3a3',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  empty: {
-    color: '#737373',
-    fontSize: 13,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginBottom: 8,
-  },
-  rowLeft: { flex: 1 },
-  rowName: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  rowMeta: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
-  rowValue: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
-  aggBlock: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
+  rowMeta: { color: '#a3a3a3', fontSize: 12, marginTop: 2, letterSpacing: -0.1 },
+  elo: { color: '#ffffff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  muted: { color: '#737373', fontSize: 13 },
   aggRow: { marginBottom: 12 },
   aggHeader: {
     flexDirection: 'row',
@@ -288,7 +302,7 @@ const styles = StyleSheet.create({
   aggTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     overflow: 'hidden',
   },
   aggFill: { height: '100%', backgroundColor: '#fbbf24' },
@@ -298,43 +312,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  matchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    marginBottom: 8,
+  score: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
-  matchTeams: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
-  matchMeta: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
-  matchScore: { alignItems: 'flex-end' },
-  matchResult: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  matchResultLabel: {
+  win: { color: '#34d399' },
+  loss: { color: '#f87171' },
+  resultLabel: {
     color: '#a3a3a3',
     fontSize: 11,
+    fontWeight: '700',
     marginTop: 2,
-    fontWeight: '600',
+    letterSpacing: 1,
   },
-  resultWin: { color: '#34d399' },
-  resultLoss: { color: '#f87171' },
-  adminBtn: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.4)',
-    backgroundColor: 'rgba(251, 191, 36, 0.08)',
-    alignSelf: 'center',
-  },
-  adminBtnText: { color: '#fbbf24', fontSize: 14, fontWeight: '600' },
-  signOut: {
-    marginTop: 24,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  signOutText: { color: '#737373', fontSize: 13 },
 });
