@@ -605,6 +605,32 @@ export default function ProfileScreen() {
                 <Text style={styles.achModalDesc}>
                   {selectedAch?.description ?? ''}
                 </Text>
+                {!selectedAch?.unlocked &&
+                  selectedAch?.progress &&
+                  selectedAch.progress.target > 0 && (
+                    <View style={styles.achProgressWrap}>
+                      <View style={styles.achProgressTrack}>
+                        <View
+                          style={[
+                            styles.achProgressFill,
+                            {
+                              width: `${Math.min(
+                                100,
+                                Math.round(
+                                  (selectedAch.progress.current /
+                                    selectedAch.progress.target) *
+                                    100,
+                                ),
+                              )}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.achProgressText}>
+                        {`${selectedAch.progress.current} / ${selectedAch.progress.target}`}
+                      </Text>
+                    </View>
+                  )}
                 <View
                   style={[
                     styles.achModalStatus,
@@ -775,6 +801,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  achProgressWrap: { marginTop: 18, width: '100%' },
+  achProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+  },
+  achProgressFill: {
+    height: '100%',
+    backgroundColor: '#22c55e',
+    borderRadius: 3,
+  },
+  achProgressText: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'right',
+    marginTop: 6,
   },
   badge: {
     paddingHorizontal: 12,

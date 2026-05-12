@@ -6,6 +6,7 @@ export type Achievement = {
   title: string;
   description: string;
   unlocked: boolean;
+  progress?: { current: number; target: number };
 };
 
 type Input = {
@@ -104,5 +105,20 @@ export function computeAchievements({
     top10_city: cityRanking !== null && cityRanking !== undefined && cityRanking <= 10,
   };
 
-  return defs.map((d) => ({ ...d, unlocked: unlocked[d.id] ?? false }));
+  const progress: Record<string, { current: number; target: number }> = {
+    first_match: { current: Math.min(played, 1), target: 1 },
+    first_win: { current: Math.min(wins, 1), target: 1 },
+    veteran: { current: Math.min(played, 10), target: 10 },
+    centurion: { current: Math.min(played, 100), target: 100 },
+    streak_3: { current: Math.min(Math.max(bestStreak, currentStreak), 3), target: 3 },
+    streak_5: { current: Math.min(Math.max(bestStreak, currentStreak), 5), target: 5 },
+    mvp_1: { current: Math.min(mvpCount, 1), target: 1 },
+    mvp_10: { current: Math.min(mvpCount, 10), target: 10 },
+  };
+
+  return defs.map((d) => ({
+    ...d,
+    unlocked: unlocked[d.id] ?? false,
+    progress: progress[d.id],
+  }));
 }
