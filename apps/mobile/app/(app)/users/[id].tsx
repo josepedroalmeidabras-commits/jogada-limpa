@@ -1,15 +1,17 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { useAuth } from '@/providers/auth';
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+} from 'expo-router';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import {
   fetchReviewAggregate,
@@ -23,6 +25,8 @@ import {
 } from '@/lib/history';
 import { formatMatchDate } from '@/lib/matches';
 
+const MIN_REVIEWS_TO_SHOW = 5;
+
 function levelLabel(elo: number): string {
   if (elo < 1100) return 'Casual';
   if (elo < 1300) return 'Intermédio';
@@ -30,9 +34,8 @@ function levelLabel(elo: number): string {
   return 'Competitivo';
 }
 
-export default function ProfileScreen() {
-  const { session, signOut } = useAuth();
-  const router = useRouter();
+export default function PublicProfileScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sports, setSports] = useState<UserSportElo[]>([]);
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
@@ -40,19 +43,19 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!session) return;
+    if (!id) return;
     const [p, s, a, h] = await Promise.all([
-      fetchProfile(session.user.id),
-      fetchUserSports(session.user.id),
-      fetchReviewAggregate(session.user.id),
-      fetchUserMatchHistory(session.user.id, 10),
+      fetchProfile(id),
+      fetchUserSports(id),
+      fetchReviewAggregate(id),
+      fetchUserMatchHistory(id, 5),
     ]);
     setProfile(p);
     setSports(s);
     setAggregate(a);
     setHistory(h);
     setLoading(false);
-  }, [session]);
+  }, [id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -70,12 +73,25 @@ export default function ProfileScreen() {
     );
   }
 
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Text style={styles.empty}>Jogador não encontrado.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const enoughReviews =
+    aggregate && aggregate.total_reviews >= MIN_REVIEWS_TO_SHOW;
+
   return (
     <SafeAreaView style={styles.safe}>
       <Stack.Screen
         options={{
           headerShown: true,
-          headerTitle: 'Perfil',
+          headerTitle: profile.name,
           headerStyle: { backgroundColor: '#0a0a0a' },
           headerTintColor: '#ffffff',
         }}
@@ -84,12 +100,11 @@ export default function ProfileScreen() {
         <View style={styles.headerBlock}>
           <View style={styles.bigAvatar}>
             <Text style={styles.bigAvatarText}>
-              {(profile?.name ?? '?').slice(0, 1).toUpperCase()}
+              {profile.name.slice(0, 1).toUpperCase()}
             </Text>
           </View>
-          <Text style={styles.name}>{profile?.name}</Text>
-          <Text style={styles.city}>{profile?.city}</Text>
-          <Text style={styles.email}>{session?.user.email}</Text>
+          <Text style={styles.name}>{profile.name}</Text>
+          <Text style={styles.city}>{profile.city}</Text>
         </View>
 
         <Text style={styles.section}>ELO por desporto</Text>
@@ -110,32 +125,37 @@ export default function ProfileScreen() {
         )}
 
         <Text style={[styles.section, { marginTop: 24 }]}>Reputação</Text>
-        {aggregate ? (
+        {enoughReviews ? (
           <View style={styles.aggBlock}>
-            <AggBar label="Fair play" value={aggregate.avg_fair_play} />
-            <AggBar label="Pontualidade" value={aggregate.avg_punctuality} />
-            <AggBar label="Nível técnico" value={aggregate.avg_technical_level} />
-            <AggBar label="Atitude" value={aggregate.avg_attitude} />
+            <AggBar label="Fair play" value={aggregate!.avg_fair_play} />
+            <AggBar
+              label="Pontualidade"
+              value={aggregate!.avg_punctuality}
+            />
+            <AggBar
+              label="Nível técnico"
+              value={aggregate!.avg_technical_level}
+            />
+            <AggBar label="Atitude" value={aggregate!.avg_attitude} />
             <Text style={styles.aggFoot}>
-              {aggregate.total_reviews} avaliação(ões) recebidas
+              {aggregate!.total_reviews} avaliação(ões) recebidas
             </Text>
           </View>
         ) : (
           <Text style={styles.empty}>
-            Em construção — joga mais jogos para ver a tua reputação.
+            Em construção — precisa de pelo menos {MIN_REVIEWS_TO_SHOW}{' '}
+            avaliações para mostrar a reputação.
           </Text>
         )}
 
-        <Text style={[styles.section, { marginTop: 24 }]}>Histórico</Text>
+        <Text style={[styles.section, { marginTop: 24 }]}>
+          Últimos jogos
+        </Text>
         {history.length === 0 ? (
-          <Text style={styles.empty}>Sem jogos validados ainda.</Text>
+          <Text style={styles.empty}>Sem jogos validados.</Text>
         ) : (
           history.map((h) => (
-            <Pressable
-              key={h.match_id}
-              style={styles.matchRow}
-              onPress={() => router.push(`/(app)/matches/${h.match_id}`)}
-            >
+            <View key={h.match_id} style={styles.matchRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.matchTeams}>
                   {h.my_team_name} vs {h.opponent_team_name}
@@ -164,19 +184,9 @@ export default function ProfileScreen() {
                       : 'E'}
                 </Text>
               </View>
-            </Pressable>
+            </View>
           ))
         )}
-
-        <Pressable
-          style={styles.signOut}
-          onPress={async () => {
-            await signOut();
-            router.replace('/(auth)/login');
-          }}
-        >
-          <Text style={styles.signOutText}>Sair</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -201,11 +211,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
-  headerBlock: {
-    alignItems: 'center',
-    marginBottom: 24,
-    gap: 6,
-  },
+  headerBlock: { alignItems: 'center', marginBottom: 24, gap: 4 },
   bigAvatar: {
     width: 80,
     height: 80,
@@ -218,7 +224,6 @@ const styles = StyleSheet.create({
   bigAvatarText: { color: '#ffffff', fontSize: 32, fontWeight: '800' },
   name: { color: '#ffffff', fontSize: 22, fontWeight: '700' },
   city: { color: '#a3a3a3', fontSize: 14 },
-  email: { color: '#737373', fontSize: 12 },
   section: {
     color: '#a3a3a3',
     fontSize: 12,
@@ -297,10 +302,4 @@ const styles = StyleSheet.create({
   },
   resultWin: { color: '#34d399' },
   resultLoss: { color: '#f87171' },
-  signOut: {
-    marginTop: 40,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  signOutText: { color: '#737373', fontSize: 13 },
 });

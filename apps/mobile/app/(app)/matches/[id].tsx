@@ -122,15 +122,21 @@ export default function MatchDetailScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.matchRow}>
-          <View style={styles.teamBox}>
+          <Pressable
+            style={styles.teamBox}
+            onPress={() => router.push(`/(app)/teams/${match.side_a.id}`)}
+          >
             <Text style={styles.teamName}>{match.side_a.name}</Text>
             <Text style={styles.teamCity}>{match.side_a.city}</Text>
-          </View>
+          </Pressable>
           <Text style={styles.vs}>vs</Text>
-          <View style={styles.teamBox}>
+          <Pressable
+            style={styles.teamBox}
+            onPress={() => router.push(`/(app)/teams/${match.side_b.id}`)}
+          >
             <Text style={styles.teamName}>{match.side_b.name}</Text>
             <Text style={styles.teamCity}>{match.side_b.city}</Text>
-          </View>
+          </Pressable>
         </View>
 
         <View

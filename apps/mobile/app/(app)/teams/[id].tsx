@@ -174,7 +174,11 @@ export default function TeamDetailScreen() {
           Plantel ({members.length})
         </Text>
         {members.map((m) => (
-          <View key={m.user_id} style={styles.member}>
+          <Pressable
+            key={m.user_id}
+            style={styles.member}
+            onPress={() => router.push(`/(app)/users/${m.user_id}`)}
+          >
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
                 {(m.profile?.name ?? '?').slice(0, 1).toUpperCase()}
@@ -188,7 +192,8 @@ export default function TeamDetailScreen() {
                 {m.role === 'captain' ? 'Capitão' : 'Membro'}
               </Text>
             </View>
-          </View>
+            <Text style={styles.memberArrow}>›</Text>
+          </Pressable>
         ))}
 
         <Text style={[styles.section, { marginTop: 24 }]}>
@@ -306,6 +311,7 @@ const styles = StyleSheet.create({
   memberInfo: { marginLeft: 12, flex: 1 },
   memberName: { color: '#ffffff', fontSize: 15, fontWeight: '500' },
   memberRole: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
+  memberArrow: { color: '#737373', fontSize: 20, marginLeft: 8 },
   inviteBox: {
     padding: 16,
     borderRadius: 16,
