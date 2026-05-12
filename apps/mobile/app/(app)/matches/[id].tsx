@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   Alert,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -27,6 +28,8 @@ import {
 import { addMatchToCalendar } from '@/lib/calendar';
 import { fetchMatchUnreadCount } from '@/lib/match-chat';
 import { fetchHeadToHead, type HeadToHead } from '@/lib/h2h';
+import { fetchReferee, type RefereeProfile } from '@/lib/referee';
+import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading } from '@/components/Heading';
 import { Card } from '@/components/Card';
@@ -42,6 +45,7 @@ export default function MatchDetailScreen() {
   const [isParticipant, setIsParticipant] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
   const [h2h, setH2h] = useState<HeadToHead | null>(null);
+  const [referee, setReferee] = useState<RefereeProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,14 +55,16 @@ export default function MatchDetailScreen() {
     const m = await fetchMatchById(id);
     setMatch(m);
     if (m && session) {
-      const [part, unread, hh] = await Promise.all([
+      const [part, unread, hh, ref] = await Promise.all([
         isMatchParticipant(m.id, session.user.id),
         fetchMatchUnreadCount(m.id, session.user.id),
         fetchHeadToHead(m.side_a.id, m.side_b.id),
+        m.referee_id ? fetchReferee(m.referee_id) : Promise.resolve(null),
       ]);
       setIsParticipant(part);
       setChatUnread(unread);
       setH2h(hh);
+      setReferee(ref);
     }
     setLoading(false);
   }, [id, session]);
@@ -190,6 +196,52 @@ export default function MatchDetailScreen() {
             {match.message && <InfoRow label="Mensagem" value={match.message} last />}
           </Card>
         </Animated.View>
+
+        {(referee || (isCaptain && match.status !== 'cancelled')) && (
+          <Animated.View
+            entering={FadeInDown.delay(95).springify()}
+            style={styles.section}
+          >
+            {referee ? (
+              <Card
+                onPress={() => router.push(`/(app)/users/${referee.id}`)}
+              >
+                <View style={styles.refRow}>
+                  <Text style={styles.refWhistle}>🥏</Text>
+                  <Avatar
+                    url={referee.photo_url}
+                    name={referee.name}
+                    size={36}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.refLabel}>Árbitro</Text>
+                    <Text style={styles.refName}>{referee.name}</Text>
+                  </View>
+                  {isCaptain && match.status !== 'validated' && (
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push(`/(app)/matches/${match.id}/referee`);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.refEdit}>Mudar ›</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </Card>
+            ) : (
+              <Pressable
+                onPress={() =>
+                  router.push(`/(app)/matches/${match.id}/referee`)
+                }
+                style={styles.refAddBtn}
+              >
+                <Text style={styles.refAddText}>🥏 Adicionar árbitro</Text>
+              </Pressable>
+            )}
+          </Animated.View>
+        )}
 
         {h2h && h2h.played > 1 && !match.is_internal && (
           <Animated.View
@@ -386,6 +438,20 @@ export default function MatchDetailScreen() {
             />
           )}
 
+          {canReview &&
+            isParticipant &&
+            referee &&
+            referee.id !== session?.user.id && (
+              <Button
+                label="🥏 Avaliar árbitro"
+                variant="secondary"
+                full
+                onPress={() =>
+                  router.push(`/(app)/matches/${match.id}/referee-review`)
+                }
+              />
+            )}
+
           {match.status === 'validated' &&
             match.final_score_a !== null &&
             match.final_score_b !== null && (
@@ -522,6 +588,42 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  refRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  refWhistle: { fontSize: 22 },
+  refLabel: {
+    color: '#737373',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  refName: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
+  refEdit: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  refAddBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderStyle: 'dashed',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    alignItems: 'center',
+  },
+  refAddText: {
+    color: '#a3a3a3',
+    fontSize: 13,
+    fontWeight: '600',
   },
   section: { marginTop: 16 },
   notesHeader: {

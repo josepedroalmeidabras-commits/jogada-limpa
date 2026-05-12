@@ -92,6 +92,7 @@ function historyToMatchSummary(h: MatchHistoryEntry): MatchSummary {
     is_internal: false,
     side_a_label: null,
     side_b_label: null,
+    referee_id: null,
     proposed_by: '',
     final_score_a: h.final_score_a,
     final_score_b: h.final_score_b,
