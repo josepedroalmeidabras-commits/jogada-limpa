@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/providers/auth';
 import {
   fetchTeamMessages,
+  markTeamChatRead,
   sendTeamMessage,
   subscribeTeamMessages,
   type ChatMessage,
@@ -67,6 +68,7 @@ export default function TeamChatScreen() {
     const m = await fetchTeamMessages(id);
     setMessages(m);
     setLoading(false);
+    void markTeamChatRead(id);
   }, [id]);
 
   useEffect(() => {
@@ -80,6 +82,7 @@ export default function TeamChatScreen() {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
+      void markTeamChatRead(id);
     });
     return unsub;
   }, [id]);

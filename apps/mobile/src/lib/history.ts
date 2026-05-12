@@ -35,6 +35,49 @@ export type WinStreak = {
   best: number;
 };
 
+export type MonthlyStats = {
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals_for: number;
+  goals_against: number;
+};
+
+export function computeMonthlyStats(
+  history: MatchHistoryEntry[],
+  reference: Date = new Date(),
+): MonthlyStats {
+  const month = reference.getMonth();
+  const year = reference.getFullYear();
+  let matches = 0;
+  let wins = 0;
+  let draws = 0;
+  let losses = 0;
+  let gf = 0;
+  let ga = 0;
+  for (const h of history) {
+    const d = new Date(h.scheduled_at);
+    if (d.getMonth() !== month || d.getFullYear() !== year) continue;
+    matches += 1;
+    if (h.result === 'win') wins += 1;
+    else if (h.result === 'loss') losses += 1;
+    else draws += 1;
+    const myScore = h.my_side === 'A' ? h.final_score_a : h.final_score_b;
+    const oppScore = h.my_side === 'A' ? h.final_score_b : h.final_score_a;
+    gf += myScore;
+    ga += oppScore;
+  }
+  return {
+    matches,
+    wins,
+    draws,
+    losses,
+    goals_for: gf,
+    goals_against: ga,
+  };
+}
+
 export function computeWinStreak(history: MatchHistoryEntry[]): WinStreak {
   // history is sorted desc by date (most recent first)
   let current = 0;

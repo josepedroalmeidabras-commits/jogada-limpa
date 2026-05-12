@@ -59,6 +59,51 @@ export async function sendTeamMessage(
   return { ok: true };
 }
 
+export async function markTeamChatRead(
+  teamId: string,
+): Promise<{ ok: boolean; message?: string }> {
+  const { error } = await supabase.rpc('mark_team_chat_read', {
+    p_team_id: teamId,
+  });
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
+
+export async function fetchTeamUnreadCount(
+  teamId: string,
+  userId: string,
+): Promise<number> {
+  const { data: read } = await supabase
+    .from('team_chat_reads')
+    .select('last_read_at')
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const since = read?.last_read_at ?? '1970-01-01T00:00:00Z';
+
+  const { count, error } = await supabase
+    .from('team_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('team_id', teamId)
+    .gt('created_at', since)
+    .neq('author_id', userId);
+
+  if (error) return 0;
+  return count ?? 0;
+}
+
+export async function fetchUnreadByTeam(
+  teamIds: string[],
+  userId: string,
+): Promise<Record<string, number>> {
+  if (teamIds.length === 0) return {};
+  const results = await Promise.all(
+    teamIds.map(async (id) => [id, await fetchTeamUnreadCount(id, userId)] as const),
+  );
+  return Object.fromEntries(results);
+}
+
 export function subscribeTeamMessages(
   teamId: string,
   onInsert: (msg: ChatMessage) => void,

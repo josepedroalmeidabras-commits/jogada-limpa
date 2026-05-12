@@ -33,6 +33,12 @@ import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 import { Avatar } from '@/components/Avatar';
 import { fetchUnreadCount } from '@/lib/notifications';
+import { fetchUnreadByTeam } from '@/lib/chat';
+import {
+  computeMonthlyStats,
+  fetchUserMatchHistory,
+  type MonthlyStats,
+} from '@/lib/history';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
@@ -45,6 +51,8 @@ export default function HomeScreen() {
   const [reviews, setReviews] = useState<PendingReview[]>([]);
   const [activity, setActivity] = useState<CityActivity[]>([]);
   const [unread, setUnread] = useState(0);
+  const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
+  const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -61,18 +69,27 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const [myTeams, ch, rv, act, u] = await Promise.all([
+    const [myTeams, ch, rv, act, u, hist] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
       fetchPendingReviewsForUser(session.user.id),
       fetchCityActivity(p.city, 5),
       fetchUnreadCount(session.user.id),
+      fetchUserMatchHistory(session.user.id, 50),
     ]);
     setTeams(myTeams);
     setChallenges(ch);
     setReviews(rv);
     setActivity(act);
     setUnread(u);
+    setMonthly(computeMonthlyStats(hist));
+    if (myTeams.length > 0) {
+      const unreadByTeam = await fetchUnreadByTeam(
+        myTeams.map((t) => t.id),
+        session.user.id,
+      );
+      setChatUnread(unreadByTeam);
+    }
     setLoading(false);
   }, [session, router]);
 
@@ -142,6 +159,41 @@ export default function HomeScreen() {
                 size={44}
               />
             </Animated.View>
+
+            {monthly && monthly.matches > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(60).springify()}
+              >
+                <Card variant="subtle">
+                  <Eyebrow>Este mês</Eyebrow>
+                  <View style={styles.statsRow}>
+                    <StatCell
+                      value={String(monthly.matches)}
+                      label={monthly.matches === 1 ? 'jogo' : 'jogos'}
+                    />
+                    <StatCell
+                      value={String(monthly.wins)}
+                      label="vitórias"
+                      tone="positive"
+                    />
+                    <StatCell
+                      value={String(monthly.draws)}
+                      label="empates"
+                    />
+                    <StatCell
+                      value={String(monthly.losses)}
+                      label="derrotas"
+                      tone="negative"
+                    />
+                  </View>
+                  {(monthly.goals_for > 0 || monthly.goals_against > 0) && (
+                    <Text style={styles.goalsLine}>
+                      {`Golos · ${monthly.goals_for} marcados · ${monthly.goals_against} sofridos`}
+                    </Text>
+                  )}
+                </Card>
+              </Animated.View>
+            )}
 
             {challenges.length > 0 && (
               <Animated.View
@@ -234,32 +286,47 @@ export default function HomeScreen() {
                   </Text>
                 </Card>
               ) : (
-                teams.map((t, i) => (
-                  <Animated.View
-                    key={t.id}
-                    entering={FadeInDown.delay(240 + i * 40).springify()}
-                  >
-                    <Card
-                      onPress={() => router.push(`/(app)/teams/${t.id}`)}
-                      style={{ marginTop: 8 }}
+                teams.map((t, i) => {
+                  const unreadChat = chatUnread[t.id] ?? 0;
+                  return (
+                    <Animated.View
+                      key={t.id}
+                      entering={FadeInDown.delay(240 + i * 40).springify()}
                     >
-                      <View style={styles.cardRow}>
-                        <Avatar
-                          url={t.photo_url}
-                          name={t.name}
-                          size={44}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardName}>{t.name}</Text>
-                          <Text style={styles.cardMeta}>
-                            {`${t.sport?.name ?? 'Futebol 7'} · ${t.city}`}
-                          </Text>
+                      <Card
+                        onPress={() => router.push(`/(app)/teams/${t.id}`)}
+                        style={{ marginTop: 8 }}
+                      >
+                        <View style={styles.cardRow}>
+                          <Avatar
+                            url={t.photo_url}
+                            name={t.name}
+                            size={44}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.cardName}>{t.name}</Text>
+                            <Text style={styles.cardMeta}>
+                              {`${t.sport?.name ?? 'Futebol 7'} · ${t.city}`}
+                            </Text>
+                          </View>
+                          {unreadChat > 0 && (
+                            <View style={styles.chatBadge}>
+                              <Ionicons
+                                name="chatbubble"
+                                size={10}
+                                color="#0a0a0a"
+                              />
+                              <Text style={styles.chatBadgeText}>
+                                {unreadChat > 9 ? '9+' : String(unreadChat)}
+                              </Text>
+                            </View>
+                          )}
+                          <Text style={styles.arrow}>›</Text>
                         </View>
-                        <Text style={styles.arrow}>›</Text>
-                      </View>
-                    </Card>
-                  </Animated.View>
-                ))
+                      </Card>
+                    </Animated.View>
+                  );
+                })
               )}
             </Animated.View>
 
@@ -324,6 +391,31 @@ export default function HomeScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function StatCell({
+  value,
+  label,
+  tone,
+}: {
+  value: string;
+  label: string;
+  tone?: 'positive' | 'negative';
+}) {
+  return (
+    <View style={styles.statCell}>
+      <Text
+        style={[
+          styles.statValue,
+          tone === 'positive' && { color: '#34d399' },
+          tone === 'negative' && { color: '#f87171' },
+        ]}
+      >
+        {value}
+      </Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -404,4 +496,39 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: { marginTop: 32, gap: 8 },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
+  },
+  statCell: { flex: 1, alignItems: 'center' },
+  statValue: {
+    color: colors.text,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  goalsLine: {
+    color: colors.textDim,
+    fontSize: 12,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  chatBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: colors.brand,
+  },
+  chatBadgeText: { color: '#0a0a0a', fontSize: 11, fontWeight: '800' },
 });
