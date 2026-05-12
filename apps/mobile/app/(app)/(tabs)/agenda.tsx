@@ -23,6 +23,10 @@ import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import {
+  MatchListItem,
+  MatchListGroup,
+} from '@/components/MatchListItem';
 import { colors } from '@/theme';
 
 export default function AgendaScreen() {
@@ -181,18 +185,20 @@ export default function AgendaScreen() {
                   <Text style={styles.muted}>Sem jogos agendados.</Text>
                 </Card>
               ) : (
-                grouped.upcoming.map((m, i) => (
-                  <Animated.View
-                    key={m.id}
-                    entering={FadeInDown.delay(120 + i * 40).springify()}
-                  >
-                    <MatchCard
-                      match={m}
-                      onPress={() => router.push(`/(app)/matches/${m.id}`)}
-                      whenRelative
-                    />
-                  </Animated.View>
-                ))
+                <Animated.View
+                  entering={FadeInDown.delay(120).springify()}
+                  style={{ marginTop: 8 }}
+                >
+                  <MatchListGroup>
+                    {grouped.upcoming.map((m) => (
+                      <MatchListItem
+                        key={m.id}
+                        match={m}
+                        onPress={() => router.push(`/(app)/matches/${m.id}`)}
+                      />
+                    ))}
+                  </MatchListGroup>
+                </Animated.View>
               )}
             </Animated.View>
 
@@ -202,18 +208,20 @@ export default function AgendaScreen() {
                 style={styles.section}
               >
                 <Eyebrow>{`A pedir resultado · ${grouped.pendingResult.length}`}</Eyebrow>
-                {grouped.pendingResult.map((m, i) => (
-                  <Animated.View
-                    key={m.id}
-                    entering={FadeInDown.delay(200 + i * 40).springify()}
-                  >
-                    <MatchCard
-                      match={m}
-                      onPress={() => router.push(`/(app)/matches/${m.id}`)}
-                      whenRelative
-                    />
-                  </Animated.View>
-                ))}
+                <Animated.View
+                  entering={FadeInDown.delay(200).springify()}
+                  style={{ marginTop: 8 }}
+                >
+                  <MatchListGroup>
+                    {grouped.pendingResult.map((m) => (
+                      <MatchListItem
+                        key={m.id}
+                        match={m}
+                        onPress={() => router.push(`/(app)/matches/${m.id}`)}
+                      />
+                    ))}
+                  </MatchListGroup>
+                </Animated.View>
               </Animated.View>
             )}
 
@@ -227,17 +235,20 @@ export default function AgendaScreen() {
                   <Text style={styles.muted}>Sem jogos validados ainda.</Text>
                 </Card>
               ) : (
-                grouped.past.map((m, i) => (
-                  <Animated.View
-                    key={m.id}
-                    entering={FadeInDown.delay(280 + i * 30).springify()}
-                  >
-                    <MatchCard
-                      match={m}
-                      onPress={() => router.push(`/(app)/matches/${m.id}`)}
-                    />
-                  </Animated.View>
-                ))
+                <Animated.View
+                  entering={FadeInDown.delay(280).springify()}
+                  style={{ marginTop: 8 }}
+                >
+                  <MatchListGroup>
+                    {grouped.past.map((m) => (
+                      <MatchListItem
+                        key={m.id}
+                        match={m}
+                        onPress={() => router.push(`/(app)/matches/${m.id}`)}
+                      />
+                    ))}
+                  </MatchListGroup>
+                </Animated.View>
               )}
             </Animated.View>
           </>

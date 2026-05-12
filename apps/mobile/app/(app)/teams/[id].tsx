@@ -27,8 +27,6 @@ import {
 import {
   computeTeamRecord,
   fetchMatchesForTeam,
-  formatMatchDate,
-  statusLabel,
   type MatchSummary,
   type TeamRecord,
 } from '@/lib/matches';
@@ -42,6 +40,10 @@ import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import {
+  MatchListItem,
+  MatchListGroup,
+} from '@/components/MatchListItem';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
@@ -266,31 +268,21 @@ export default function TeamDetailScreen() {
               </Text>
             </Card>
           ) : (
-            matches.map((m, i) => {
-              const opponent =
-                m.side_a.id === team.id ? m.side_b : m.side_a;
-              return (
-                <Animated.View
-                  key={m.id}
-                  entering={FadeInDown.delay(240 + i * 30).springify()}
-                >
-                  <Card
+            <Animated.View
+              entering={FadeInDown.delay(240).springify()}
+              style={{ marginTop: 8 }}
+            >
+              <MatchListGroup>
+                {matches.map((m) => (
+                  <MatchListItem
+                    key={m.id}
+                    match={m}
+                    highlightTeamId={team.id}
                     onPress={() => router.push(`/(app)/matches/${m.id}`)}
-                    style={{ marginTop: 8 }}
-                  >
-                    <View style={styles.row}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.itemName}>{`vs ${opponent.name}`}</Text>
-                        <Text style={styles.itemMeta}>
-                          {formatMatchDate(m.scheduled_at)}
-                        </Text>
-                      </View>
-                      <StatusPill status={m.status} />
-                    </View>
-                  </Card>
-                </Animated.View>
-              );
-            })
+                  />
+                ))}
+              </MatchListGroup>
+            </Animated.View>
           )}
         </Animated.View>
 
@@ -428,35 +420,6 @@ function Stat({
     <View style={styles.stat}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function StatusPill({ status }: { status: MatchSummary['status'] }) {
-  const bg =
-    status === 'confirmed'
-      ? 'rgba(52,211,153,0.12)'
-      : status === 'cancelled' || status === 'disputed'
-        ? 'rgba(248,113,113,0.12)'
-        : 'rgba(251,191,36,0.12)';
-  const fg =
-    status === 'confirmed'
-      ? '#34d399'
-      : status === 'cancelled' || status === 'disputed'
-        ? '#f87171'
-        : '#fbbf24';
-  return (
-    <View
-      style={{
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 999,
-        backgroundColor: bg,
-      }}
-    >
-      <Text style={{ color: fg, fontSize: 11, fontWeight: '700' }}>
-        {statusLabel(status)}
-      </Text>
     </View>
   );
 }

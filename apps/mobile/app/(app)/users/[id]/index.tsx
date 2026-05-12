@@ -64,8 +64,42 @@ import { Card } from '@/components/Card';
 import { Skeleton } from '@/components/Skeleton';
 import { PlayerStatsCard } from '@/components/PlayerStatsCard';
 import { Button } from '@/components/Button';
+import {
+  MatchListItem,
+  MatchListGroup,
+} from '@/components/MatchListItem';
+import type { MatchSummary } from '@/lib/matches';
 
 const MIN_REVIEWS_TO_SHOW = 5;
+
+function historyToMatchSummary(h: MatchHistoryEntry): MatchSummary {
+  const myFirst = h.my_side === 'A';
+  return {
+    id: h.match_id,
+    sport_id: 0,
+    scheduled_at: h.scheduled_at,
+    status: 'validated',
+    location_name: null,
+    location_tbd: false,
+    message: null,
+    notes: null,
+    proposed_by: '',
+    final_score_a: h.final_score_a,
+    final_score_b: h.final_score_b,
+    side_a: {
+      id: myFirst ? 'my' : 'opp',
+      name: myFirst ? h.my_team_name : h.opponent_team_name,
+      city: '',
+      captain_id: '',
+    },
+    side_b: {
+      id: myFirst ? 'opp' : 'my',
+      name: myFirst ? h.opponent_team_name : h.my_team_name,
+      city: '',
+      captain_id: '',
+    },
+  };
+}
 
 function levelLabel(elo: number): string {
   if (elo < 1100) return 'Casual';
@@ -506,40 +540,18 @@ export default function PublicProfileScreen() {
               <Text style={styles.muted}>Sem jogos validados.</Text>
             </Card>
           ) : (
-            history.map((h) => (
-              <Card
-                key={h.match_id}
-                onPress={() => router.push(`/(app)/matches/${h.match_id}`)}
-                style={{ marginTop: 8 }}
-              >
-                <View style={styles.row}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowName}>
-                      {`${h.my_team_name} vs ${h.opponent_team_name}`}
-                    </Text>
-                    <Text style={styles.rowMeta}>
-                      {`${h.sport_name} · ${formatMatchDate(h.scheduled_at)}`}
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text
-                      style={[
-                        styles.score,
-                        h.result === 'win' && styles.win,
-                        h.result === 'loss' && styles.loss,
-                      ]}
-                    >
-                      {h.my_side === 'A'
-                        ? `${h.final_score_a}–${h.final_score_b}`
-                        : `${h.final_score_b}–${h.final_score_a}`}
-                    </Text>
-                    <Text style={styles.resultLabel}>
-                      {h.result === 'win' ? 'V' : h.result === 'loss' ? 'D' : 'E'}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-            ))
+            <View style={{ marginTop: 8 }}>
+              <MatchListGroup>
+                {history.map((h) => (
+                  <MatchListItem
+                    key={h.match_id}
+                    match={historyToMatchSummary(h)}
+                    highlightTeamId="my"
+                    onPress={() => router.push(`/(app)/matches/${h.match_id}`)}
+                  />
+                ))}
+              </MatchListGroup>
+            </View>
           )}
         </Animated.View>
       </ScrollView>
