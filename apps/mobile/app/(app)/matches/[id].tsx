@@ -1,13 +1,12 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
-  Pressable,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Stack,
   useFocusEffect,
@@ -24,7 +23,11 @@ import {
   type MatchSummary,
 } from '@/lib/matches';
 import { addMatchToCalendar } from '@/lib/calendar';
-import { Alert } from 'react-native';
+import { Screen } from '@/components/Screen';
+import { Heading } from '@/components/Heading';
+import { Card } from '@/components/Card';
+import { Button } from '@/components/Button';
+import { Skeleton } from '@/components/Skeleton';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -76,27 +79,24 @@ export default function MatchDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <ActivityIndicator color="#ffffff" />
+      <Screen>
+        <View style={{ padding: 24, gap: 12 }}>
+          <Skeleton height={120} radius={20} />
+          <Skeleton height={140} radius={16} style={{ marginTop: 12 }} />
+          <Skeleton height={48} radius={999} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!match) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.error}>Jogo não encontrado.</Text>
-          <Pressable
-            style={styles.linkBtn}
-            onPress={() => router.replace('/(app)')}
-          >
-            <Text style={styles.linkBtnText}>Voltar</Text>
-          </Pressable>
+      <Screen>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <Text style={{ color: '#a3a3a3' }}>Jogo não encontrado.</Text>
+          <Button label="Voltar" variant="secondary" onPress={() => router.replace('/(app)')} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -113,7 +113,7 @@ export default function MatchDetailScreen() {
   const canReview = match.status === 'validated';
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -122,141 +122,186 @@ export default function MatchDetailScreen() {
           headerTintColor: '#ffffff',
         }}
       />
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.matchRow}>
-          <Pressable
-            style={styles.teamBox}
-            onPress={() => router.push(`/(app)/teams/${match.side_a.id}`)}
-          >
-            <Text style={styles.teamName}>{match.side_a.name}</Text>
-            <Text style={styles.teamCity}>{match.side_a.city}</Text>
-          </Pressable>
-          <Text style={styles.vs}>vs</Text>
-          <Pressable
-            style={styles.teamBox}
-            onPress={() => router.push(`/(app)/teams/${match.side_b.id}`)}
-          >
-            <Text style={styles.teamName}>{match.side_b.name}</Text>
-            <Text style={styles.teamCity}>{match.side_b.city}</Text>
-          </Pressable>
-        </View>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View entering={FadeInDown.duration(300).springify()}>
+          <Card variant="subtle">
+            <View style={styles.scoreboard}>
+              <Side
+                name={match.side_a.name}
+                score={match.final_score_a}
+                onPress={() => router.push(`/(app)/teams/${match.side_a.id}`)}
+              />
+              <Text style={styles.vs}>vs</Text>
+              <Side
+                name={match.side_b.name}
+                score={match.final_score_b}
+                onPress={() => router.push(`/(app)/teams/${match.side_b.id}`)}
+              />
+            </View>
+            <View style={{ alignItems: 'center', marginTop: 14 }}>
+              <StatusBadge status={match.status} />
+            </View>
+          </Card>
+        </Animated.View>
 
-        <View
-          style={[
-            styles.statusBadge,
-            match.status === 'confirmed' && styles.statusConfirmed,
-            match.status === 'cancelled' && styles.statusCancelled,
-          ]}
-        >
-          <Text style={styles.statusText}>{statusLabel(match.status)}</Text>
-        </View>
-
-        <View style={styles.infoBlock}>
-          <InfoRow label="Quando" value={formatMatchDate(match.scheduled_at)} />
-          <InfoRow
-            label="Onde"
-            value={
-              match.location_tbd
-                ? 'A combinar'
-                : match.location_name ?? '—'
-            }
-          />
-          {match.message && (
-            <InfoRow label="Mensagem" value={match.message} />
-          )}
-        </View>
+        <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.section}>
+          <Card>
+            <InfoRow label="Quando" value={formatMatchDate(match.scheduled_at)} />
+            <InfoRow
+              label="Onde"
+              value={
+                match.location_tbd
+                  ? 'A combinar'
+                  : (match.location_name ?? '—')
+              }
+            />
+            {match.message && <InfoRow label="Mensagem" value={match.message} last />}
+          </Card>
+        </Animated.View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        {canAccept && (
-          <Pressable
-            onPress={handleAccept}
-            disabled={acting}
-            style={[styles.primary, acting && styles.btnDisabled]}
-          >
-            {acting ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.primaryText}>Aceitar desafio</Text>
-            )}
-          </Pressable>
-        )}
+        <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.actions}>
+          {canAccept && (
+            <Button
+              label="Aceitar desafio"
+              size="lg"
+              haptic="medium"
+              loading={acting}
+              onPress={handleAccept}
+              full
+            />
+          )}
 
-        {canReject && (
-          <Pressable
-            onPress={handleReject}
-            disabled={acting}
-            style={[styles.secondary, acting && styles.btnDisabled]}
-          >
-            <Text style={styles.secondaryText}>
-              {isCaptainB ? 'Recusar' : 'Cancelar proposta'}
-            </Text>
-          </Pressable>
-        )}
+          {canReject && (
+            <Button
+              label={isCaptainB ? 'Recusar' : 'Cancelar proposta'}
+              variant="secondary"
+              onPress={handleReject}
+              loading={acting}
+              full
+            />
+          )}
 
-        {match.status === 'confirmed' && (
-          <Pressable
-            onPress={async () => {
-              const r = await addMatchToCalendar({
-                title: `${match.side_a.name} vs ${match.side_b.name}`,
-                scheduled_at: match.scheduled_at,
-                location: match.location_tbd
-                  ? 'A combinar'
-                  : (match.location_name ?? undefined),
-              });
-              if (!r.ok) Alert.alert('Calendário', r.message);
-              else Alert.alert('Calendário', 'Jogo adicionado ao calendário.');
-            }}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>📅 Adicionar ao calendário</Text>
-          </Pressable>
-        )}
+          {match.status === 'confirmed' && (
+            <Button
+              label="📅 Adicionar ao calendário"
+              variant="secondary"
+              full
+              onPress={async () => {
+                const r = await addMatchToCalendar({
+                  title: `${match.side_a.name} vs ${match.side_b.name}`,
+                  scheduled_at: match.scheduled_at,
+                  location: match.location_tbd
+                    ? 'A combinar'
+                    : (match.location_name ?? undefined),
+                });
+                if (!r.ok) Alert.alert('Calendário', r.message);
+                else Alert.alert('Calendário', 'Jogo adicionado ao calendário.');
+              }}
+            />
+          )}
 
-        {match.status === 'confirmed' && isCaptain && (
-          <Pressable
-            onPress={() =>
-              router.push(`/(app)/matches/${match.id}/substitutes`)
-            }
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>Procurar substituto</Text>
-          </Pressable>
-        )}
+          {match.status === 'confirmed' && isCaptain && (
+            <Button
+              label="Procurar substituto"
+              variant="secondary"
+              full
+              onPress={() =>
+                router.push(`/(app)/matches/${match.id}/substitutes`)
+              }
+            />
+          )}
 
-        {canSubmitResult && (
-          <Pressable
-            onPress={() => router.push(`/(app)/matches/${match.id}/result`)}
-            style={styles.primary}
-          >
-            <Text style={styles.primaryText}>Submeter resultado</Text>
-          </Pressable>
-        )}
+          {canSubmitResult && (
+            <Button
+              label="Submeter resultado"
+              size="lg"
+              haptic="medium"
+              full
+              onPress={() => router.push(`/(app)/matches/${match.id}/result`)}
+            />
+          )}
 
-        {match.status === 'validated' && (
-          <Text style={styles.finalScore}>
-            Final: {match.side_a.name} {match.final_score_a ?? ''}
-            {' — '}
-            {match.final_score_b ?? ''} {match.side_b.name}
-          </Text>
-        )}
-
-        {canReview && (
-          <Pressable
-            onPress={() => router.push(`/(app)/matches/${match.id}/review`)}
-            style={styles.primary}
-          >
-            <Text style={styles.primaryText}>Avaliar jogadores</Text>
-          </Pressable>
-        )}
+          {canReview && (
+            <Button
+              label="Avaliar jogadores"
+              size="lg"
+              haptic="medium"
+              full
+              onPress={() => router.push(`/(app)/matches/${match.id}/review`)}
+            />
+          )}
+        </Animated.View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function Side({
+  name,
+  score,
+  onPress,
+}: {
+  name: string;
+  score: number | null;
+  onPress: () => void;
+}) {
   return (
-    <View style={styles.infoRow}>
+    <Card onPress={onPress} variant="subtle" style={styles.sideBox}>
+      <Text style={styles.sideName} numberOfLines={2}>
+        {name}
+      </Text>
+      {score !== null && score !== undefined && (
+        <Text style={styles.sideScore}>{score}</Text>
+      )}
+    </Card>
+  );
+}
+
+function StatusBadge({ status }: { status: MatchSummary['status'] }) {
+  const bg =
+    status === 'confirmed' || status === 'validated'
+      ? 'rgba(52,211,153,0.12)'
+      : status === 'cancelled' || status === 'disputed'
+        ? 'rgba(248,113,113,0.12)'
+        : 'rgba(251,191,36,0.12)';
+  const fg =
+    status === 'confirmed' || status === 'validated'
+      ? '#34d399'
+      : status === 'cancelled' || status === 'disputed'
+        ? '#f87171'
+        : '#fbbf24';
+  return (
+    <View
+      style={{
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 999,
+        backgroundColor: bg,
+      }}
+    >
+      <Text style={{ color: fg, fontSize: 12, fontWeight: '700', letterSpacing: 0.4 }}>
+        {statusLabel(status).toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  last,
+}: {
+  label: string;
+  value: string;
+  last?: boolean;
+}) {
+  return (
+    <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value}</Text>
     </View>
@@ -264,97 +309,50 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   scroll: { padding: 24, paddingBottom: 48 },
-  matchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
+  scoreboard: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sideBox: { flex: 1, alignItems: 'center', minHeight: 100, justifyContent: 'center' },
+  sideName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    textAlign: 'center',
   },
-  teamBox: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+  sideScore: {
+    color: '#ffffff',
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: -1,
+    marginTop: 4,
   },
-  teamName: { color: '#ffffff', fontWeight: '700', fontSize: 16 },
-  teamCity: { color: '#a3a3a3', fontSize: 12, marginTop: 4 },
-  vs: { color: '#737373', fontSize: 12, textTransform: 'uppercase' },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.4)',
-    marginBottom: 16,
+  vs: {
+    color: '#5a5a5a',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-  statusConfirmed: {
-    backgroundColor: 'rgba(52, 211, 153, 0.15)',
-    borderColor: 'rgba(52, 211, 153, 0.4)',
-  },
-  statusCancelled: {
-    backgroundColor: 'rgba(248, 113, 113, 0.15)',
-    borderColor: 'rgba(248, 113, 113, 0.4)',
-  },
-  statusText: { color: '#ffffff', fontSize: 12, fontWeight: '600' },
-  infoBlock: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    overflow: 'hidden',
-  },
+  section: { marginTop: 16 },
   infoRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   infoLabel: {
-    color: '#a3a3a3',
+    color: '#737373',
     fontSize: 11,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginBottom: 4,
   },
-  infoValue: { color: '#ffffff', fontSize: 15 },
-  primary: {
-    backgroundColor: '#ffffff',
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  primaryText: { color: '#000000', fontSize: 16, fontWeight: '600' },
-  secondary: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  secondaryText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  btnDisabled: { opacity: 0.5 },
-  finalScore: {
-    color: '#ffffff',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 16,
-  },
+  infoValue: { color: '#ffffff', fontSize: 15, letterSpacing: -0.2 },
+  actions: { marginTop: 24, gap: 8 },
   error: {
     color: '#f87171',
     textAlign: 'center',
     marginTop: 12,
     fontSize: 13,
   },
-  linkBtn: { padding: 12 },
-  linkBtnText: { color: '#ffffff', fontWeight: '600' },
-})
+});
