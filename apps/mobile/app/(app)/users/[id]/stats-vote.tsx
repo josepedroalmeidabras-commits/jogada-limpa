@@ -13,15 +13,16 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import {
   canVoteOnPlayer,
+  categoriesForPosition,
   fetchMyVotesFor,
   ratingColor,
   ratingLabel,
   setStatVote,
-  STAT_CATEGORIES,
   STAT_ICONS,
   STAT_LABELS,
   type StatCategory,
 } from '@/lib/player-stats';
+import { fetchPreferredPosition } from '@/lib/reviews';
 import { useAuth } from '@/providers/auth';
 import { Screen } from '@/components/Screen';
 import { Avatar } from '@/components/Avatar';
@@ -54,6 +55,7 @@ export default function StatsVoteScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [position, setPosition] = useState<string | null>(null);
   const [eligible, setEligible] = useState(false);
   const [myVotes, setMyVotes] = useState<
     Record<StatCategory, number | undefined>
@@ -70,16 +72,19 @@ export default function StatsVoteScreen() {
     if (!id) return;
     let cancelled = false;
     (async () => {
-      const [p, votes, can] = await Promise.all([
+      const [p, votes, can, pos] = await Promise.all([
         fetchProfile(id),
         fetchMyVotesFor(id),
         canVoteOnPlayer(id),
+        fetchPreferredPosition(id),
       ]);
       if (cancelled) return;
       setProfile(p);
+      setPosition(pos);
       setMyVotes(votes);
+      const cats = categoriesForPosition(pos);
       const init: Record<string, number> = {};
-      for (const c of STAT_CATEGORIES) {
+      for (const c of cats) {
         const existing = votes[c];
         if (existing !== undefined) {
           init[c] = nearestTier(existing) ?? existing;
@@ -189,7 +194,7 @@ export default function StatsVoteScreen() {
           </Text>
         </Animated.View>
 
-        {STAT_CATEGORIES.map((cat, i) => {
+        {categoriesForPosition(position).map((cat, i) => {
           const current = pending[cat];
           return (
             <Animated.View

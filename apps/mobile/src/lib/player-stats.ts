@@ -6,9 +6,15 @@ export type StatCategory =
   | 'drible'
   | 'passe'
   | 'defesa'
-  | 'fisico';
+  | 'fisico'
+  // GK-specific
+  | 'reflexos'
+  | 'defesa_aerea'
+  | 'posicionamento'
+  | 'distribuicao'
+  | 'saidas';
 
-export const STAT_CATEGORIES: StatCategory[] = [
+export const OUTFIELD_CATEGORIES: StatCategory[] = [
   'velocidade',
   'remate',
   'drible',
@@ -17,6 +23,29 @@ export const STAT_CATEGORIES: StatCategory[] = [
   'fisico',
 ];
 
+export const GK_CATEGORIES: StatCategory[] = [
+  'reflexos',
+  'defesa_aerea',
+  'posicionamento',
+  'distribuicao',
+  'saidas',
+  'fisico',
+];
+
+// Legacy export — defaults to outfield. Use categoriesForPosition() for
+// position-aware listings.
+export const STAT_CATEGORIES: StatCategory[] = OUTFIELD_CATEGORIES;
+
+export function categoriesForPosition(
+  position: string | null | undefined,
+): StatCategory[] {
+  return position === 'gr' ? GK_CATEGORIES : OUTFIELD_CATEGORIES;
+}
+
+export function isGoalkeeper(position: string | null | undefined): boolean {
+  return position === 'gr';
+}
+
 export const STAT_LABELS: Record<StatCategory, string> = {
   velocidade: 'Velocidade',
   remate: 'Remate',
@@ -24,6 +53,11 @@ export const STAT_LABELS: Record<StatCategory, string> = {
   passe: 'Passe',
   defesa: 'Defesa',
   fisico: 'Físico',
+  reflexos: 'Reflexos',
+  defesa_aerea: 'Defesa aérea',
+  posicionamento: 'Posicionamento',
+  distribuicao: 'Distribuição',
+  saidas: 'Saídas',
 };
 
 export const STAT_ICONS: Record<StatCategory, string> = {
@@ -33,6 +67,11 @@ export const STAT_ICONS: Record<StatCategory, string> = {
   passe: '🎁',
   defesa: '🛡️',
   fisico: '💪',
+  reflexos: '⚡',
+  defesa_aerea: '🪂',
+  posicionamento: '📐',
+  distribuicao: '🎯',
+  saidas: '🚀',
 };
 
 export type AggregateStat = {
@@ -46,8 +85,14 @@ export type MyVote = {
   value: number;
 };
 
-export function emptyStats(): AggregateStat[] {
-  return STAT_CATEGORIES.map((c) => ({ category: c, value: 0, votes: 0 }));
+export function emptyStats(
+  position?: string | null,
+): AggregateStat[] {
+  return categoriesForPosition(position).map((c) => ({
+    category: c,
+    value: 0,
+    votes: 0,
+  }));
 }
 
 export function ratingLabel(value: number): string {
@@ -70,6 +115,7 @@ export function ratingColor(value: number): string {
 
 export async function fetchPlayerStats(
   userId: string,
+  position?: string | null,
 ): Promise<AggregateStat[]> {
   const { data, error } = await supabase
     .from('player_stats_aggregate')
@@ -78,7 +124,7 @@ export async function fetchPlayerStats(
 
   if (error || !data) {
     console.error('fetchPlayerStats error', error);
-    return emptyStats();
+    return emptyStats(position);
   }
 
   const map = new Map<string, { value: number; votes: number }>();
@@ -90,7 +136,7 @@ export async function fetchPlayerStats(
     map.set(row.category, { value: row.value, votes: row.votes });
   }
 
-  return STAT_CATEGORIES.map((cat) => {
+  return categoriesForPosition(position).map((cat) => {
     const v = map.get(cat);
     return {
       category: cat,

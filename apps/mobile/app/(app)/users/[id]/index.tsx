@@ -127,6 +127,7 @@ export default function PublicProfileScreen() {
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
   const [mvpCount, setMvpCount] = useState(0);
+  const [position, setPosition] = useState<string | null>(null);
   const [stats, setStats] = useState<AggregateStat[]>(emptyStats());
   const [canVote, setCanVote] = useState(false);
   const [friendStatus, setFriendStatus] = useState<FriendshipStatus>('none');
@@ -140,22 +141,24 @@ export default function PublicProfileScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [p, s, a, h, mvp, ps, cv, fs, mf, ss] = await Promise.all([
+    const [p, s, a, h, mvp, cv, fs, mf, ss] = await Promise.all([
       fetchProfile(id),
       fetchUserSports(id),
       fetchReviewAggregate(id),
       fetchUserMatchHistory(id, 20),
       fetchMvpCount(id),
-      fetchPlayerStats(id),
       canVoteOnPlayer(id),
       isSelf ? Promise.resolve<FriendshipStatus>('none') : fetchFriendshipStatus(id),
       isSelf ? Promise.resolve({ list: [], total: 0 }) : fetchMutualFriends(id, 5),
       fetchSeasonStats(id),
     ]);
+    const positionRaw = s.find((x) => x.sport_id === 2)?.preferred_position ?? null;
+    const ps = await fetchPlayerStats(id, positionRaw);
     setProfile(p);
     setSports(s);
     setAggregate(a);
     setHistory(h);
+    setPosition(positionRaw);
     setStats(ps);
     setCanVote(cv);
     setFriendStatus(fs);
@@ -358,11 +361,12 @@ export default function PublicProfileScreen() {
             )}
           </View>
           <Heading level={1} style={{ marginTop: 16, textAlign: 'center' }}>
-            {formatDisplayName(profile)}
+            {`${position === 'gr' ? '🧤 ' : ''}${formatDisplayName(profile)}`}
           </Heading>
           <Text style={styles.city}>
             {profile.city}
             {profile.preferred_foot ? ` · ${FOOT_LABEL[profile.preferred_foot]}` : ''}
+            {position === 'gr' ? ' · Guarda-redes' : ''}
           </Text>
 
           {(() => {

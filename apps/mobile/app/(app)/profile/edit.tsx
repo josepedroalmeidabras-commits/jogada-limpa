@@ -21,6 +21,7 @@ import { Alert } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import {
   fetchUserSports,
+  setPreferredPosition,
   setSportAvailability,
   type UserSportElo,
 } from '@/lib/reviews';
@@ -135,6 +136,23 @@ export default function EditProfileScreen() {
             : s,
         ),
       );
+    }
+  }
+
+  async function pickPosition(
+    sportId: number,
+    position: string | null,
+  ) {
+    if (!session) return;
+    // optimistic
+    setSports((prev) =>
+      prev.map((s) =>
+        s.sport_id === sportId ? { ...s, preferred_position: position } : s,
+      ),
+    );
+    const r = await setPreferredPosition(session.user.id, sportId, position);
+    if (!r.ok) {
+      setError(r.message);
     }
   }
 
@@ -360,7 +378,52 @@ export default function EditProfileScreen() {
             full
           />
 
-          <Text style={[styles.label, { marginTop: 32 }]}>
+          <Text style={[styles.label, { marginTop: 32 }]}>Posição preferida</Text>
+          <Text style={styles.subhint}>
+            Se escolheres "Guarda-redes", os atributos PES mudam para o set
+            específico (reflexos, defesa aérea, etc.).
+          </Text>
+          {sports.map((s) => (
+            <View key={`pos-${s.sport_id}`} style={{ marginBottom: 12 }}>
+              <Text style={styles.posSportLabel}>{s.sport?.name}</Text>
+              <View style={styles.posRow}>
+                {(
+                  [
+                    { v: 'gr', label: '🧤 GR' },
+                    { v: 'def', label: 'Defesa' },
+                    { v: 'med', label: 'Médio' },
+                    { v: 'ata', label: 'Avançado' },
+                  ] as const
+                ).map((opt) => {
+                  const active = s.preferred_position === opt.v;
+                  return (
+                    <Pressable
+                      key={opt.v}
+                      onPress={() =>
+                        pickPosition(s.sport_id, active ? null : opt.v)
+                      }
+                      style={[
+                        styles.posChip,
+                        active && styles.posChipActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.posChipText,
+                          active && styles.posChipTextActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+
+          <Text style={[styles.label, { marginTop: 24 }]}>
             Disponibilidade para substituir
           </Text>
           <Text style={styles.subhint}>
@@ -598,6 +661,27 @@ const styles = StyleSheet.create({
   },
   footChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
   footChipTextActive: { color: '#0a0a0a' },
+  posSportLabel: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  posRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  posChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  posChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  posChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
+  posChipTextActive: { color: '#0a0a0a' },
   avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
   changePhotoBtn: {
     paddingHorizontal: 16,

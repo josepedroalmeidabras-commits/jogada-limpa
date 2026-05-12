@@ -88,6 +88,7 @@ export type UserSportElo = {
   open_until: string | null;
   is_open_to_team: boolean;
   open_to_team_until: string | null;
+  preferred_position: string | null;
   sport: { id: number; name: string; code: string } | null;
 };
 
@@ -100,6 +101,7 @@ export async function fetchUserSports(
       `sport_id, declared_level, elo, matches_played,
        is_open_to_sub, open_until,
        is_open_to_team, open_to_team_until,
+       preferred_position,
        sport:sports!inner(id, name, code, is_active)`,
     )
     .eq('user_id', userId);
@@ -110,6 +112,34 @@ export async function fetchUserSports(
   // Hide ELO/availability for sports that are no longer active (F5/F11
   // after the F7 pivot, padel, etc).
   return (data as any[]).filter((r) => r.sport?.is_active) as UserSportElo[];
+}
+
+export async function fetchPreferredPosition(
+  userId: string,
+  sportId = 2,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('user_sports')
+    .select('preferred_position')
+    .eq('user_id', userId)
+    .eq('sport_id', sportId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.preferred_position ?? null;
+}
+
+export async function setPreferredPosition(
+  userId: string,
+  sportId: number,
+  position: string | null,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase
+    .from('user_sports')
+    .update({ preferred_position: position })
+    .eq('user_id', userId)
+    .eq('sport_id', sportId);
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
 }
 
 export async function setSportAvailability(
