@@ -170,6 +170,39 @@ export default function MatchDetailScreen() {
           </Card>
         </Animated.View>
 
+        {(match.notes || (isCaptain && match.status !== 'validated' && match.status !== 'cancelled')) && (
+          <Animated.View
+            entering={FadeInDown.delay(110).springify()}
+            style={styles.section}
+          >
+            <Card
+              onPress={
+                isCaptain && match.status !== 'validated' && match.status !== 'cancelled'
+                  ? () => router.push(`/(app)/matches/${match.id}/notes`)
+                  : undefined
+              }
+            >
+              <View style={styles.notesHeader}>
+                <Text style={styles.notesLabel}>📝 Notas do jogo</Text>
+                {isCaptain &&
+                  match.status !== 'validated' &&
+                  match.status !== 'cancelled' && (
+                    <Text style={styles.notesEdit}>
+                      {match.notes ? 'Editar ›' : 'Adicionar ›'}
+                    </Text>
+                  )}
+              </View>
+              {match.notes ? (
+                <Text style={styles.notesBody}>{match.notes}</Text>
+              ) : (
+                <Text style={styles.notesEmpty}>
+                  Sem notas. Toca para adicionar cor de equipamento, balneário, etc.
+                </Text>
+              )}
+            </Card>
+          </Animated.View>
+        )}
+
         {error && <Text style={styles.error}>{error}</Text>}
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.actions}>
@@ -398,6 +431,35 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   section: { marginTop: 16 },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  notesLabel: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  notesEdit: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  notesBody: {
+    color: '#ffffff',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: -0.1,
+  },
+  notesEmpty: {
+    color: '#737373',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
   infoRow: {
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,

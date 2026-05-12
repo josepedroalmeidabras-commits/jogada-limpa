@@ -24,6 +24,7 @@ export type MatchSummary = {
   location_name: string | null;
   location_tbd: boolean;
   message: string | null;
+  notes: string | null;
   proposed_by: string;
   final_score_a: number | null;
   final_score_b: number | null;
@@ -48,7 +49,7 @@ function unwrapSides(raw: any[]): { a: TeamLite | null; b: TeamLite | null } {
 
 const MATCH_SELECT = `
   id, sport_id, scheduled_at, status, location_name, location_tbd,
-  message, proposed_by, final_score_a, final_score_b,
+  message, notes, proposed_by, final_score_a, final_score_b,
   sides:match_sides!inner(
     side,
     team:teams!inner(id, name, city, captain_id)
@@ -143,6 +144,7 @@ export async function fetchMatchesForUser(
         location_name: m.location_name,
         location_tbd: m.location_tbd,
         message: m.message,
+        notes: m.notes ?? null,
         proposed_by: m.proposed_by,
         final_score_a: m.final_score_a,
         final_score_b: m.final_score_b,
@@ -192,6 +194,7 @@ export async function fetchMatchesForTeam(
         location_name: m.location_name,
         location_tbd: m.location_tbd,
         message: m.message,
+        notes: m.notes ?? null,
         proposed_by: m.proposed_by,
         final_score_a: m.final_score_a,
         final_score_b: m.final_score_b,
@@ -226,6 +229,7 @@ export async function fetchMatchById(
     location_name: m.location_name,
     location_tbd: m.location_tbd,
     message: m.message,
+    notes: m.notes ?? null,
     proposed_by: m.proposed_by,
     final_score_a: m.final_score_a,
     final_score_b: m.final_score_b,
@@ -265,6 +269,7 @@ export async function proposeMatch(input: {
   location_name?: string;
   location_tbd?: boolean;
   message?: string;
+  notes?: string;
 }): Promise<{ ok: true; match_id: string } | { ok: false; message: string }> {
   const { data, error } = await supabase.rpc('propose_match', {
     p_proposing_team_id: input.proposing_team_id,
@@ -273,6 +278,7 @@ export async function proposeMatch(input: {
     p_location_name: input.location_name ?? null,
     p_location_tbd: input.location_tbd ?? false,
     p_message: input.message ?? null,
+    p_notes: input.notes ?? null,
   });
   if (error || !data) {
     return {
@@ -350,6 +356,23 @@ export async function rejectMatch(
     return {
       ok: false,
       message: error.message ?? 'Não foi possível cancelar.',
+    };
+  }
+  return { ok: true };
+}
+
+export async function updateMatchNotes(
+  matchId: string,
+  notes: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('update_match_notes', {
+    p_match_id: matchId,
+    p_notes: notes,
+  });
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível guardar.',
     };
   }
   return { ok: true };

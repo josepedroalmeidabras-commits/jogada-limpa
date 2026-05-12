@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sendPushToUser } from './push';
 
 export type ChatMessage = {
   id: string;
@@ -56,7 +57,49 @@ export async function sendTeamMessage(
       message: error.message ?? 'Não foi possível enviar.',
     };
   }
+  void fanOutChatPush({ teamId, authorId: userId, text: trimmed });
   return { ok: true };
+}
+
+async function fanOutChatPush(args: {
+  teamId: string;
+  authorId: string;
+  text: string;
+}) {
+  const { data: team } = await supabase
+    .from('teams')
+    .select('name')
+    .eq('id', args.teamId)
+    .maybeSingle();
+  const { data: author } = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('id', args.authorId)
+    .maybeSingle();
+  const { data: members } = await supabase
+    .from('team_members')
+    .select('user_id')
+    .eq('team_id', args.teamId)
+    .neq('user_id', args.authorId);
+  if (!members) return;
+
+  const teamName = team?.name ?? 'Equipa';
+  const authorName = (author?.name ?? 'Alguém').split(' ')[0];
+  const preview =
+    args.text.length > 80 ? args.text.slice(0, 80) + '…' : args.text;
+
+  await Promise.all(
+    members.map((m) =>
+      sendPushToUser(m.user_id, {
+        title: teamName,
+        body: `${authorName}: ${preview}`,
+        data: {
+          type: 'team_chat',
+          team_id: args.teamId,
+        },
+      }),
+    ),
+  );
 }
 
 export async function markTeamChatRead(

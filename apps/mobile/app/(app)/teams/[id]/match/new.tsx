@@ -71,6 +71,7 @@ export default function NewMatchScreen() {
   const [locationName, setLocationName] = useState('');
   const [locationTbd, setLocationTbd] = useState(false);
   const [message, setMessage] = useState('');
+  const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -139,6 +140,7 @@ export default function NewMatchScreen() {
       location_name: locationTbd ? undefined : locationName.trim(),
       location_tbd: locationTbd,
       message: message.trim() || undefined,
+      notes: notes.trim() || undefined,
     });
     setSubmitting(false);
 
@@ -406,6 +408,18 @@ export default function NewMatchScreen() {
             onChangeText={setMessage}
             multiline
             maxLength={500}
+            editable={!submitting}
+          />
+
+          <Text style={styles.label}>Notas do jogo (opcional)</Text>
+          <TextInput
+            style={[styles.input, styles.textarea]}
+            placeholder="Cor de equipamento, balneário, o que levar..."
+            placeholderTextColor="#666"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            maxLength={300}
             editable={!submitting}
           />
 
