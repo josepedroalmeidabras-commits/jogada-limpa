@@ -25,6 +25,7 @@ import {
   type MatchSummary,
 } from '@/lib/matches';
 import { addMatchToCalendar } from '@/lib/calendar';
+import { fetchMatchUnreadCount } from '@/lib/match-chat';
 import { Screen } from '@/components/Screen';
 import { Heading } from '@/components/Heading';
 import { Card } from '@/components/Card';
@@ -38,6 +39,7 @@ export default function MatchDetailScreen() {
   const router = useRouter();
   const [match, setMatch] = useState<MatchSummary | null>(null);
   const [isParticipant, setIsParticipant] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +49,12 @@ export default function MatchDetailScreen() {
     const m = await fetchMatchById(id);
     setMatch(m);
     if (m && session) {
-      const part = await isMatchParticipant(m.id, session.user.id);
+      const [part, unread] = await Promise.all([
+        isMatchParticipant(m.id, session.user.id),
+        fetchMatchUnreadCount(m.id, session.user.id),
+      ]);
       setIsParticipant(part);
+      setChatUnread(unread);
     }
     setLoading(false);
   }, [id, session]);
@@ -206,6 +212,19 @@ export default function MatchDetailScreen() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.actions}>
+          {isParticipant && match.status !== 'cancelled' && (
+            <Button
+              label={
+                chatUnread > 0
+                  ? `💬 Chat do jogo · ${chatUnread > 9 ? '9+' : chatUnread} por ler`
+                  : '💬 Chat do jogo'
+              }
+              variant="secondary"
+              full
+              onPress={() => router.push(`/(app)/matches/${match.id}/chat`)}
+            />
+          )}
+
           {canAccept && (
             <Button
               label="Aceitar desafio"
