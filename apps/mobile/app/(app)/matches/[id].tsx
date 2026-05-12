@@ -23,6 +23,8 @@ import {
   statusLabel,
   type MatchSummary,
 } from '@/lib/matches';
+import { addMatchToCalendar } from '@/lib/calendar';
+import { Alert } from 'react-native';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -189,6 +191,25 @@ export default function MatchDetailScreen() {
             <Text style={styles.secondaryText}>
               {isCaptainB ? 'Recusar' : 'Cancelar proposta'}
             </Text>
+          </Pressable>
+        )}
+
+        {match.status === 'confirmed' && (
+          <Pressable
+            onPress={async () => {
+              const r = await addMatchToCalendar({
+                title: `${match.side_a.name} vs ${match.side_b.name}`,
+                scheduled_at: match.scheduled_at,
+                location: match.location_tbd
+                  ? 'A combinar'
+                  : (match.location_name ?? undefined),
+              });
+              if (!r.ok) Alert.alert('Calendário', r.message);
+              else Alert.alert('Calendário', 'Jogo adicionado ao calendário.');
+            }}
+            style={styles.secondary}
+          >
+            <Text style={styles.secondaryText}>📅 Adicionar ao calendário</Text>
           </Pressable>
         )}
 

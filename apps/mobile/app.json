@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.jogadalimpa.app",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Para escolheres uma foto de perfil ou escudo da equipa."
+        "NSPhotoLibraryUsageDescription": "Para escolheres uma foto de perfil ou escudo da equipa.",
+        "NSCalendarsUsageDescription": "Para adicionares jogos confirmados ao teu calendário."
       }
     },
     "android": {
@@ -46,6 +47,12 @@
         "expo-notifications",
         {
           "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Para adicionares jogos confirmados ao teu calendário."
         }
       ]
     ],
