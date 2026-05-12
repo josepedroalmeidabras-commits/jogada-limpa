@@ -121,6 +121,63 @@ export async function createTeam(
   return { ok: true, team: data };
 }
 
+export async function transferCaptaincy(
+  teamId: string,
+  newCaptainId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  // 1. Promote new member to captain role
+  const { error: roleErr } = await supabase
+    .from('team_members')
+    .update({ role: 'captain' })
+    .eq('team_id', teamId)
+    .eq('user_id', newCaptainId);
+  if (roleErr) {
+    return {
+      ok: false,
+      message: roleErr.message ?? 'Não foi possível promover.',
+    };
+  }
+  // 2. Update teams.captain_id (only the current captain has UPDATE rights)
+  const { error: teamErr } = await supabase
+    .from('teams')
+    .update({ captain_id: newCaptainId })
+    .eq('id', teamId);
+  if (teamErr) {
+    return {
+      ok: false,
+      message: teamErr.message ?? 'Não foi possível transferir capitania.',
+    };
+  }
+  // 3. Demote old captain to member — find by selecting all team_members
+  //    with role=captain except the new one.
+  const { error: demoteErr } = await supabase
+    .from('team_members')
+    .update({ role: 'member' })
+    .eq('team_id', teamId)
+    .neq('user_id', newCaptainId)
+    .eq('role', 'captain');
+  if (demoteErr) {
+    console.warn('demote old captain failed', demoteErr);
+  }
+  return { ok: true };
+}
+
+export async function deactivateTeam(
+  teamId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase
+    .from('teams')
+    .update({ is_active: false })
+    .eq('id', teamId);
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível eliminar.',
+    };
+  }
+  return { ok: true };
+}
+
 export async function updateTeam(
   teamId: string,
   input: { name?: string; city?: string },

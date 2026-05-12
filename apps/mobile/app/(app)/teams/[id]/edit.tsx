@@ -14,7 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
-import { fetchTeamById, updateTeam } from '@/lib/teams';
+import {
+  deactivateTeam,
+  fetchTeamById,
+  fetchTeamMembers,
+  transferCaptaincy,
+  updateTeam,
+  type TeamMember,
+} from '@/lib/teams';
 import { pickImage, uploadTeamLogo } from '@/lib/photos';
 import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabase';
@@ -27,6 +34,7 @@ export default function EditTeamScreen() {
   const [city, setCity] = useState('');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +44,10 @@ export default function EditTeamScreen() {
     if (!id || !session) return;
     let cancelled = false;
     (async () => {
-      const t = await fetchTeamById(id);
+      const [t, m] = await Promise.all([
+        fetchTeamById(id),
+        fetchTeamMembers(id),
+      ]);
       if (cancelled || !t) {
         setLoading(false);
         return;
@@ -44,6 +55,7 @@ export default function EditTeamScreen() {
       setName(t.name);
       setCity(t.city);
       setPhotoUrl(t.photo_url ?? null);
+      setMembers(m);
       setIsCaptain(t.captain_id === session.user.id);
       setLoading(false);
     })();
@@ -194,10 +206,88 @@ export default function EditTeamScreen() {
             )}
           </Pressable>
 
-          <Text style={styles.hint}>
-            Para mudar de desporto ou eliminar a equipa, contacta o suporte
-            por enquanto.
-          </Text>
+          {members.filter((m) => m.role !== 'captain').length > 0 && (
+            <>
+              <Text style={[styles.label, { marginTop: 32 }]}>
+                Transferir capitania
+              </Text>
+              <Text style={styles.hint}>
+                Promove um membro a capitão. Tu passas a membro e perdes acesso
+                ao editar.
+              </Text>
+              {members
+                .filter((m) => m.role !== 'captain')
+                .map((m) => (
+                  <Pressable
+                    key={m.user_id}
+                    style={styles.memberRow}
+                    onPress={() =>
+                      Alert.alert(
+                        'Transferir capitania?',
+                        `${m.profile?.name ?? 'Este membro'} fica capitão. Tu passas a membro.`,
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          {
+                            text: 'Transferir',
+                            style: 'destructive',
+                            onPress: async () => {
+                              if (!id) return;
+                              const r = await transferCaptaincy(id, m.user_id);
+                              if (!r.ok) {
+                                Alert.alert('Erro', r.message);
+                                return;
+                              }
+                              router.replace(`/(app)/teams/${id}`);
+                            },
+                          },
+                        ],
+                      )
+                    }
+                  >
+                    <Avatar
+                      url={m.profile?.photo_url}
+                      name={m.profile?.name}
+                      size={36}
+                    />
+                    <Text style={styles.memberRowName}>
+                      {m.profile?.name ?? 'Membro'}
+                    </Text>
+                    <Text style={styles.memberRowArrow}>›</Text>
+                  </Pressable>
+                ))}
+            </>
+          )}
+
+          <View style={styles.dangerBlock}>
+            <Text style={styles.dangerTitle}>Zona perigosa</Text>
+            <Pressable
+              style={styles.dangerBtn}
+              onPress={() =>
+                Alert.alert(
+                  'Eliminar equipa?',
+                  'A equipa fica desativada para todos os membros. Jogos passados ficam preservados, mas não podem ser criados novos. Esta ação não se desfaz.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Eliminar',
+                      style: 'destructive',
+                      onPress: async () => {
+                        if (!id) return;
+                        const r = await deactivateTeam(id);
+                        if (!r.ok) {
+                          Alert.alert('Erro', r.message);
+                          return;
+                        }
+                        router.replace('/(app)');
+                      },
+                    },
+                  ],
+                )
+              }
+            >
+              <Text style={styles.dangerBtnText}>Eliminar equipa</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -259,4 +349,42 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   changePhotoText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: 8,
+  },
+  memberRowName: { color: '#ffffff', flex: 1, fontSize: 15 },
+  memberRowArrow: { color: '#737373', fontSize: 20 },
+  dangerBlock: {
+    marginTop: 40,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.3)',
+    backgroundColor: 'rgba(248,113,113,0.05)',
+  },
+  dangerTitle: {
+    color: '#f87171',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  dangerBtn: {
+    backgroundColor: 'rgba(248,113,113,0.12)',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.4)',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  dangerBtnText: { color: '#f87171', fontWeight: '600', fontSize: 14 },
 });
