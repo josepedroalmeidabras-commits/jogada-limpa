@@ -24,6 +24,7 @@ import {
   type UserSportElo,
 } from '@/lib/reviews';
 import {
+  computePersonalRecords,
   computeWinStreak,
   fetchUserMatchHistory,
   type MatchHistoryEntry,
@@ -377,6 +378,69 @@ export default function ProfileScreen() {
               )}
             </Animated.View>
 
+            {history.length > 0 && (() => {
+              const records = computePersonalRecords(history);
+              const hasAny =
+                records.biggest_win ||
+                records.biggest_loss ||
+                records.longest_streak > 0;
+              if (!hasAny) return null;
+              return (
+                <Animated.View
+                  entering={FadeInDown.delay(180).springify()}
+                  style={styles.section}
+                >
+                  <Eyebrow>🏅 Recordes pessoais</Eyebrow>
+                  <Card style={{ marginTop: 8 }}>
+                    {records.biggest_win && (
+                      <View style={styles.recordRow}>
+                        <Text style={styles.recordIcon}>🥇</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.recordLabel}>Maior vitória</Text>
+                          <Text style={styles.recordValue}>
+                            {`+${records.biggest_win.margin} vs ${records.biggest_win.opponent}`}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    {records.biggest_loss && (
+                      <View style={styles.recordRow}>
+                        <Text style={styles.recordIcon}>💔</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.recordLabel}>Pior derrota</Text>
+                          <Text style={styles.recordValue}>
+                            {`-${records.biggest_loss.margin} vs ${records.biggest_loss.opponent}`}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    {records.longest_streak > 0 && (
+                      <View style={styles.recordRow}>
+                        <Text style={styles.recordIcon}>🔥</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.recordLabel}>Melhor sequência</Text>
+                          <Text style={styles.recordValue}>
+                            {`${records.longest_streak} vitórias seguidas`}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                    {records.most_in_month && records.most_in_month.count > 1 && (
+                      <View style={styles.recordRow}>
+                        <Text style={styles.recordIcon}>📅</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.recordLabel}>Mês mais activo</Text>
+                          <Text style={styles.recordValue}>
+                            {`${records.most_in_month.count} jogos (${records.most_in_month.month})`}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </Card>
+                </Animated.View>
+              );
+            })()}
+
             <Animated.View
               entering={FadeInDown.delay(190).springify()}
               style={styles.section}
@@ -643,6 +707,29 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   formRow: { marginTop: 12, alignItems: 'center' },
+  recordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  recordIcon: { fontSize: 24 },
+  recordLabel: {
+    color: '#737373',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  recordValue: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
   achModalBg: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.78)',

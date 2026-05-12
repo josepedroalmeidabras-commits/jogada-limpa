@@ -44,6 +44,76 @@ export type MonthlyStats = {
   goals_against: number;
 };
 
+export type PersonalRecords = {
+  biggest_win: { margin: number; opponent: string; date: string } | null;
+  biggest_loss: { margin: number; opponent: string; date: string } | null;
+  longest_streak: number;
+  most_in_month: { month: string; count: number } | null;
+};
+
+export function computePersonalRecords(
+  history: MatchHistoryEntry[],
+): PersonalRecords {
+  if (history.length === 0) {
+    return {
+      biggest_win: null,
+      biggest_loss: null,
+      longest_streak: 0,
+      most_in_month: null,
+    };
+  }
+
+  let biggestWin: { margin: number; opponent: string; date: string } | null = null;
+  let biggestLoss: { margin: number; opponent: string; date: string } | null = null;
+
+  for (const h of history) {
+    const myScore = h.my_side === 'A' ? h.final_score_a : h.final_score_b;
+    const oppScore = h.my_side === 'A' ? h.final_score_b : h.final_score_a;
+    const diff = myScore - oppScore;
+    if (diff > 0) {
+      if (!biggestWin || diff > biggestWin.margin) {
+        biggestWin = {
+          margin: diff,
+          opponent: h.opponent_team_name,
+          date: h.scheduled_at,
+        };
+      }
+    } else if (diff < 0) {
+      const lossMargin = -diff;
+      if (!biggestLoss || lossMargin > biggestLoss.margin) {
+        biggestLoss = {
+          margin: lossMargin,
+          opponent: h.opponent_team_name,
+          date: h.scheduled_at,
+        };
+      }
+    }
+  }
+
+  const streak = computeWinStreak(history);
+
+  // matches per month
+  const monthCounts = new Map<string, number>();
+  for (const h of history) {
+    const d = new Date(h.scheduled_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    monthCounts.set(key, (monthCounts.get(key) ?? 0) + 1);
+  }
+  let mostMonth: { month: string; count: number } | null = null;
+  for (const [m, c] of monthCounts) {
+    if (!mostMonth || c > mostMonth.count) {
+      mostMonth = { month: m, count: c };
+    }
+  }
+
+  return {
+    biggest_win: biggestWin,
+    biggest_loss: biggestLoss,
+    longest_streak: streak.best,
+    most_in_month: mostMonth,
+  };
+}
+
 export function computeMonthlyStats(
   history: MatchHistoryEntry[],
   reference: Date = new Date(),
