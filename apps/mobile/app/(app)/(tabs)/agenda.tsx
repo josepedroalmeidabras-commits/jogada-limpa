@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -27,6 +28,7 @@ import {
   MatchListItem,
   MatchListGroup,
 } from '@/components/MatchListItem';
+import { addMatchesBulkToCalendar } from '@/lib/calendar';
 import { colors } from '@/theme';
 
 export default function AgendaScreen() {
@@ -56,6 +58,28 @@ export default function AgendaScreen() {
     setMatches(data);
     setRefreshing(false);
   }, [session]);
+
+  const [syncing, setSyncing] = useState(false);
+  async function handleSyncCalendar(items: MatchSummary[]) {
+    setSyncing(true);
+    const events = items.map((m) => ({
+      title: `${m.side_a.name} vs ${m.side_b.name}`,
+      scheduled_at: m.scheduled_at,
+      location: m.location_tbd
+        ? 'A combinar'
+        : (m.location_name ?? undefined),
+    }));
+    const r = await addMatchesBulkToCalendar(events);
+    setSyncing(false);
+    if (!r.ok) {
+      Alert.alert('Calendário', r.message);
+      return;
+    }
+    Alert.alert(
+      'Sincronizado',
+      `${r.added} jogo${r.added === 1 ? '' : 's'} adicionado${r.added === 1 ? '' : 's'} ao teu calendário.`,
+    );
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -179,7 +203,20 @@ export default function AgendaScreen() {
               entering={FadeInDown.delay(80).springify()}
               style={styles.section}
             >
-              <Eyebrow>{`Próximos · ${grouped.upcoming.length}`}</Eyebrow>
+              <View style={styles.sectionHeader}>
+                <Eyebrow>{`Próximos · ${grouped.upcoming.length}`}</Eyebrow>
+                {grouped.upcoming.length > 0 && (
+                  <Pressable
+                    onPress={() => handleSyncCalendar(grouped.upcoming)}
+                    disabled={syncing}
+                    style={[styles.syncBtn, syncing && { opacity: 0.5 }]}
+                  >
+                    <Text style={styles.syncBtnText}>
+                      {syncing ? '...' : '📅 Sincronizar'}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
               {grouped.upcoming.length === 0 ? (
                 <Card style={{ marginTop: 8 }}>
                   <Text style={styles.muted}>Sem jogos agendados.</Text>
@@ -367,4 +404,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterChipTextActive: { color: '#0a0a0a', fontWeight: '700' },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  syncBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+  },
+  syncBtnText: { color: colors.brand, fontSize: 11, fontWeight: '700' },
 });
