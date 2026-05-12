@@ -38,7 +38,9 @@ import { fetchUnreadCount } from '@/lib/notifications';
 import { fetchUnreadByTeam } from '@/lib/chat';
 import {
   computeMonthlyStats,
+  computeWinStreak,
   fetchUserMatchHistory,
+  type MatchHistoryEntry,
   type MonthlyStats,
 } from '@/lib/history';
 import {
@@ -63,6 +65,7 @@ export default function HomeScreen() {
   const [activity, setActivity] = useState<CityActivity[]>([]);
   const [unread, setUnread] = useState(0);
   const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
+  const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
   const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
   const [friendsActivity, setFriendsActivity] = useState<FriendMatchEvent[]>([]);
   const [nextMatch, setNextMatch] = useState<MatchSummary | null>(null);
@@ -112,6 +115,7 @@ export default function HomeScreen() {
     setActivity(act);
     setUnread(u);
     setMonthly(computeMonthlyStats(hist));
+    setHistory(hist);
     setFriendsActivity(fa);
     setNextMatch(nxt);
     setIncoming(inc);
@@ -180,10 +184,26 @@ export default function HomeScreen() {
               style={styles.header}
             >
               <View style={{ flex: 1 }}>
-                <Eyebrow>{profile?.city ?? ''}</Eyebrow>
-                <Heading level={1} style={{ marginTop: 4 }}>
-                  {`Olá, ${(profile?.name ?? '').split(' ')[0]}`}
-                </Heading>
+                {(() => {
+                  const streak = computeWinStreak(history);
+                  const hour = new Date().getHours();
+                  const greet =
+                    hour < 6 ? 'Madrugada'
+                    : hour < 12 ? 'Bom dia'
+                    : hour < 19 ? 'Boa tarde'
+                    : 'Boa noite';
+                  let eyebrow: string = profile?.city ?? '';
+                  if (streak.current >= 5) eyebrow = `🌋 ${streak.current} vitórias seguidas`;
+                  else if (streak.current >= 3) eyebrow = `🔥 ${streak.current} vitórias seguidas`;
+                  return (
+                    <>
+                      <Eyebrow>{eyebrow}</Eyebrow>
+                      <Heading level={1} style={{ marginTop: 4 }}>
+                        {`${greet}, ${(profile?.name ?? '').split(' ')[0]}`}
+                      </Heading>
+                    </>
+                  );
+                })()}
               </View>
               <Pressable
                 style={styles.bell}
