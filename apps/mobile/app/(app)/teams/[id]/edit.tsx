@@ -17,6 +17,7 @@ import {
   deactivateTeam,
   fetchTeamById,
   fetchTeamMembers,
+  setTeamAnnouncement,
   transferCaptaincy,
   updateTeam,
   type TeamMember,
@@ -35,6 +36,8 @@ export default function EditTeamScreen() {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [description, setDescription] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const [annBusy, setAnnBusy] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -58,6 +61,7 @@ export default function EditTeamScreen() {
       setName(t.name);
       setCity(t.city);
       setDescription(t.description ?? '');
+      setAnnouncement(t.announcement ?? '');
       setPhotoUrl(t.photo_url ?? null);
       setMembers(m);
       setIsCaptain(t.captain_id === session.user.id);
@@ -212,6 +216,57 @@ export default function EditTeamScreen() {
             editable={!submitting}
           />
           <Text style={styles.charCount}>{`${description.length} / 500`}</Text>
+
+          <Text style={[styles.label, { marginTop: 12 }]}>📌 Aviso fixado</Text>
+          <Text style={styles.hint}>
+            Aparece ao topo do detalhe da equipa para todos os membros.
+            Notifica quando publicas.
+          </Text>
+          <TextInput
+            style={[styles.input, { minHeight: 70, textAlignVertical: 'top', marginTop: 8 }]}
+            value={announcement}
+            onChangeText={setAnnouncement}
+            placeholder="Ex: Treino de sábado mudou para as 20h."
+            placeholderTextColor="#666"
+            multiline
+            maxLength={280}
+            editable={!annBusy && !submitting}
+          />
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="Publicar aviso"
+                variant="secondary"
+                size="sm"
+                loading={annBusy}
+                disabled={annBusy || !id || announcement.trim().length === 0}
+                onPress={async () => {
+                  if (!id) return;
+                  setAnnBusy(true);
+                  const r = await setTeamAnnouncement(id, announcement.trim());
+                  setAnnBusy(false);
+                  if (!r.ok) Alert.alert('Erro', r.message);
+                }}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="Limpar"
+                variant="ghost"
+                size="sm"
+                loading={annBusy}
+                disabled={annBusy || !id}
+                onPress={async () => {
+                  if (!id) return;
+                  setAnnBusy(true);
+                  const r = await setTeamAnnouncement(id, null);
+                  setAnnBusy(false);
+                  if (r.ok) setAnnouncement('');
+                  else Alert.alert('Erro', r.message);
+                }}
+              />
+            </View>
+          </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
 

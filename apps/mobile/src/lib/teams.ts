@@ -31,8 +31,22 @@ export type Team = {
   is_active: boolean;
   description: string | null;
   coach_id: string | null;
+  announcement: string | null;
+  announcement_at: string | null;
   created_at: string;
 };
+
+export async function setTeamAnnouncement(
+  teamId: string,
+  text: string | null,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('set_team_announcement', {
+    p_team_id: teamId,
+    p_text: text,
+  });
+  if (error) return { ok: false, message: error.message ?? 'Falhou.' };
+  return { ok: true };
+}
 
 export async function setTeamCoach(
   teamId: string,
@@ -120,7 +134,8 @@ export async function fetchMyTeams(
     .select(
       `team:teams!inner(
          id, name, photo_url, sport_id, city, captain_id,
-         invite_code, is_active, description, coach_id, created_at,
+         invite_code, is_active, description, coach_id,
+         announcement, announcement_at, created_at,
          sport:sports!inner(id, code, name)
        )`,
     )
@@ -223,7 +238,7 @@ export async function createTeam(
       captain_id: captainId,
     })
     .select(
-      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, coach_id, created_at',
+      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, coach_id, announcement, announcement_at, created_at',
     )
     .single();
 
@@ -345,7 +360,7 @@ export async function joinTeamByCode(
   const { data: team, error: findError } = await supabase
     .from('teams')
     .select(
-      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, coach_id, created_at',
+      'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, coach_id, announcement, announcement_at, created_at',
     )
     .eq('invite_code', code)
     .eq('is_active', true)

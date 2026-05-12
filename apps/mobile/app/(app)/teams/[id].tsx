@@ -195,6 +195,25 @@ export default function TeamDetailScreen() {
           )}
         </Animated.View>
 
+        {team.announcement && (
+          <Animated.View entering={FadeInDown.delay(50).springify()}>
+            <Card variant="warning" style={{ marginTop: 16 }}>
+              <View style={styles.annHeader}>
+                <Text style={styles.annLabel}>📌 Aviso fixado</Text>
+                {team.announcement_at && (
+                  <Text style={styles.annDate}>
+                    {new Date(team.announcement_at).toLocaleDateString('pt-PT', {
+                      day: '2-digit',
+                      month: '2-digit',
+                    })}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.annBody}>{team.announcement}</Text>
+            </Card>
+          </Animated.View>
+        )}
+
         {team.description && (
           <Animated.View entering={FadeInDown.delay(60).springify()}>
             <Card style={{ marginTop: 16 }}>
@@ -649,6 +668,30 @@ const styles = StyleSheet.create({
   },
   description: {
     color: '#d4d4d4',
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: -0.1,
+  },
+  annHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  annLabel: {
+    color: '#fbbf24',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  annDate: {
+    color: '#fbbf24',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  annBody: {
+    color: '#ffffff',
     fontSize: 14,
     lineHeight: 21,
     letterSpacing: -0.1,
