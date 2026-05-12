@@ -1,6 +1,25 @@
 import { supabase } from './supabase';
 import type { ActiveSport } from './profile';
 
+export const POSITION_SHORT: Record<string, string> = {
+  gr: 'GR',
+  def: 'DEF',
+  med: 'MED',
+  ata: 'ATA',
+};
+
+export const POSITION_LABEL: Record<string, string> = {
+  gr: 'Guarda-redes',
+  def: 'Defesa',
+  med: 'Médio',
+  ata: 'Avançado',
+};
+
+export function positionShort(p: string | null | undefined): string | null {
+  if (!p) return null;
+  return POSITION_SHORT[p] ?? p.toUpperCase();
+}
+
 export type Team = {
   id: string;
   name: string;
@@ -23,6 +42,8 @@ export type TeamMember = {
   user_id: string;
   role: 'captain' | 'member';
   joined_at: string;
+  preferred_position: string | null;
+  elo: number | null;
   profile: { id: string; name: string; photo_url: string | null } | null;
 };
 
@@ -82,11 +103,40 @@ export async function fetchTeamMembers(
     )
     .eq('team_id', teamId);
 
-  if (error) {
+  if (error || !data) {
     console.error('fetchTeamMembers error', error);
     return [];
   }
-  return (data ?? []) as unknown as TeamMember[];
+
+  // Hydrate F7 position + ELO from user_sports
+  const userIds = data.map((m: any) => m.user_id);
+  let posMap = new Map<string, { position: string | null; elo: number | null }>();
+  if (userIds.length > 0) {
+    const { data: sports } = await supabase
+      .from('user_sports')
+      .select('user_id, preferred_position, elo')
+      .in('user_id', userIds)
+      .eq('sport_id', 2);
+    posMap = new Map(
+      (sports ?? []).map((s: any) => [
+        s.user_id as string,
+        {
+          position: s.preferred_position ?? null,
+          elo: s.elo !== null && s.elo !== undefined ? Number(s.elo) : null,
+        },
+      ]),
+    );
+  }
+
+  return data.map((m: any) => ({
+    team_id: m.team_id,
+    user_id: m.user_id,
+    role: m.role,
+    joined_at: m.joined_at,
+    preferred_position: posMap.get(m.user_id)?.position ?? null,
+    elo: posMap.get(m.user_id)?.elo ?? null,
+    profile: m.profile ?? null,
+  })) as TeamMember[];
 }
 
 export type CreateTeamInput = {

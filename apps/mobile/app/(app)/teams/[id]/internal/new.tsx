@@ -17,6 +17,7 @@ import { useAuth } from '@/providers/auth';
 import {
   fetchTeamById,
   fetchTeamMembers,
+  positionShort,
   type TeamMember,
   type TeamWithSport,
 } from '@/lib/teams';
@@ -455,9 +456,18 @@ function PlayerRow({
         name={member.profile?.name ?? ''}
         size={32}
       />
-      <Text style={styles.playerName} numberOfLines={1}>
-        {member.profile?.name ?? 'Jogador'}
-      </Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.playerName} numberOfLines={1}>
+          {member.preferred_position === 'gr' ? '🧤 ' : ''}
+          {member.profile?.name ?? 'Jogador'}
+        </Text>
+        {member.preferred_position && (
+          <Text style={styles.playerSub}>
+            {positionShort(member.preferred_position)}
+            {member.elo !== null ? ` · ${Math.round(member.elo)}` : ''}
+          </Text>
+        )}
+      </View>
       <View style={styles.sideBtns}>
         <Pressable
           onPress={() => onAssign(side === 'A' ? undefined : 'A')}
@@ -561,7 +571,14 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
   },
-  playerName: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '500' },
+  playerName: { color: colors.text, fontSize: 14, fontWeight: '500' },
+  playerSub: {
+    color: colors.textDim,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
   sideBtns: { flexDirection: 'row', gap: 6 },
   sideBtn: {
     paddingHorizontal: 10,

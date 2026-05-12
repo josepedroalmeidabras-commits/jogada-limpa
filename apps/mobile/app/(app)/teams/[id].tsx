@@ -21,6 +21,7 @@ import {
   fetchTeamById,
   fetchTeamMembers,
   leaveTeam,
+  positionShort,
   type TeamMember,
   type TeamWithSport,
 } from '@/lib/teams';
@@ -353,12 +354,17 @@ export default function TeamDetailScreen() {
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.itemName}>
+                      {m.preferred_position === 'gr' ? '🧤 ' : ''}
                       {m.profile?.name ?? 'Jogador'}
                     </Text>
                     <Text style={styles.itemMeta}>
                       {m.role === 'captain' ? 'Capitão' : 'Membro'}
+                      {m.elo !== null ? ` · ${Math.round(m.elo)}` : ''}
                     </Text>
                   </View>
+                  {m.preferred_position && (
+                    <PositionChip position={m.preferred_position} />
+                  )}
                   <Text style={styles.arrow}>›</Text>
                 </View>
               </Card>
@@ -390,6 +396,46 @@ export default function TeamDetailScreen() {
         </Animated.View>
       </ScrollView>
     </Screen>
+  );
+}
+
+function PositionChip({ position }: { position: string }) {
+  const short = positionShort(position);
+  if (!short) return null;
+  const bg =
+    position === 'gr'
+      ? 'rgba(251,191,36,0.14)'
+      : position === 'def'
+        ? 'rgba(56,189,248,0.14)'
+        : position === 'med'
+          ? 'rgba(34,197,94,0.14)'
+          : position === 'ata'
+            ? 'rgba(248,113,113,0.14)'
+            : 'rgba(255,255,255,0.06)';
+  const fg =
+    position === 'gr'
+      ? '#fbbf24'
+      : position === 'def'
+        ? '#38bdf8'
+        : position === 'med'
+          ? '#22c55e'
+          : position === 'ata'
+            ? '#f87171'
+            : '#a3a3a3';
+  return (
+    <View
+      style={{
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        backgroundColor: bg,
+        marginRight: 6,
+      }}
+    >
+      <Text style={{ color: fg, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>
+        {short}
+      </Text>
+    </View>
   );
 }
 
