@@ -195,8 +195,16 @@ export default function TeamDetailScreen() {
               full
             />
             <Button
-              label="Editar equipa"
+              label="🔔 Publicar desafio aberto"
               variant="secondary"
+              onPress={() =>
+                router.push(`/(app)/teams/${team.id}/open-request`)
+              }
+              full
+            />
+            <Button
+              label="Editar equipa"
+              variant="ghost"
               onPress={() => router.push(`/(app)/teams/${team.id}/edit`)}
               full
             />

@@ -534,6 +534,13 @@ export default function HomeScreen() {
                 onPress={() => router.push('/(app)/teams/join')}
               />
               <Button
+                label="🔔 Desafios abertos"
+                variant="ghost"
+                size="md"
+                full
+                onPress={() => router.push('/(app)/open-challenges')}
+              />
+              <Button
                 label="🏟️ Mercado livre"
                 variant="ghost"
                 size="md"
