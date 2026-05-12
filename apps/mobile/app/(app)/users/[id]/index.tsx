@@ -51,9 +51,11 @@ import {
   cancelFriendRequest,
   declineFriendRequest,
   fetchFriendshipStatus,
+  fetchMutualFriends,
   removeFriend,
   sendFriendRequest,
   type FriendshipStatus,
+  type MutualFriend,
 } from '@/lib/friends';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
@@ -86,11 +88,15 @@ export default function PublicProfileScreen() {
   const [canVote, setCanVote] = useState(false);
   const [friendStatus, setFriendStatus] = useState<FriendshipStatus>('none');
   const [friendBusy, setFriendBusy] = useState(false);
+  const [mutual, setMutual] = useState<{ list: MutualFriend[]; total: number }>({
+    list: [],
+    total: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [p, s, a, h, mvp, ps, cv, fs] = await Promise.all([
+    const [p, s, a, h, mvp, ps, cv, fs, mf] = await Promise.all([
       fetchProfile(id),
       fetchUserSports(id),
       fetchReviewAggregate(id),
@@ -99,6 +105,7 @@ export default function PublicProfileScreen() {
       fetchPlayerStats(id),
       canVoteOnPlayer(id),
       isSelf ? Promise.resolve<FriendshipStatus>('none') : fetchFriendshipStatus(id),
+      isSelf ? Promise.resolve({ list: [], total: 0 }) : fetchMutualFriends(id, 5),
     ]);
     setProfile(p);
     setSports(s);
@@ -107,6 +114,7 @@ export default function PublicProfileScreen() {
     setStats(ps);
     setCanVote(cv);
     setFriendStatus(fs);
+    setMutual(mf);
     setMvpCount(mvp);
     setLoading(false);
   }, [id, isSelf]);
@@ -326,10 +334,40 @@ export default function PublicProfileScreen() {
           })()}
         </Animated.View>
 
+        {!isSelf && mutual.total > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(40).springify()}
+            style={styles.mutualRow}
+          >
+            <View style={styles.mutualAvatars}>
+              {mutual.list.slice(0, 3).map((m, i) => (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.mutualAvatarWrap,
+                    { marginLeft: i === 0 ? 0 : -10 },
+                  ]}
+                >
+                  <Avatar url={m.photo_url} name={m.name} size={22} />
+                </View>
+              ))}
+            </View>
+            <Text style={styles.mutualText}>
+              {mutual.total === 1
+                ? `1 amigo em comum: ${mutual.list[0]?.name.split(' ')[0]}`
+                : mutual.total <= 3
+                  ? `${mutual.total} amigos em comum: ${mutual.list
+                      .map((m) => m.name.split(' ')[0])
+                      .join(', ')}`
+                  : `${mutual.list[0]?.name.split(' ')[0]}, ${mutual.list[1]?.name.split(' ')[0]} e mais ${mutual.total - 2}`}
+            </Text>
+          </Animated.View>
+        )}
+
         {!isSelf && (
           <Animated.View
             entering={FadeInDown.delay(50).springify()}
-            style={{ marginTop: 20 }}
+            style={{ marginTop: 16 }}
           >
             {friendStatus === 'pending_received' ? (
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -536,6 +574,28 @@ const styles = StyleSheet.create({
     color: '#d4d4d4',
     fontSize: 14,
     lineHeight: 21,
+    letterSpacing: -0.1,
+  },
+  mutualRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  mutualAvatars: { flexDirection: 'row', alignItems: 'center' },
+  mutualAvatarWrap: {
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#0a0a0a',
+  },
+  mutualText: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    flex: 1,
     letterSpacing: -0.1,
   },
   badgeRow: {

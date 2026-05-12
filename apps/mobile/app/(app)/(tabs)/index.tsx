@@ -39,6 +39,10 @@ import {
   fetchUserMatchHistory,
   type MonthlyStats,
 } from '@/lib/history';
+import {
+  fetchFriendsRecentMatches,
+  type FriendMatchEvent,
+} from '@/lib/friends';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
@@ -53,6 +57,7 @@ export default function HomeScreen() {
   const [unread, setUnread] = useState(0);
   const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
   const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
+  const [friendsActivity, setFriendsActivity] = useState<FriendMatchEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -69,13 +74,14 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const [myTeams, ch, rv, act, u, hist] = await Promise.all([
+    const [myTeams, ch, rv, act, u, hist, fa] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
       fetchPendingReviewsForUser(session.user.id),
       fetchCityActivity(p.city, 5),
       fetchUnreadCount(session.user.id),
       fetchUserMatchHistory(session.user.id, 50),
+      fetchFriendsRecentMatches(6),
     ]);
     setTeams(myTeams);
     setChallenges(ch);
@@ -83,6 +89,7 @@ export default function HomeScreen() {
     setActivity(act);
     setUnread(u);
     setMonthly(computeMonthlyStats(hist));
+    setFriendsActivity(fa);
     if (myTeams.length > 0) {
       const unreadByTeam = await fetchUnreadByTeam(
         myTeams.map((t) => t.id),
@@ -330,9 +337,47 @@ export default function HomeScreen() {
               )}
             </Animated.View>
 
+            {friendsActivity.length > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(280).springify()}
+                style={styles.section}
+              >
+                <Eyebrow>Os teus amigos jogaram</Eyebrow>
+                {friendsActivity.map((m, i) => (
+                  <Animated.View
+                    key={m.match_id}
+                    entering={FadeInDown.delay(320 + i * 30).springify()}
+                  >
+                    <Card
+                      onPress={() =>
+                        router.push(`/(app)/matches/${m.match_id}`)
+                      }
+                      style={{ marginTop: 8 }}
+                    >
+                      <View style={styles.cardRow}>
+                        <Avatar
+                          url={m.friend_photo}
+                          name={m.friend_name}
+                          size={36}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardName}>
+                            {`${m.side_a_name} ${m.final_score_a}–${m.final_score_b} ${m.side_b_name}`}
+                          </Text>
+                          <Text style={styles.cardMeta}>
+                            {`${m.friend_name.split(' ')[0]} · ${formatMatchDate(m.scheduled_at)}`}
+                          </Text>
+                        </View>
+                      </View>
+                    </Card>
+                  </Animated.View>
+                ))}
+              </Animated.View>
+            )}
+
             {activity.length > 0 && (
               <Animated.View
-                entering={FadeInDown.delay(300).springify()}
+                entering={FadeInDown.delay(360).springify()}
                 style={styles.section}
               >
                 <Eyebrow>{`Atividade em ${profile?.city ?? ''}`}</Eyebrow>

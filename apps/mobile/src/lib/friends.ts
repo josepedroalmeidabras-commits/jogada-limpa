@@ -210,6 +210,51 @@ export async function removeFriend(
   return { ok: true };
 }
 
+export type FriendMatchEvent = {
+  match_id: string;
+  scheduled_at: string;
+  side_a_name: string;
+  side_b_name: string;
+  final_score_a: number;
+  final_score_b: number;
+  friend_id: string;
+  friend_name: string;
+  friend_photo: string | null;
+};
+
+export async function fetchFriendsRecentMatches(
+  limit = 8,
+): Promise<FriendMatchEvent[]> {
+  const { data, error } = await supabase.rpc('friends_recent_matches', {
+    p_limit: limit,
+  });
+  if (error || !data) {
+    console.error('fetchFriendsRecentMatches error', error);
+    return [];
+  }
+  return data as FriendMatchEvent[];
+}
+
+export type MutualFriend = {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  total: number; // total count (same on every row)
+};
+
+export async function fetchMutualFriends(
+  otherId: string,
+  limit = 5,
+): Promise<{ list: MutualFriend[]; total: number }> {
+  const { data, error } = await supabase.rpc('mutual_friends', {
+    p_other_id: otherId,
+    p_limit: limit,
+  });
+  if (error || !data) return { list: [], total: 0 };
+  const list = data as MutualFriend[];
+  return { list, total: list[0]?.total ?? 0 };
+}
+
 export async function fetchPendingFriendsCount(): Promise<number> {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
