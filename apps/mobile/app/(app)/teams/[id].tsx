@@ -25,6 +25,7 @@ import {
   type TeamWithSport,
 } from '@/lib/teams';
 import { Alert } from 'react-native';
+import { Avatar } from '@/components/Avatar';
 import {
   fetchMatchesForTeam,
   formatMatchDate,
@@ -116,11 +117,14 @@ export default function TeamDetailScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={styles.name}>{team.name}</Text>
-          <Text style={styles.meta}>
-            {team.sport?.name} · {team.city}
-            {isCaptain ? ' · capitão' : ''}
-          </Text>
+          <Avatar url={team.photo_url} name={team.name} size={64} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{team.name}</Text>
+            <Text style={styles.meta}>
+              {team.sport?.name} · {team.city}
+              {isCaptain ? ' · capitão' : ''}
+            </Text>
+          </View>
         </View>
 
         {isCaptain && (
@@ -218,11 +222,7 @@ export default function TeamDetailScreen() {
             style={styles.member}
             onPress={() => router.push(`/(app)/users/${m.user_id}`)}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {(m.profile?.name ?? '?').slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
+            <Avatar url={m.profile?.photo_url} name={m.profile?.name} size={40} />
             <View style={styles.memberInfo}>
               <Text style={styles.memberName}>
                 {m.profile?.name ?? 'Jogador'}
@@ -274,7 +274,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   scroll: { padding: 24, paddingBottom: 48 },
-  header: { marginBottom: 16 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 16,
+  },
   name: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
   meta: { color: '#a3a3a3', fontSize: 14, marginTop: 4 },
   actions: { flexDirection: 'row', gap: 8 },

@@ -19,6 +19,8 @@ import {
   setSportAvailability,
   type UserSportElo,
 } from '@/lib/reviews';
+import { pickImage, uploadAvatar } from '@/lib/photos';
+import { Avatar } from '@/components/Avatar';
 
 export default function EditProfileScreen() {
   const { session } = useAuth();
@@ -26,6 +28,8 @@ export default function EditProfileScreen() {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sports, setSports] = useState<UserSportElo[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -46,6 +50,7 @@ export default function EditProfileScreen() {
       setName(p.name);
       setCity(p.city);
       setPhone(p.phone ?? '');
+      setPhotoUrl(p.photo_url ?? null);
       setSports(s);
       setLoading(false);
     })();
@@ -53,6 +58,40 @@ export default function EditProfileScreen() {
       cancelled = true;
     };
   }, [session]);
+
+  async function handlePickAvatar() {
+    if (!session) return;
+    setError(null);
+    const image = await pickImage();
+    if (!image) return;
+    setUploadingPhoto(true);
+    const up = await uploadAvatar(session.user.id, image);
+    if (!up.ok) {
+      setUploadingPhoto(false);
+      setError(up.message);
+      return;
+    }
+    const saved = await updateProfile(session.user.id, {
+      // empty diff for other fields, just persist new url via separate call
+    });
+    // Actually re-use updateProfile by adding photo_url
+    const r = await (async () => {
+      const { error } = await import('@/lib/supabase').then(({ supabase }) =>
+        supabase
+          .from('profiles')
+          .update({ photo_url: up.publicUrl })
+          .eq('id', session.user.id),
+      );
+      return { ok: !error, message: error?.message };
+    })();
+    setUploadingPhoto(false);
+    if (!r.ok) {
+      setError(r.message ?? 'Falhou guardar foto.');
+      return;
+    }
+    setPhotoUrl(up.publicUrl);
+    void saved;
+  }
 
   async function toggleAvailability(sportId: number, current: boolean) {
     if (!session) return;
@@ -134,6 +173,26 @@ export default function EditProfileScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.avatarBlock}>
+            <Avatar url={photoUrl} name={name} size={96} />
+            <Pressable
+              onPress={handlePickAvatar}
+              disabled={uploadingPhoto}
+              style={[
+                styles.changePhotoBtn,
+                uploadingPhoto && styles.submitDisabled,
+              ]}
+            >
+              {uploadingPhoto ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text style={styles.changePhotoText}>
+                  {photoUrl ? 'Mudar foto' : 'Adicionar foto'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
           <Text style={styles.label}>Nome</Text>
           <TextInput
             style={styles.input}
@@ -268,6 +327,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 13,
   },
+  avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
+  changePhotoBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  changePhotoText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
   subhint: { color: '#737373', fontSize: 12, marginBottom: 12, lineHeight: 16 },
   availRow: {
     flexDirection: 'row',

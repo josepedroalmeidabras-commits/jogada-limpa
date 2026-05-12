@@ -22,6 +22,7 @@ import {
   type MatchHistoryEntry,
 } from '@/lib/history';
 import { formatMatchDate } from '@/lib/matches';
+import { Avatar } from '@/components/Avatar';
 
 function levelLabel(elo: number): string {
   if (elo < 1100) return 'Casual';
@@ -82,11 +83,7 @@ export default function ProfileScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerBlock}>
-          <View style={styles.bigAvatar}>
-            <Text style={styles.bigAvatarText}>
-              {(profile?.name ?? '?').slice(0, 1).toUpperCase()}
-            </Text>
-          </View>
+          <Avatar url={profile?.photo_url} name={profile?.name} size={80} />
           <Text style={styles.name}>{profile?.name}</Text>
           <Text style={styles.city}>{profile?.city}</Text>
           <Text style={styles.email}>{session?.user.email}</Text>

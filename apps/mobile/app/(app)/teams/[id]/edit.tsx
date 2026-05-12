@@ -15,6 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchTeamById, updateTeam } from '@/lib/teams';
+import { pickImage, uploadTeamLogo } from '@/lib/photos';
+import { Avatar } from '@/components/Avatar';
+import { supabase } from '@/lib/supabase';
 
 export default function EditTeamScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,6 +25,8 @@ export default function EditTeamScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +43,7 @@ export default function EditTeamScreen() {
       }
       setName(t.name);
       setCity(t.city);
+      setPhotoUrl(t.photo_url ?? null);
       setIsCaptain(t.captain_id === session.user.id);
       setLoading(false);
     })();
@@ -45,6 +51,30 @@ export default function EditTeamScreen() {
       cancelled = true;
     };
   }, [id, session]);
+
+  async function handlePickLogo() {
+    if (!id) return;
+    setError(null);
+    const image = await pickImage();
+    if (!image) return;
+    setUploadingPhoto(true);
+    const up = await uploadTeamLogo(id, image);
+    if (!up.ok) {
+      setUploadingPhoto(false);
+      setError(up.message);
+      return;
+    }
+    const { error: dbErr } = await supabase
+      .from('teams')
+      .update({ photo_url: up.publicUrl })
+      .eq('id', id);
+    setUploadingPhoto(false);
+    if (dbErr) {
+      setError(dbErr.message ?? 'Falhou guardar escudo.');
+      return;
+    }
+    setPhotoUrl(up.publicUrl);
+  }
 
   async function handleSubmit() {
     setError(null);
@@ -110,6 +140,26 @@ export default function EditTeamScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={styles.avatarBlock}>
+            <Avatar url={photoUrl} name={name} size={96} />
+            <Pressable
+              onPress={handlePickLogo}
+              disabled={uploadingPhoto}
+              style={[
+                styles.changePhotoBtn,
+                uploadingPhoto && styles.submitDisabled,
+              ]}
+            >
+              {uploadingPhoto ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text style={styles.changePhotoText}>
+                  {photoUrl ? 'Mudar escudo' : 'Adicionar escudo'}
+                </Text>
+              )}
+            </Pressable>
+          </View>
+
           <Text style={styles.label}>Nome</Text>
           <TextInput
             style={styles.input}
@@ -199,4 +249,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   deny: { color: '#a3a3a3', textAlign: 'center' },
+  avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
+  changePhotoBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  changePhotoText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
 });
