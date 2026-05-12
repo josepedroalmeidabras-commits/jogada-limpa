@@ -192,6 +192,17 @@ export default function MatchDetailScreen() {
           </Pressable>
         )}
 
+        {match.status === 'confirmed' && isCaptain && (
+          <Pressable
+            onPress={() =>
+              router.push(`/(app)/matches/${match.id}/substitutes`)
+            }
+            style={styles.secondary}
+          >
+            <Text style={styles.secondaryText}>Procurar substituto</Text>
+          </Pressable>
+        )}
+
         {canSubmitResult && (
           <Pressable
             onPress={() => router.push(`/(app)/matches/${match.id}/result`)}
