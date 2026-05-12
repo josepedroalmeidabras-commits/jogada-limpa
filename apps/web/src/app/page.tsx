@@ -12,8 +12,9 @@ export default function Home() {
             Jogada Limpa
           </h1>
           <p className="max-w-md text-lg text-white/70">
-            A app para equipas de futebol amador marcarem jogos com adversários
-            do seu nível — e saberem o que esperar antes de chegar ao campo.
+            A casa do <strong className="text-white">Futebol de 7</strong>{' '}
+            amador. Marca jogos com equipas do teu nível e sabe o que esperar
+            antes de chegar ao campo.
           </p>
           <WaitlistForm />
           <p className="text-sm text-white/40">
@@ -62,9 +63,10 @@ export default function Home() {
               Porquê esta app e não outra?
             </h2>
             <p className="max-w-2xl text-white/60">
-              As outras apps marcam o campo. Esta marca o jogo. O nosso foco é{' '}
-              <strong className="text-white">com quem</strong> jogas — não{' '}
-              <strong className="text-white">onde</strong>.
+              As outras apps marcam o campo. Esta marca o jogo. Foco total em{' '}
+              <strong className="text-white">Futebol de 7</strong> — porque
+              quando és especialista num formato, fazes tudo melhor para esse
+              formato.
             </p>
           </header>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -106,8 +108,8 @@ export default function Home() {
               a="Não, na fase beta é gratuito. Quando lançar à séria pode haver versão paga para clubes e ligas amadoras, mas o uso individual continuará gratuito."
             />
             <Faq
-              q="Que desportos suporta?"
-              a="No lançamento: Futebol 5, 7 e 11. Padel, ténis e mais virão na fase seguinte."
+              q="Só Futebol de 7?"
+              a="Sim. Decidimos focar 100% em F7 — é onde estão as equipas amadoras com identidade, com a densidade certa em Coimbra. Outros formatos (F5, F11) podem vir mais tarde, se fizer sentido."
             />
             <Faq
               q="Onde está disponível?"
