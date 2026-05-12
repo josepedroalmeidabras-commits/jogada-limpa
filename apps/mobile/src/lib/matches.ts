@@ -495,6 +495,59 @@ export type PendingChallenge = {
   opponent_team_id: string;
 };
 
+// Returns the soonest upcoming match the user is on either side of that is
+// already confirmed (no pending response needed) — used for the home highlight.
+export async function fetchNextMatchForUser(
+  userId: string,
+): Promise<MatchSummary | null> {
+  const { data: memberships } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId);
+  if (!memberships || memberships.length === 0) return null;
+
+  const teamIds = memberships.map((m) => m.team_id);
+  const { data: sideRows } = await supabase
+    .from('match_sides')
+    .select('match_id')
+    .in('team_id', teamIds);
+  if (!sideRows || sideRows.length === 0) return null;
+  const matchIds = Array.from(new Set(sideRows.map((r) => r.match_id)));
+
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .in('id', matchIds)
+    .eq('status', 'confirmed')
+    .gt('scheduled_at', new Date().toISOString())
+    .order('scheduled_at', { ascending: true })
+    .limit(1);
+
+  if (error || !data || data.length === 0) return null;
+  const m = data[0]! as any;
+  const { a, b } = unwrapSides(m.sides ?? []);
+  if (!a || !b) return null;
+  return {
+    id: m.id,
+    sport_id: m.sport_id,
+    scheduled_at: m.scheduled_at,
+    status: m.status,
+    location_name: m.location_name,
+    location_tbd: m.location_tbd,
+    message: m.message,
+    notes: m.notes ?? null,
+    is_internal: Boolean(m.is_internal),
+    side_a_label: m.side_a_label ?? null,
+    side_b_label: m.side_b_label ?? null,
+    referee_id: m.referee_id ?? null,
+    proposed_by: m.proposed_by,
+    final_score_a: m.final_score_a,
+    final_score_b: m.final_score_b,
+    side_a: a,
+    side_b: b,
+  };
+}
+
 export async function fetchPendingChallengesForUser(
   userId: string,
 ): Promise<PendingChallenge[]> {

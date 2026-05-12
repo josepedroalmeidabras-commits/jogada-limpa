@@ -18,11 +18,13 @@ import { fetchProfile, type Profile } from '@/lib/profile';
 import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
 import {
   fetchCityActivity,
+  fetchNextMatchForUser,
   fetchPendingChallengesForUser,
   fetchPendingReviewsForUser,
   formatMatchDate,
   formatRelativeMatchDate,
   type CityActivity,
+  type MatchSummary,
   type PendingChallenge,
   type PendingReview,
 } from '@/lib/matches';
@@ -63,6 +65,7 @@ export default function HomeScreen() {
   const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
   const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
   const [friendsActivity, setFriendsActivity] = useState<FriendMatchEvent[]>([]);
+  const [nextMatch, setNextMatch] = useState<MatchSummary | null>(null);
   const [incoming, setIncoming] = useState<PendingRequest[]>([]);
   const [completeness, setCompleteness] = useState<{
     items: { key: string; label: string; done: boolean }[];
@@ -84,7 +87,7 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const [myTeams, ch, rv, act, u, hist, fa, inc, friends, myStats] = await Promise.all([
+    const [myTeams, ch, rv, act, u, hist, fa, inc, friends, myStats, nxt] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
       fetchPendingReviewsForUser(session.user.id),
@@ -95,6 +98,7 @@ export default function HomeScreen() {
       fetchIncomingRequests(),
       fetchFriends(),
       fetchPlayerStats(session.user.id),
+      fetchNextMatchForUser(session.user.id),
     ]);
     setTeams(myTeams);
     setChallenges(ch);
@@ -103,6 +107,7 @@ export default function HomeScreen() {
     setUnread(u);
     setMonthly(computeMonthlyStats(hist));
     setFriendsActivity(fa);
+    setNextMatch(nxt);
     setIncoming(inc);
 
     const items = [
@@ -197,6 +202,28 @@ export default function HomeScreen() {
                 size={44}
               />
             </Animated.View>
+
+            {nextMatch && (
+              <Animated.View entering={FadeInDown.delay(40).springify()}>
+                <Pressable
+                  onPress={() =>
+                    router.push(`/(app)/matches/${nextMatch.id}`)
+                  }
+                  style={styles.nextMatchCard}
+                >
+                  <Text style={styles.nextMatchLabel}>📅 Próximo jogo</Text>
+                  <Text style={styles.nextMatchTeams} numberOfLines={1}>
+                    {`${nextMatch.side_a.name}  vs  ${nextMatch.side_b.name}`}
+                  </Text>
+                  <Text style={styles.nextMatchWhen}>
+                    {formatRelativeMatchDate(nextMatch.scheduled_at)}
+                  </Text>
+                  <Text style={styles.nextMatchWhere} numberOfLines={1}>
+                    {`📍 ${nextMatch.location_tbd ? 'A combinar' : (nextMatch.location_name ?? '—')}`}
+                  </Text>
+                </Pressable>
+              </Animated.View>
+            )}
 
             {completeness && completeness.percent < 100 && (
               <Animated.View entering={FadeInDown.delay(50).springify()}>
@@ -681,6 +708,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 12,
     textAlign: 'center',
+  },
+  nextMatchCard: {
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    marginBottom: 8,
+  },
+  nextMatchLabel: {
+    color: colors.brand,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  nextMatchTeams: {
+    color: colors.text,
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    marginTop: 8,
+  },
+  nextMatchWhen: {
+    color: colors.brand,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 6,
+    letterSpacing: -0.2,
+  },
+  nextMatchWhere: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
   },
   chatBadge: {
     flexDirection: 'row',
