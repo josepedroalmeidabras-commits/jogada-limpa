@@ -84,6 +84,8 @@ export type UserSportElo = {
   declared_level: number | null;
   elo: number;
   matches_played: number;
+  is_open_to_sub: boolean;
+  open_until: string | null;
   sport: { id: number; name: string; code: string } | null;
 };
 
@@ -94,6 +96,7 @@ export async function fetchUserSports(
     .from('user_sports')
     .select(
       `sport_id, declared_level, elo, matches_played,
+       is_open_to_sub, open_until,
        sport:sports!inner(id, name, code)`,
     )
     .eq('user_id', userId);
@@ -102,4 +105,26 @@ export async function fetchUserSports(
     return [];
   }
   return data as unknown as UserSportElo[];
+}
+
+export async function setSportAvailability(
+  userId: string,
+  sportId: number,
+  isOpen: boolean,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const openUntil = isOpen
+    ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+  const { error } = await supabase
+    .from('user_sports')
+    .update({ is_open_to_sub: isOpen, open_until: openUntil })
+    .eq('user_id', userId)
+    .eq('sport_id', sportId);
+  if (error) {
+    return {
+      ok: false,
+      message: error.message ?? 'Não foi possível guardar.',
+    };
+  }
+  return { ok: true };
 }

@@ -14,6 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchProfile, updateProfile } from '@/lib/profile';
+import {
+  fetchUserSports,
+  setSportAvailability,
+  type UserSportElo,
+} from '@/lib/reviews';
 
 export default function EditProfileScreen() {
   const { session } = useAuth();
@@ -21,6 +26,7 @@ export default function EditProfileScreen() {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
+  const [sports, setSports] = useState<UserSportElo[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +35,10 @@ export default function EditProfileScreen() {
     if (!session) return;
     let cancelled = false;
     (async () => {
-      const p = await fetchProfile(session.user.id);
+      const [p, s] = await Promise.all([
+        fetchProfile(session.user.id),
+        fetchUserSports(session.user.id),
+      ]);
       if (cancelled || !p) {
         setLoading(false);
         return;
@@ -37,12 +46,43 @@ export default function EditProfileScreen() {
       setName(p.name);
       setCity(p.city);
       setPhone(p.phone ?? '');
+      setSports(s);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
   }, [session]);
+
+  async function toggleAvailability(sportId: number, current: boolean) {
+    if (!session) return;
+    // optimistic
+    setSports((prev) =>
+      prev.map((s) =>
+        s.sport_id === sportId
+          ? {
+              ...s,
+              is_open_to_sub: !current,
+              open_until: !current
+                ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                : null,
+            }
+          : s,
+      ),
+    );
+    const r = await setSportAvailability(session.user.id, sportId, !current);
+    if (!r.ok) {
+      setError(r.message);
+      // revert
+      setSports((prev) =>
+        prev.map((s) =>
+          s.sport_id === sportId
+            ? { ...s, is_open_to_sub: current }
+            : s,
+        ),
+      );
+    }
+  }
 
   async function handleSubmit() {
     setError(null);
@@ -137,8 +177,46 @@ export default function EditProfileScreen() {
             )}
           </Pressable>
 
+          <Text style={[styles.label, { marginTop: 32 }]}>
+            Disponibilidade para substituir
+          </Text>
+          <Text style={styles.subhint}>
+            Ativa por desporto para apareceres na lista de jogadores
+            disponíveis. Expira automaticamente passados 7 dias.
+          </Text>
+          {sports.map((s) => (
+            <Pressable
+              key={s.sport_id}
+              style={styles.availRow}
+              onPress={() => toggleAvailability(s.sport_id, s.is_open_to_sub)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.availName}>{s.sport?.name}</Text>
+                {s.is_open_to_sub && s.open_until && (
+                  <Text style={styles.availMeta}>
+                    Aberto até{' '}
+                    {new Date(s.open_until).toLocaleDateString('pt-PT')}
+                  </Text>
+                )}
+              </View>
+              <View
+                style={[
+                  styles.toggle,
+                  s.is_open_to_sub && styles.toggleOn,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.toggleKnob,
+                    s.is_open_to_sub && styles.toggleKnobOn,
+                  ]}
+                />
+              </View>
+            </Pressable>
+          ))}
+
           <Text style={styles.hint}>
-            Para editar desportos e nível, contacta o suporte por enquanto.
+            Para editar desportos ou nível inicial, contacta o suporte.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -190,4 +268,34 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 13,
   },
+  subhint: { color: '#737373', fontSize: 12, marginBottom: 12, lineHeight: 16 },
+  availRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: 8,
+  },
+  availName: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  availMeta: { color: '#34d399', fontSize: 12, marginTop: 2 },
+  toggle: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleOn: { backgroundColor: '#34d399' },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    alignSelf: 'flex-start',
+  },
+  toggleKnobOn: { alignSelf: 'flex-end' },
 });
