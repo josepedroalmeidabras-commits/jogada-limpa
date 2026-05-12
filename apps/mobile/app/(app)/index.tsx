@@ -58,8 +58,18 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={styles.hello}>Olá, {profile?.name}</Text>
-          <Text style={styles.city}>{profile?.city}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.hello}>Olá, {profile?.name}</Text>
+            <Text style={styles.city}>{profile?.city}</Text>
+          </View>
+          <Pressable
+            style={styles.avatarBtn}
+            onPress={() => router.push('/(app)/profile')}
+          >
+            <Text style={styles.avatarBtnText}>
+              {(profile?.name ?? '?').slice(0, 1).toUpperCase()}
+            </Text>
+          </Pressable>
         </View>
 
         <Text style={styles.section}>As tuas equipas</Text>
@@ -117,7 +127,23 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
-  header: { marginBottom: 32, marginTop: 8 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 32,
+    marginTop: 8,
+  },
+  avatarBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarBtnText: { color: '#ffffff', fontWeight: '700', fontSize: 16 },
   hello: {
     color: '#ffffff',
     fontSize: 28,

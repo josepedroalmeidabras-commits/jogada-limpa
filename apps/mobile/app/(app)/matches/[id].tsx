@@ -100,8 +100,15 @@ export default function MatchDetailScreen() {
 
   const isCaptainA = match.side_a.captain_id === session?.user.id;
   const isCaptainB = match.side_b.captain_id === session?.user.id;
+  const isCaptain = isCaptainA || isCaptainB;
   const canAccept = match.status === 'proposed' && isCaptainB;
-  const canReject = match.status === 'proposed' && (isCaptainA || isCaptainB);
+  const canReject = match.status === 'proposed' && isCaptain;
+  const canSubmitResult =
+    isCaptain &&
+    (match.status === 'confirmed' ||
+      match.status === 'result_pending' ||
+      match.status === 'disputed');
+  const canReview = match.status === 'validated';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -176,6 +183,32 @@ export default function MatchDetailScreen() {
             <Text style={styles.secondaryText}>
               {isCaptainB ? 'Recusar' : 'Cancelar proposta'}
             </Text>
+          </Pressable>
+        )}
+
+        {canSubmitResult && (
+          <Pressable
+            onPress={() => router.push(`/(app)/matches/${match.id}/result`)}
+            style={styles.primary}
+          >
+            <Text style={styles.primaryText}>Submeter resultado</Text>
+          </Pressable>
+        )}
+
+        {match.status === 'validated' && (
+          <Text style={styles.finalScore}>
+            Final: {match.side_a.name} {match.final_score_a ?? ''}
+            {' — '}
+            {match.final_score_b ?? ''} {match.side_b.name}
+          </Text>
+        )}
+
+        {canReview && (
+          <Pressable
+            onPress={() => router.push(`/(app)/matches/${match.id}/review`)}
+            style={styles.primary}
+          >
+            <Text style={styles.primaryText}>Avaliar jogadores</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -272,6 +305,12 @@ const styles = StyleSheet.create({
   },
   secondaryText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
   btnDisabled: { opacity: 0.5 },
+  finalScore: {
+    color: '#ffffff',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 16,
+  },
   error: {
     color: '#f87171',
     textAlign: 'center',

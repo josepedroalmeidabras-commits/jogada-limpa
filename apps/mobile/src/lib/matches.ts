@@ -24,6 +24,8 @@ export type MatchSummary = {
   location_tbd: boolean;
   message: string | null;
   proposed_by: string;
+  final_score_a: number | null;
+  final_score_b: number | null;
   side_a: TeamLite;
   side_b: TeamLite;
 };
@@ -45,7 +47,7 @@ function unwrapSides(raw: any[]): { a: TeamLite | null; b: TeamLite | null } {
 
 const MATCH_SELECT = `
   id, sport_id, scheduled_at, status, location_name, location_tbd,
-  message, proposed_by,
+  message, proposed_by, final_score_a, final_score_b,
   sides:match_sides!inner(
     side,
     team:teams!inner(id, name, city, captain_id)
@@ -92,6 +94,8 @@ export async function fetchMatchesForTeam(
         location_tbd: m.location_tbd,
         message: m.message,
         proposed_by: m.proposed_by,
+        final_score_a: m.final_score_a,
+        final_score_b: m.final_score_b,
         side_a: a,
         side_b: b,
       };
@@ -124,6 +128,8 @@ export async function fetchMatchById(
     location_tbd: m.location_tbd,
     message: m.message,
     proposed_by: m.proposed_by,
+    final_score_a: m.final_score_a,
+    final_score_b: m.final_score_b,
     side_a: a,
     side_b: b,
   };
