@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -9,7 +8,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Screen } from '@/components/Screen';
+import { Button } from '@/components/Button';
+import { Heading } from '@/components/Heading';
 import { supabase } from '@/lib/supabase';
 
 type Mode = 'login' | 'signup';
@@ -43,9 +45,7 @@ export default function LoginScreen() {
           password,
         });
         if (error) throw error;
-        if (data.session) {
-          // confirmation off → já tens sessão
-        } else {
+        if (!data.session) {
           setInfo(
             'Conta criada. Verifica o email para confirmar antes de entrar.',
           );
@@ -66,122 +66,127 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Jogada Limpa</Text>
-          <Text style={styles.subtitle}>
-            {mode === 'login' ? 'Entrar' : 'Criar conta'}
-          </Text>
-
-          <TextInput
-            placeholder="Email"
-            placeholderTextColor="#666"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            value={email}
-            onChangeText={setEmail}
-            editable={!pending}
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Password (8+ chars)"
-            placeholderTextColor="#666"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            editable={!pending}
-            style={styles.input}
-          />
-
-          {error && <Text style={styles.error}>{error}</Text>}
-          {info && <Text style={styles.info}>{info}</Text>}
-
-          <Pressable
-            onPress={handleSubmit}
-            disabled={pending}
-            style={[styles.button, pending && styles.buttonDisabled]}
-          >
-            {pending ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {mode === 'login' ? 'Entrar' : 'Criar conta'}
-              </Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              setMode(mode === 'login' ? 'signup' : 'login');
-              setError(null);
-              setInfo(null);
-            }}
-            disabled={pending}
-          >
-            <Text style={styles.switchText}>
+          <Animated.View entering={FadeInDown.duration(400).springify()}>
+            <Heading level={1} style={styles.title}>
+              Jogada Limpa
+            </Heading>
+            <Text style={styles.subtitle}>
               {mode === 'login'
-                ? 'Ainda não tens conta? Criar conta'
-                : 'Já tens conta? Entrar'}
+                ? 'Bem-vindo de volta'
+                : 'Cria a tua conta'}
             </Text>
-          </Pressable>
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(400).springify()}
+            style={styles.form}
+          >
+            <TextInput
+              placeholder="Email"
+              placeholderTextColor="#5a5a5a"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              value={email}
+              onChangeText={setEmail}
+              editable={!pending}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor="#5a5a5a"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              editable={!pending}
+              style={styles.input}
+            />
+
+            {error && <Text style={styles.error}>{error}</Text>}
+            {info && <Text style={styles.info}>{info}</Text>}
+
+            <Button
+              label={mode === 'login' ? 'Entrar' : 'Criar conta'}
+              onPress={handleSubmit}
+              loading={pending}
+              size="lg"
+              full
+              haptic="medium"
+            />
+
+            <Pressable
+              onPress={() => {
+                setMode(mode === 'login' ? 'signup' : 'login');
+                setError(null);
+                setInfo(null);
+              }}
+              disabled={pending}
+              hitSlop={10}
+            >
+              <Text style={styles.switchText}>
+                {mode === 'login'
+                  ? 'Ainda não tens conta? '
+                  : 'Já tens conta? '}
+                <Text style={styles.switchAction}>
+                  {mode === 'login' ? 'Criar' : 'Entrar'}
+                </Text>
+              </Text>
+            </Pressable>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0a0a0a' },
   flex: { flex: 1 },
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     justifyContent: 'center',
-    gap: 12,
   },
   title: {
-    color: '#ffffff',
-    fontSize: 36,
-    fontWeight: '800',
+    fontSize: 44,
     textAlign: 'center',
   },
   subtitle: {
     color: '#a3a3a3',
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 24,
+    marginTop: 8,
+    marginBottom: 40,
+    letterSpacing: -0.2,
   },
+  form: { gap: 12 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     color: '#ffffff',
     fontSize: 16,
+    letterSpacing: -0.1,
   },
-  button: {
-    backgroundColor: '#ffffff',
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#000000', fontSize: 16, fontWeight: '600' },
   switchText: {
     color: '#a3a3a3',
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 24,
     fontSize: 14,
   },
-  error: { color: '#f87171', textAlign: 'center', fontSize: 13 },
-  info: { color: '#a7f3d0', textAlign: 'center', fontSize: 13 },
+  switchAction: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  error: { color: '#f87171', textAlign: 'center', fontSize: 13, marginTop: 4 },
+  info: { color: '#a7f3d0', textAlign: 'center', fontSize: 13, marginTop: 4 },
 });
