@@ -24,6 +24,12 @@ import { formatMatchDate } from '@/lib/matches';
 import { fetchMvpCount } from '@/lib/mvp';
 import { fetchMyTeams } from '@/lib/teams';
 import { computeAchievements } from '@/lib/achievements';
+import {
+  fetchEloHistory,
+  summariseEloHistory,
+  type EloHistoryPoint,
+} from '@/lib/elo-history';
+import { EloChart } from '@/components/EloChart';
 import { colors } from '@/theme';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
@@ -49,17 +55,19 @@ export default function ProfileScreen() {
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
   const [mvpCount, setMvpCount] = useState(0);
   const [isCaptain, setIsCaptain] = useState(false);
+  const [eloHistory, setEloHistory] = useState<EloHistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const [p, s, a, h, mvp, myTeams] = await Promise.all([
+    const [p, s, a, h, mvp, myTeams, eh] = await Promise.all([
       fetchProfile(session.user.id),
       fetchUserSports(session.user.id),
       fetchReviewAggregate(session.user.id),
       fetchUserMatchHistory(session.user.id, 100),
       fetchMvpCount(session.user.id),
       fetchMyTeams(session.user.id),
+      fetchEloHistory(session.user.id, undefined, 30),
     ]);
     setProfile(p);
     setSports(s);
@@ -67,6 +75,7 @@ export default function ProfileScreen() {
     setHistory(h);
     setMvpCount(mvp);
     setIsCaptain(myTeams.some((t) => t.captain_id === session.user.id));
+    setEloHistory(eh);
     setLoading(false);
   }, [session]);
 
@@ -158,6 +167,52 @@ export default function ProfileScreen() {
                 ))
               )}
             </Animated.View>
+
+            {eloHistory.length >= 2 && (() => {
+              const summary = summariseEloHistory(eloHistory);
+              const deltaSign =
+                summary.delta_30d > 0
+                  ? '+'
+                  : summary.delta_30d < 0
+                    ? ''
+                    : '±';
+              const deltaColor =
+                summary.delta_30d > 0
+                  ? '#34d399'
+                  : summary.delta_30d < 0
+                    ? '#f87171'
+                    : colors.textDim;
+              return (
+                <Animated.View
+                  entering={FadeInDown.delay(110).springify()}
+                  style={styles.section}
+                >
+                  <Eyebrow>Evolução do ELO</Eyebrow>
+                  <Card style={{ marginTop: 8 }}>
+                    <View style={styles.eloSummaryRow}>
+                      <View>
+                        <Text style={styles.eloCurrent}>{summary.current}</Text>
+                        <Text style={styles.eloHint}>Atual</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.eloDelta, { color: deltaColor }]}>
+                          {`${deltaSign}${summary.delta_30d}`}
+                        </Text>
+                        <Text style={styles.eloHint}>30 dias</Text>
+                      </View>
+                    </View>
+                    <View style={{ marginTop: 16 }}>
+                      <EloChart points={eloHistory} />
+                    </View>
+                    <View style={styles.eloFooter}>
+                      <Text style={styles.eloFooterText}>
+                        {`Pico ${summary.peak} · Melhor +${summary.best_win} · Pior ${summary.worst_loss}`}
+                      </Text>
+                    </View>
+                  </Card>
+                </Animated.View>
+              );
+            })()}
 
             <Animated.View
               entering={FadeInDown.delay(140).springify()}
@@ -424,6 +479,41 @@ const styles = StyleSheet.create({
   },
   rowMeta: { color: '#a3a3a3', fontSize: 12, marginTop: 2, letterSpacing: -0.1 },
   elo: { color: '#ffffff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  eloSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  eloCurrent: {
+    color: '#ffffff',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  eloDelta: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  eloHint: {
+    color: '#737373',
+    fontSize: 11,
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  eloFooter: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  eloFooterText: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    textAlign: 'center',
+    letterSpacing: -0.1,
+  },
   muted: { color: '#737373', fontSize: 13 },
   aggRow: { marginBottom: 12 },
   aggHeader: {
