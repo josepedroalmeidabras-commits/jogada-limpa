@@ -53,6 +53,39 @@ export type CoachProfile = {
   city: string;
 };
 
+export type TeamContributor = {
+  user_id: string;
+  name: string;
+  photo_url: string | null;
+  goals: number;
+  assists: number;
+  matches: number;
+  goal_share: number;
+};
+
+export async function fetchTeamTopContributors(
+  teamId: string,
+  limit = 10,
+): Promise<TeamContributor[]> {
+  const { data, error } = await supabase.rpc('fetch_team_top_contributors', {
+    p_team_id: teamId,
+    p_limit: limit,
+  });
+  if (error || !data) {
+    console.error('fetchTeamTopContributors error', error);
+    return [];
+  }
+  return (data as any[]).map((r) => ({
+    user_id: r.user_id,
+    name: r.name,
+    photo_url: r.photo_url,
+    goals: r.goals,
+    assists: r.assists,
+    matches: r.matches,
+    goal_share: Number(r.goal_share),
+  }));
+}
+
 export async function fetchCoach(
   coachId: string,
 ): Promise<CoachProfile | null> {

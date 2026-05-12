@@ -21,9 +21,11 @@ import {
   fetchCoach,
   fetchTeamById,
   fetchTeamMembers,
+  fetchTeamTopContributors,
   leaveTeam,
   positionShort,
   type CoachProfile,
+  type TeamContributor,
   type TeamMember,
   type TeamWithSport,
 } from '@/lib/teams';
@@ -60,19 +62,22 @@ export default function TeamDetailScreen() {
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [suggested, setSuggested] = useState<SuggestedOpponent[]>([]);
   const [coach, setCoach] = useState<CoachProfile | null>(null);
+  const [contributors, setContributors] = useState<TeamContributor[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [t, m, ms] = await Promise.all([
+    const [t, m, ms, contribs] = await Promise.all([
       fetchTeamById(id),
       fetchTeamMembers(id),
       fetchMatchesForTeam(id),
+      fetchTeamTopContributors(id, 10),
     ]);
     setTeam(t);
     setMembers(m);
     setMatches(ms);
+    setContributors(contribs);
     if (t?.coach_id) {
       const c = await fetchCoach(t.coach_id);
       setCoach(c);
@@ -246,6 +251,98 @@ export default function TeamDetailScreen() {
               style={{ marginTop: 12, alignItems: 'center' }}
             >
               <FormStrip results={lastFive} size="md" />
+            </Animated.View>
+          );
+        })()}
+
+        {contributors.length > 0 && (() => {
+          const topGoal = contributors.find((c) => c.goals > 0);
+          const topAssist = [...contributors]
+            .sort((a, b) => b.assists - a.assists)
+            .find((c) => c.assists > 0);
+          const goalsFor = matches
+            .filter((m) => m.status === 'validated' && m.final_score_a !== null && m.final_score_b !== null)
+            .reduce((acc, m) => {
+              const isA = m.side_a.id === team.id;
+              return acc + (isA ? m.final_score_a! : m.final_score_b!);
+            }, 0);
+          const goalsAgainst = matches
+            .filter((m) => m.status === 'validated' && m.final_score_a !== null && m.final_score_b !== null)
+            .reduce((acc, m) => {
+              const isA = m.side_a.id === team.id;
+              return acc + (isA ? m.final_score_b! : m.final_score_a!);
+            }, 0);
+          return (
+            <Animated.View
+              entering={FadeInDown.delay(130).springify()}
+              style={styles.section}
+            >
+              <Eyebrow>📊 Estatísticas</Eyebrow>
+              <Card style={{ marginTop: 8 }}>
+                <View style={styles.statsTopRow}>
+                  <View style={styles.statsCell}>
+                    <Text style={[styles.statsValue, { color: '#fbbf24' }]}>
+                      {goalsFor}
+                    </Text>
+                    <Text style={styles.statsLabel}>⚽ Marcados</Text>
+                  </View>
+                  <View style={styles.statsCell}>
+                    <Text style={[styles.statsValue, { color: '#f87171' }]}>
+                      {goalsAgainst}
+                    </Text>
+                    <Text style={styles.statsLabel}>🛡️ Sofridos</Text>
+                  </View>
+                </View>
+                <View style={styles.statsDivider} />
+                <View style={{ gap: 10 }}>
+                  {topGoal && (
+                    <Pressable
+                      onPress={() =>
+                        router.push(`/(app)/users/${topGoal.user_id}`)
+                      }
+                      style={styles.contribRow}
+                    >
+                      <Avatar
+                        url={topGoal.photo_url}
+                        name={topGoal.name}
+                        size={36}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.contribLabel}>⚽ Goleador</Text>
+                        <Text style={styles.contribName} numberOfLines={1}>
+                          {topGoal.name}
+                        </Text>
+                      </View>
+                      <Text style={[styles.contribValue, { color: '#fbbf24' }]}>
+                        {topGoal.goals}
+                      </Text>
+                    </Pressable>
+                  )}
+                  {topAssist && (
+                    <Pressable
+                      onPress={() =>
+                        router.push(`/(app)/users/${topAssist.user_id}`)
+                      }
+                      style={styles.contribRow}
+                    >
+                      <Avatar
+                        url={topAssist.photo_url}
+                        name={topAssist.name}
+                        size={36}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.contribLabel}>🎁 Assistente</Text>
+                        <Text style={styles.contribName} numberOfLines={1}>
+                          {topAssist.name}
+                        </Text>
+                      </View>
+                      <Text style={[styles.contribValue, { color: '#34d399' }]}>
+                        {topAssist.assists}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              </Card>
             </Animated.View>
           );
         })()}
@@ -584,6 +681,46 @@ const styles = StyleSheet.create({
   actions: { marginTop: 20, gap: 8 },
   section: { marginTop: 28 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statsTopRow: { flexDirection: 'row' },
+  statsCell: { flex: 1, alignItems: 'center' },
+  statsValue: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+  },
+  statsLabel: {
+    color: '#a3a3a3',
+    fontSize: 11,
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  statsDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginVertical: 14,
+  },
+  contribRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  contribLabel: {
+    color: '#737373',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  contribName: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
+  contribValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
   suggestedElo: {
     color: colors.brand,
     fontSize: 18,
