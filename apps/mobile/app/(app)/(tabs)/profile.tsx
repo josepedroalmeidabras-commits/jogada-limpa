@@ -173,12 +173,20 @@ export default function ProfileScreen() {
                 );
               })()}
 
-              <Button
-                label="Editar perfil"
-                variant="secondary"
-                size="sm"
-                onPress={() => router.push('/(app)/profile/edit')}
-              />
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                <Button
+                  label="Editar perfil"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => router.push('/(app)/profile/edit')}
+                />
+                <Button
+                  label="🎴 Player Card"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => router.push('/(app)/profile/card')}
+                />
+              </View>
             </Animated.View>
 
             <Animated.View
