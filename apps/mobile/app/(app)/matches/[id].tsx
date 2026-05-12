@@ -19,6 +19,7 @@ import {
   acceptMatch,
   fetchMatchById,
   formatMatchDate,
+  isMatchParticipant,
   rejectMatch,
   statusLabel,
   type MatchSummary,
@@ -29,12 +30,14 @@ import { Heading } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import { MatchPhotoStrip } from '@/components/MatchPhotoStrip';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const router = useRouter();
   const [match, setMatch] = useState<MatchSummary | null>(null);
+  const [isParticipant, setIsParticipant] = useState(false);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +46,12 @@ export default function MatchDetailScreen() {
     if (!id) return;
     const m = await fetchMatchById(id);
     setMatch(m);
+    if (m && session) {
+      const part = await isMatchParticipant(m.id, session.user.id);
+      setIsParticipant(part);
+    }
     setLoading(false);
-  }, [id]);
+  }, [id, session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -287,6 +294,12 @@ export default function MatchDetailScreen() {
               />
             )}
         </Animated.View>
+
+        {match.status === 'validated' && (
+          <Animated.View entering={FadeInDown.delay(200).springify()}>
+            <MatchPhotoStrip matchId={match.id} canUpload={isParticipant} />
+          </Animated.View>
+        )}
       </ScrollView>
     </Screen>
   );

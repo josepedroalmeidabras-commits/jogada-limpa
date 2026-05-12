@@ -6,14 +6,17 @@ export type PickedImage = {
   mimeType: string;
 };
 
-export async function pickImage(): Promise<PickedImage | null> {
+export async function pickImage(opts?: {
+  allowsEditing?: boolean;
+  aspect?: [number, number];
+}): Promise<PickedImage | null> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) return null;
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
+    allowsEditing: opts?.allowsEditing ?? true,
+    aspect: opts?.aspect ?? [1, 1],
     quality: 0.75,
     base64: false,
   });
@@ -59,6 +62,35 @@ export async function uploadAvatar(
     }
     const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
     return { ok: true, publicUrl: pub.publicUrl };
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : 'Erro desconhecido.',
+    };
+  }
+}
+
+export async function uploadMatchPhoto(
+  matchId: string,
+  image: PickedImage,
+): Promise<{ ok: true; publicUrl: string; path: string } | { ok: false; message: string }> {
+  const ext = extFromMime(image.mimeType);
+  const path = `${matchId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  try {
+    const blob = await uriToBlob(image.uri);
+    const { error } = await supabase.storage
+      .from('match-photos')
+      .upload(path, blob, {
+        contentType: image.mimeType,
+        upsert: false,
+      });
+    if (error) {
+      return { ok: false, message: error.message ?? 'Falhou o upload.' };
+    }
+    const { data: pub } = supabase.storage
+      .from('match-photos')
+      .getPublicUrl(path);
+    return { ok: true, publicUrl: pub.publicUrl, path };
   } catch (e) {
     return {
       ok: false,

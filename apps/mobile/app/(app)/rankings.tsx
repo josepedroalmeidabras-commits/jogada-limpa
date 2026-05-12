@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -27,6 +27,8 @@ import { Skeleton } from '@/components/Skeleton';
 import { colors } from '@/theme';
 
 type Tab = 'players' | 'teams' | 'mvps';
+type PlayerSort = 'elo' | 'matches';
+type TeamSort = 'elo' | 'members';
 
 export default function RankingsScreen() {
   const { session } = useAuth();
@@ -37,8 +39,30 @@ export default function RankingsScreen() {
   const [players, setPlayers] = useState<RankedPlayer[]>([]);
   const [teams, setTeams] = useState<RankedTeam[]>([]);
   const [mvps, setMvps] = useState<RankedMvp[]>([]);
+  const [playerSort, setPlayerSort] = useState<PlayerSort>('elo');
+  const [teamSort, setTeamSort] = useState<TeamSort>('elo');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const sortedPlayers = useMemo(() => {
+    const arr = [...players];
+    if (playerSort === 'matches') {
+      arr.sort((a, b) => b.matches_played - a.matches_played);
+    } else {
+      arr.sort((a, b) => b.elo - a.elo);
+    }
+    return arr;
+  }, [players, playerSort]);
+
+  const sortedTeams = useMemo(() => {
+    const arr = [...teams];
+    if (teamSort === 'members') {
+      arr.sort((a, b) => b.member_count - a.member_count);
+    } else {
+      arr.sort((a, b) => b.elo_avg - a.elo_avg);
+    }
+    return arr;
+  }, [teams, teamSort]);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -171,8 +195,41 @@ export default function RankingsScreen() {
               </Pressable>
             </Animated.View>
 
+            {(tab === 'players' || tab === 'teams') && (
+              <View style={styles.sortRow}>
+                <Text style={styles.sortLabel}>Ordenar por</Text>
+                {tab === 'players' ? (
+                  <>
+                    <SortChip
+                      label="ELO"
+                      active={playerSort === 'elo'}
+                      onPress={() => setPlayerSort('elo')}
+                    />
+                    <SortChip
+                      label="Jogos"
+                      active={playerSort === 'matches'}
+                      onPress={() => setPlayerSort('matches')}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <SortChip
+                      label="ELO médio"
+                      active={teamSort === 'elo'}
+                      onPress={() => setTeamSort('elo')}
+                    />
+                    <SortChip
+                      label="Membros"
+                      active={teamSort === 'members'}
+                      onPress={() => setTeamSort('members')}
+                    />
+                  </>
+                )}
+              </View>
+            )}
+
             {tab === 'players' ? (
-              players.length === 0 ? (
+              sortedPlayers.length === 0 ? (
                 <Card style={{ marginTop: 8 }}>
                   <Text style={styles.muted}>
                     Sem jogadores com jogos suficientes para entrar no
@@ -180,7 +237,7 @@ export default function RankingsScreen() {
                   </Text>
                 </Card>
               ) : (
-                players.map((p, i) => (
+                sortedPlayers.map((p, i) => (
                   <Animated.View
                     key={p.user_id}
                     entering={FadeInDown.delay(120 + i * 25).springify()}
@@ -197,14 +254,14 @@ export default function RankingsScreen() {
                 ))
               )
             ) : tab === 'teams' ? (
-              teams.length === 0 ? (
+              sortedTeams.length === 0 ? (
                 <Card style={{ marginTop: 8 }}>
                   <Text style={styles.muted}>
                     Ainda não há equipas suficientes na tua cidade.
                   </Text>
                 </Card>
               ) : (
-                teams.map((t, i) => (
+                sortedTeams.map((t, i) => (
                   <Animated.View
                     key={t.team_id}
                     entering={FadeInDown.delay(120 + i * 25).springify()}
@@ -248,6 +305,29 @@ export default function RankingsScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function SortChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.sortChip, active && styles.sortChipActive]}
+    >
+      <Text
+        style={[styles.sortChipText, active && styles.sortChipTextActive]}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -300,6 +380,39 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 8,
   },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  sortLabel: {
+    color: colors.textDim,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginRight: 4,
+  },
+  sortChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+  },
+  sortChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
+  },
+  sortChipText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  sortChipTextActive: { color: colors.brand },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 999 },
   tabActive: { backgroundColor: colors.brand },
   tabText: { color: colors.textMuted, fontWeight: '700', letterSpacing: 0.2 },

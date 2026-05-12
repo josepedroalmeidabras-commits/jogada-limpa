@@ -355,6 +355,20 @@ export async function rejectMatch(
   return { ok: true };
 }
 
+export async function isMatchParticipant(
+  matchId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('match_sides')
+    .select('team_id, team_members:team_members!inner(user_id)')
+    .eq('match_id', matchId)
+    .eq('team_members.user_id', userId)
+    .limit(1);
+  if (error || !data) return false;
+  return data.length > 0;
+}
+
 export async function cancelConfirmedMatch(
   matchId: string,
   reason: string,
