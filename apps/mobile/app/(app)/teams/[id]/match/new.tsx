@@ -17,7 +17,9 @@ import {
   balanceLabel,
   fetchOpponentCandidates,
   fetchTeamEloStats,
+  fetchTeamsRecentForm,
   proposeMatch,
+  type FormResult,
   type TeamEloStats,
   type TeamLite,
 } from '@/lib/matches';
@@ -59,6 +61,7 @@ export default function NewMatchScreen() {
   const [team, setTeam] = useState<TeamWithSport | null>(null);
   const [opponents, setOpponents] = useState<TeamLite[]>([]);
   const [eloStats, setEloStats] = useState<Record<string, TeamEloStats>>({});
+  const [forms, setForms] = useState<Record<string, FormResult[]>>({});
   const [myTeamElo, setMyTeamElo] = useState<number>(1200);
   const [eloFilter, setEloFilter] = useState<'all' | '100' | '200'>('all');
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,9 @@ export default function NewMatchScreen() {
       });
       setOpponents(sorted);
       setEloStats(stats);
+      const form = await fetchTeamsRecentForm(list.map((l) => l.id));
+      if (cancelled) return;
+      setForms(form);
       setLoading(false);
     })();
     return () => {
@@ -265,6 +271,30 @@ export default function NewMatchScreen() {
                           {o.city} · {stat?.member_count ?? 0} membros · ELO{' '}
                           {Math.round(oppElo)}
                         </Text>
+                        {forms[o.id] && forms[o.id]!.length > 0 && (
+                          <View style={styles.formRow}>
+                            {forms[o.id]!.map((r, idx) => (
+                              <View
+                                key={idx}
+                                style={[
+                                  styles.formDot,
+                                  r === 'W' && styles.formDotWin,
+                                  r === 'D' && styles.formDotDraw,
+                                  r === 'L' && styles.formDotLoss,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.formDotText,
+                                    picked && styles.formDotTextPicked,
+                                  ]}
+                                >
+                                  {r}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
                       <View
                         style={[
@@ -465,6 +495,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandSoft,
   },
   presetChipText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
+  formRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  formDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  formDotWin: { backgroundColor: colors.brand },
+  formDotDraw: { backgroundColor: colors.warning },
+  formDotLoss: { backgroundColor: colors.danger },
+  formDotText: {
+    color: '#0a0a0a',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+  },
+  formDotTextPicked: { color: '#0a0a0a' },
   oppCard: {
     padding: 14,
     borderRadius: 12,

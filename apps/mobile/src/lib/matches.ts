@@ -569,6 +569,49 @@ export function balanceLabel(diff: number): {
   return { label: 'equilibrado', color: 'neutral' };
 }
 
+export type FormResult = 'W' | 'D' | 'L';
+
+export async function fetchTeamsRecentForm(
+  teamIds: string[],
+  limit = 5,
+): Promise<Record<string, FormResult[]>> {
+  if (teamIds.length === 0) return {};
+
+  const { data: sideRows } = await supabase
+    .from('match_sides')
+    .select('match_id, team_id, side')
+    .in('team_id', teamIds);
+  if (!sideRows) return {};
+
+  const matchIds = Array.from(new Set(sideRows.map((r) => r.match_id)));
+  if (matchIds.length === 0) return {};
+
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('id, scheduled_at, final_score_a, final_score_b, status')
+    .in('id', matchIds)
+    .eq('status', 'validated')
+    .order('scheduled_at', { ascending: false });
+  if (!matches) return {};
+
+  const matchMap = new Map(matches.map((m) => [m.id, m]));
+
+  const byTeam: Record<string, FormResult[]> = {};
+  for (const id of teamIds) byTeam[id] = [];
+
+  for (const row of sideRows) {
+    const m = matchMap.get(row.match_id);
+    if (!m) continue;
+    if (m.final_score_a === null || m.final_score_b === null) continue;
+    const own = row.side === 'A' ? m.final_score_a : m.final_score_b;
+    const opp = row.side === 'A' ? m.final_score_b : m.final_score_a;
+    const r: FormResult = own > opp ? 'W' : own < opp ? 'L' : 'D';
+    const arr = byTeam[row.team_id]!;
+    if (arr.length < limit) arr.push(r);
+  }
+  return byTeam;
+}
+
 export type TeamRecord = {
   wins: number;
   losses: number;
