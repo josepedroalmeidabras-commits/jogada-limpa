@@ -69,7 +69,15 @@ export default function AgendaScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Jogos</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Jogos</Text>
+          <Pressable
+            style={styles.rankingBtn}
+            onPress={() => router.push('/(app)/rankings')}
+          >
+            <Text style={styles.rankingBtnText}>Ranking</Text>
+          </Pressable>
+        </View>
 
         <Section title={`Próximos (${grouped.upcoming.length})`}>
           {grouped.upcoming.length === 0 ? (
@@ -167,12 +175,26 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0a0a0a' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 32 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   title: {
     color: '#ffffff',
     fontSize: 28,
     fontWeight: '800',
-    marginBottom: 16,
   },
+  rankingBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  rankingBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
   section: {
     color: '#a3a3a3',
     fontSize: 12,
