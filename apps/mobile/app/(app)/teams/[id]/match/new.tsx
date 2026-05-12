@@ -15,9 +15,11 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchTeamById, type TeamWithSport } from '@/lib/teams';
 import {
+  balanceLabel,
   fetchOpponentCandidates,
-  fetchTeamMemberCount,
+  fetchTeamEloStats,
   proposeMatch,
+  type TeamEloStats,
   type TeamLite,
 } from '@/lib/matches';
 
@@ -54,7 +56,8 @@ export default function NewMatchScreen() {
 
   const [team, setTeam] = useState<TeamWithSport | null>(null);
   const [opponents, setOpponents] = useState<TeamLite[]>([]);
-  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [eloStats, setEloStats] = useState<Record<string, TeamEloStats>>({});
+  const [myTeamElo, setMyTeamElo] = useState<number>(1200);
   const [loading, setLoading] = useState(true);
   const [opponentId, setOpponentId] = useState<string | null>(null);
   const [date, setDate] = useState('');
@@ -77,10 +80,17 @@ export default function NewMatchScreen() {
       setTeam(t);
       const list = await fetchOpponentCandidates(t.sport_id, t.id);
       if (cancelled) return;
-      setOpponents(list);
-      const counts = await fetchTeamMemberCount(list.map((l) => l.id));
+      const stats = await fetchTeamEloStats([t.id, ...list.map((l) => l.id)]);
       if (cancelled) return;
-      setMemberCounts(counts);
+      setMyTeamElo(stats[t.id]?.elo_avg ?? 1200);
+      // sort opponents by ELO closeness to my team
+      const sorted = [...list].sort((a, b) => {
+        const da = Math.abs((stats[a.id]?.elo_avg ?? 1200) - (stats[t.id]?.elo_avg ?? 1200));
+        const db = Math.abs((stats[b.id]?.elo_avg ?? 1200) - (stats[t.id]?.elo_avg ?? 1200));
+        return da - db;
+      });
+      setOpponents(sorted);
+      setEloStats(stats);
       setLoading(false);
     })();
     return () => {
@@ -181,8 +191,15 @@ export default function NewMatchScreen() {
             </Text>
           ) : (
             <View style={styles.opponents}>
+              <Text style={styles.myEloLine}>
+                A tua equipa: ELO médio {Math.round(myTeamElo)}
+              </Text>
               {opponents.map((o) => {
                 const picked = o.id === opponentId;
+                const stat = eloStats[o.id];
+                const oppElo = stat?.elo_avg ?? 1200;
+                const diff = oppElo - myTeamElo;
+                const balance = balanceLabel(diff);
                 return (
                   <Pressable
                     key={o.id}
@@ -190,22 +207,36 @@ export default function NewMatchScreen() {
                     disabled={submitting}
                     style={[styles.oppCard, picked && styles.oppCardPicked]}
                   >
-                    <Text
-                      style={[
-                        styles.oppName,
-                        picked && styles.oppNamePicked,
-                      ]}
-                    >
-                      {o.name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.oppCity,
-                        picked && styles.oppCityPicked,
-                      ]}
-                    >
-                      {o.city} · {memberCounts[o.id] ?? 0} membros
-                    </Text>
+                    <View style={styles.oppRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.oppName,
+                            picked && styles.oppNamePicked,
+                          ]}
+                        >
+                          {o.name}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.oppCity,
+                            picked && styles.oppCityPicked,
+                          ]}
+                        >
+                          {o.city} · {stat?.member_count ?? 0} membros · ELO{' '}
+                          {Math.round(oppElo)}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.balancePill,
+                          balance.color === 'up' && styles.balanceUp,
+                          balance.color === 'down' && styles.balanceDown,
+                        ]}
+                      >
+                        <Text style={styles.balanceText}>{balance.label}</Text>
+                      </View>
+                    </View>
                   </Pressable>
                 );
               })}
@@ -326,6 +357,13 @@ const styles = StyleSheet.create({
   },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
   opponents: { gap: 8, marginTop: 4 },
+  myEloLine: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   oppCard: {
     padding: 14,
     borderRadius: 12,
@@ -333,6 +371,24 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.15)',
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
+  oppRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  balancePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  balanceUp: {
+    backgroundColor: 'rgba(248,113,113,0.12)',
+    borderColor: 'rgba(248,113,113,0.4)',
+  },
+  balanceDown: {
+    backgroundColor: 'rgba(52,211,153,0.12)',
+    borderColor: 'rgba(52,211,153,0.4)',
+  },
+  balanceText: { color: '#ffffff', fontSize: 11, fontWeight: '600' },
   oppCardPicked: { backgroundColor: '#ffffff', borderColor: '#ffffff' },
   oppName: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   oppNamePicked: { color: '#000000' },

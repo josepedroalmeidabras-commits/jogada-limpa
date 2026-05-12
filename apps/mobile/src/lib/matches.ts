@@ -360,21 +360,42 @@ export async function fetchPendingReviewsForUser(
     .filter((p): p is PendingReview => p !== null);
 }
 
-export async function fetchTeamMemberCount(
+export type TeamEloStats = {
+  team_id: string;
+  elo_avg: number;
+  member_count: number;
+};
+
+export async function fetchTeamEloStats(
   teamIds: string[],
-): Promise<Record<string, number>> {
+): Promise<Record<string, TeamEloStats>> {
   if (teamIds.length === 0) return {};
   const { data, error } = await supabase
-    .from('team_members')
-    .select('team_id')
+    .from('team_elo')
+    .select('team_id, elo_avg, member_count')
     .in('team_id', teamIds);
   if (error || !data) return {};
-  const result: Record<string, number> = {};
-  for (const id of teamIds) result[id] = 0;
-  for (const row of data) {
-    result[row.team_id] = (result[row.team_id] ?? 0) + 1;
+  const result: Record<string, TeamEloStats> = {};
+  for (const id of teamIds) {
+    result[id] = { team_id: id, elo_avg: 1200, member_count: 0 };
+  }
+  for (const row of data as any[]) {
+    result[row.team_id] = {
+      team_id: row.team_id,
+      elo_avg: Number(row.elo_avg),
+      member_count: row.member_count,
+    };
   }
   return result;
+}
+
+export function balanceLabel(diff: number): {
+  label: string;
+  color: 'neutral' | 'up' | 'down';
+} {
+  if (diff <= -150) return { label: 'mais fraco', color: 'down' };
+  if (diff >= 150) return { label: 'mais forte', color: 'up' };
+  return { label: 'equilibrado', color: 'neutral' };
 }
 
 export function statusLabel(status: MatchStatus): string {
