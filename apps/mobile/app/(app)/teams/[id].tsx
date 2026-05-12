@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   Alert,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -37,6 +38,8 @@ import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@/theme';
 
 export default function TeamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -148,6 +151,18 @@ export default function TeamDetailScreen() {
               }`}
             </Text>
           </View>
+          {members.some((m) => m.user_id === session?.user.id) && (
+            <Pressable
+              onPress={() => router.push(`/(app)/teams/${team.id}/chat`)}
+              style={styles.chatBtn}
+            >
+              <Ionicons
+                name="chatbubble-ellipses"
+                size={20}
+                color={colors.brand}
+              />
+            </Pressable>
+          )}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(80).springify()}>
@@ -394,6 +409,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     letterSpacing: -0.1,
+  },
+  chatBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actions: { marginTop: 20, gap: 8 },
   section: { marginTop: 28 },
