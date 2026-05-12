@@ -1,5 +1,27 @@
 import { supabase } from './supabase';
 
+export type Foot = 'left' | 'right' | 'both';
+
+export const FOOT_LABEL: Record<Foot, string> = {
+  left: 'Pé esquerdo',
+  right: 'Pé direito',
+  both: 'Ambidextro',
+};
+
+export function formatDisplayName(p: {
+  name: string;
+  nickname?: string | null;
+}): string {
+  if (p.nickname && p.nickname.trim().length > 0) {
+    const parts = p.name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0]} «${p.nickname}» ${parts.slice(1).join(' ')}`;
+    }
+    return `${p.name} «${p.nickname}»`;
+  }
+  return p.name;
+}
+
 export type Profile = {
   id: string;
   name: string;
@@ -8,13 +30,18 @@ export type Profile = {
   birthdate: string;
   phone: string | null;
   bio: string | null;
+  jersey_number: number | null;
+  nickname: string | null;
+  preferred_foot: Foot | null;
   deleted_at: string | null;
 };
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, photo_url, city, birthdate, phone, bio, deleted_at')
+    .select(
+      'id, name, photo_url, city, birthdate, phone, bio, jersey_number, nickname, preferred_foot, deleted_at',
+    )
     .eq('id', userId)
     .maybeSingle();
 
@@ -71,6 +98,9 @@ export type ProfileUpdate = {
   city?: string;
   phone?: string | null;
   bio?: string | null;
+  jersey_number?: number | null;
+  nickname?: string | null;
+  preferred_foot?: Foot | null;
 };
 
 export async function updateProfile(
@@ -82,6 +112,9 @@ export async function updateProfile(
   if (input.city !== undefined) patch.city = input.city;
   if (input.phone !== undefined) patch.phone = input.phone;
   if (input.bio !== undefined) patch.bio = input.bio;
+  if (input.jersey_number !== undefined) patch.jersey_number = input.jersey_number;
+  if (input.nickname !== undefined) patch.nickname = input.nickname;
+  if (input.preferred_foot !== undefined) patch.preferred_foot = input.preferred_foot;
   const { error } = await supabase
     .from('profiles')
     .update(patch)

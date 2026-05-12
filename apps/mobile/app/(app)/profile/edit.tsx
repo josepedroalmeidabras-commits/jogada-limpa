@@ -38,6 +38,9 @@ export default function EditProfileScreen() {
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState('');
   const [bio, setBio] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [jerseyNumber, setJerseyNumber] = useState('');
+  const [preferredFoot, setPreferredFoot] = useState<'left' | 'right' | 'both' | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sports, setSports] = useState<UserSportElo[]>([]);
@@ -61,6 +64,9 @@ export default function EditProfileScreen() {
       setCity(p.city);
       setPhone(p.phone ?? '');
       setBio(p.bio ?? '');
+      setNickname(p.nickname ?? '');
+      setJerseyNumber(p.jersey_number ? String(p.jersey_number) : '');
+      setPreferredFoot(p.preferred_foot ?? null);
       setPhotoUrl(p.photo_url ?? null);
       setSports(s);
       setLoading(false);
@@ -173,12 +179,20 @@ export default function EditProfileScreen() {
       setError('Cidade obrigatória.');
       return;
     }
+    const parsedJersey = jerseyNumber.trim() ? parseInt(jerseyNumber, 10) : null;
+    if (parsedJersey !== null && (Number.isNaN(parsedJersey) || parsedJersey < 1 || parsedJersey > 99)) {
+      setError('Número de camisola deve ser entre 1 e 99.');
+      return;
+    }
     setSubmitting(true);
     const r = await updateProfile(session.user.id, {
       name: name.trim(),
       city: city.trim(),
       phone: phone.trim() || null,
       bio: bio.trim() || null,
+      nickname: nickname.trim() || null,
+      jersey_number: parsedJersey,
+      preferred_foot: preferredFoot,
     });
     setSubmitting(false);
     if (!r.ok) {
@@ -261,6 +275,66 @@ export default function EditProfileScreen() {
             keyboardType="phone-pad"
             editable={!submitting}
           />
+
+          <Text style={styles.label}>Alcunha (opcional)</Text>
+          <TextInput
+            style={styles.input}
+            value={nickname}
+            onChangeText={setNickname}
+            placeholder='Tipo "Bombas", "Pistola"... aparece entre aspas'
+            placeholderTextColor="#666"
+            autoCapitalize="words"
+            maxLength={20}
+            editable={!submitting}
+          />
+
+          <View style={styles.rowFields}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Camisola</Text>
+              <TextInput
+                style={styles.input}
+                value={jerseyNumber}
+                onChangeText={(t) => setJerseyNumber(t.replace(/\D/g, '').slice(0, 2))}
+                placeholder="1-99"
+                placeholderTextColor="#666"
+                keyboardType="number-pad"
+                maxLength={2}
+                editable={!submitting}
+              />
+            </View>
+            <View style={{ flex: 2 }}>
+              <Text style={styles.label}>Pé preferido</Text>
+              <View style={styles.footRow}>
+                {(
+                  [
+                    { v: 'left', label: 'Esquerdo' },
+                    { v: 'right', label: 'Direito' },
+                    { v: 'both', label: 'Ambos' },
+                  ] as const
+                ).map((opt) => {
+                  const active = preferredFoot === opt.v;
+                  return (
+                    <Pressable
+                      key={opt.v}
+                      onPress={() =>
+                        setPreferredFoot(active ? null : opt.v)
+                      }
+                      style={[styles.footChip, active && styles.footChipActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.footChipText,
+                          active && styles.footChipTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
 
           <Text style={styles.label}>Bio (opcional)</Text>
           <TextInput
@@ -508,6 +582,22 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 4,
   },
+  rowFields: { flexDirection: 'row', gap: 12 },
+  footRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  footChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  footChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  footChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
+  footChipTextActive: { color: '#0a0a0a' },
   avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
   changePhotoBtn: {
     paddingHorizontal: 16,

@@ -18,7 +18,12 @@ import {
   useRouter,
 } from 'expo-router';
 import { useAuth } from '@/providers/auth';
-import { fetchProfile, type Profile } from '@/lib/profile';
+import {
+  fetchProfile,
+  formatDisplayName,
+  FOOT_LABEL,
+  type Profile,
+} from '@/lib/profile';
 import {
   blockUser,
   REPORT_REASON_LABELS,
@@ -344,11 +349,21 @@ export default function PublicProfileScreen() {
           entering={FadeInDown.duration(300).springify()}
           style={styles.headerBlock}
         >
-          <Avatar url={profile.photo_url} name={profile.name} size={96} />
+          <View style={styles.avatarRow}>
+            <Avatar url={profile.photo_url} name={profile.name} size={96} />
+            {profile.jersey_number !== null && profile.jersey_number !== undefined && (
+              <View style={styles.jerseyBadge}>
+                <Text style={styles.jerseyText}>{profile.jersey_number}</Text>
+              </View>
+            )}
+          </View>
           <Heading level={1} style={{ marginTop: 16, textAlign: 'center' }}>
-            {profile.name}
+            {formatDisplayName(profile)}
           </Heading>
-          <Text style={styles.city}>{profile.city}</Text>
+          <Text style={styles.city}>
+            {profile.city}
+            {profile.preferred_foot ? ` · ${FOOT_LABEL[profile.preferred_foot]}` : ''}
+          </Text>
 
           {(() => {
             const streak = computeWinStreak(history);
@@ -622,6 +637,27 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   city: { color: '#a3a3a3', fontSize: 14, letterSpacing: -0.1 },
+  avatarRow: { position: 'relative' },
+  jerseyBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    minWidth: 32,
+    height: 32,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    backgroundColor: '#22c55e',
+    borderWidth: 3,
+    borderColor: '#0a0a0a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  jerseyText: {
+    color: '#0a0a0a',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
   bio: {
     color: '#d4d4d4',
     fontSize: 14,
