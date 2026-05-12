@@ -10,7 +10,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Screen } from '@/components/Screen';
+import { Heading } from '@/components/Heading';
+import { Button } from '@/components/Button';
+import { Avatar } from '@/components/Avatar';
+import { colors } from '@/theme';
 import {
   Stack,
   useFocusEffect,
@@ -87,21 +92,21 @@ export default function ReviewScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator color="#ffffff" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!match || !session) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <Text style={styles.error}>Jogo não encontrado.</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -143,13 +148,13 @@ export default function ReviewScreen() {
   const pending = others.filter((p) => !alreadyReviewed.has(p.user_id));
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
           headerTitle: 'Avaliações',
-          headerStyle: { backgroundColor: '#0a0a0a' },
-          headerTintColor: '#ffffff',
+          headerStyle: { backgroundColor: colors.bg },
+          headerTintColor: colors.text,
         }}
       />
       <KeyboardAvoidingView
@@ -159,13 +164,16 @@ export default function ReviewScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.heading}>
-            {match.side_a.name} vs {match.side_b.name}
-          </Text>
-          <Text style={styles.sub}>
-            Avalia os outros jogadores. Visível só depois de bilateral ou 72h.
-          </Text>
+          <Animated.View entering={FadeInDown.duration(300).springify()}>
+            <Heading level={2}>
+              {`${match.side_a.name} vs ${match.side_b.name}`}
+            </Heading>
+            <Text style={styles.sub}>
+              Avalia os outros jogadores. Visível só depois de bilateral ou 72h.
+            </Text>
+          </Animated.View>
 
           {pending.length === 0 ? (
             <View style={styles.doneBox}>
@@ -173,25 +181,25 @@ export default function ReviewScreen() {
               <Text style={styles.doneBody}>
                 Já submeteste avaliações para todos os jogadores deste jogo.
               </Text>
-              <Pressable
-                style={styles.primary}
-                onPress={() => router.replace(`/(app)/matches/${match.id}`)}
-              >
-                <Text style={styles.primaryText}>Voltar ao jogo</Text>
-              </Pressable>
+              <View style={{ marginTop: 12 }}>
+                <Button
+                  label="Voltar ao jogo"
+                  onPress={() => router.replace(`/(app)/matches/${match.id}`)}
+                />
+              </View>
             </View>
           ) : (
-            pending.map((p) => {
+            pending.map((p, i) => {
               const draft = drafts[p.user_id] ?? defaultScores();
               const role = p.side === mySide ? 'Colega' : 'Adversário';
               return (
-                <View key={p.user_id} style={styles.card}>
+                <Animated.View
+                  key={p.user_id}
+                  entering={FadeInDown.delay(80 + i * 40).springify()}
+                  style={styles.card}
+                >
                   <View style={styles.cardHeader}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {(p.profile?.name ?? '?').slice(0, 1).toUpperCase()}
-                      </Text>
-                    </View>
+                    <Avatar url={p.profile?.photo_url} name={p.profile?.name} size={40} />
                     <View style={styles.cardHeaderText}>
                       <Text style={styles.cardName}>
                         {p.profile?.name ?? 'Jogador'}
@@ -236,21 +244,16 @@ export default function ReviewScreen() {
                     editable={submitting !== p.user_id}
                   />
 
-                  <Pressable
-                    style={[
-                      styles.submit,
-                      submitting === p.user_id && styles.submitDisabled,
-                    ]}
-                    onPress={() => handleSubmit(p)}
-                    disabled={submitting !== null}
-                  >
-                    {submitting === p.user_id ? (
-                      <ActivityIndicator color="#000" />
-                    ) : (
-                      <Text style={styles.submitText}>Submeter avaliação</Text>
-                    )}
-                  </Pressable>
-                </View>
+                  <View style={{ marginTop: 12 }}>
+                    <Button
+                      label="Submeter avaliação"
+                      loading={submitting === p.user_id}
+                      onPress={() => handleSubmit(p)}
+                      disabled={submitting !== null && submitting !== p.user_id}
+                      full
+                    />
+                  </View>
+                </Animated.View>
               );
             })
           )}
@@ -258,7 +261,7 @@ export default function ReviewScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -323,7 +326,7 @@ const styles = StyleSheet.create({
   catStars: { flexDirection: 'row', gap: 4 },
   starHit: { padding: 2 },
   star: { color: 'rgba(255,255,255,0.15)', fontSize: 22 },
-  starOn: { color: '#fbbf24' },
+  starOn: { color: colors.brand },
   commentInput: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderColor: 'rgba(255,255,255,0.15)',

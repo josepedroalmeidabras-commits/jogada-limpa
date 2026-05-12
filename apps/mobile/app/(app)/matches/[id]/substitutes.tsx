@@ -7,7 +7,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Screen } from '@/components/Screen';
+import { Heading } from '@/components/Heading';
+import { Card } from '@/components/Card';
+import { Button } from '@/components/Button';
+import { Avatar } from '@/components/Avatar';
+import { colors } from '@/theme';
 import {
   Stack,
   useFocusEffect,
@@ -77,21 +83,21 @@ export default function SubstitutesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator color="#ffffff" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!match) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <Text style={styles.empty}>Jogo não encontrado.</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -101,18 +107,18 @@ export default function SubstitutesScreen() {
 
   if (!mySide) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <Text style={styles.empty}>
             Só capitães podem convidar substitutos.
           </Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -170,7 +176,7 @@ export default function SubstitutesScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -189,17 +195,8 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
   emptyBody: { color: '#a3a3a3', fontSize: 14, marginTop: 8, lineHeight: 20 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    marginBottom: 8,
-    gap: 12,
-  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  subInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   name: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   meta: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
   inviteBtn: {

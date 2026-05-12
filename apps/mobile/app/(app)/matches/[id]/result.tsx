@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Stack,
   useFocusEffect,
@@ -24,6 +24,10 @@ import {
   submitMatchSideResult,
   type MatchParticipant,
 } from '@/lib/result';
+import { Screen } from '@/components/Screen';
+import { Heading } from '@/components/Heading';
+import { Button } from '@/components/Button';
+import { colors } from '@/theme';
 
 export default function SubmitResultScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -58,21 +62,21 @@ export default function SubmitResultScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <ActivityIndicator color="#ffffff" />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (!match) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <Text style={styles.error}>Jogo não encontrado.</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -81,17 +85,16 @@ export default function SubmitResultScreen() {
   const isCaptainB = match.side_b.captain_id === userId;
   if (!isCaptainA && !isCaptainB) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <Screen>
         <View style={styles.center}>
           <Text style={styles.error}>Só os capitães submetem resultados.</Text>
-          <Pressable
-            style={styles.linkBtn}
+          <Button
+            label="Voltar"
+            variant="secondary"
             onPress={() => router.replace(`/(app)/matches/${match.id}`)}
-          >
-            <Text style={styles.linkBtnText}>Voltar</Text>
-          </Pressable>
+          />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -135,13 +138,13 @@ export default function SubmitResultScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <Screen>
       <Stack.Screen
         options={{
           headerShown: true,
           headerTitle: 'Submeter resultado',
-          headerStyle: { backgroundColor: '#0a0a0a' },
-          headerTintColor: '#ffffff',
+          headerStyle: { backgroundColor: colors.bg },
+          headerTintColor: colors.text,
         }}
       />
       <KeyboardAvoidingView
@@ -151,11 +154,14 @@ export default function SubmitResultScreen() {
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.heading}>
-            {match.side_a.name} vs {match.side_b.name}
-          </Text>
-          <Text style={styles.sub}>Submetes pelo lado {mySide}.</Text>
+          <Animated.View entering={FadeInDown.duration(300).springify()}>
+            <Heading level={2}>
+              {`${match.side_a.name} vs ${match.side_b.name}`}
+            </Heading>
+            <Text style={styles.sub}>{`Submetes pelo lado ${mySide}.`}</Text>
+          </Animated.View>
 
           <Text style={styles.label}>Resultado final</Text>
           <View style={styles.scoreRow}>
@@ -218,17 +224,14 @@ export default function SubmitResultScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable
+          <Button
+            label="Submeter"
+            size="lg"
+            haptic="medium"
+            loading={submitting}
             onPress={handleSubmit}
-            disabled={submitting}
-            style={[styles.submit, submitting && styles.submitDisabled]}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#000" />
-            ) : (
-              <Text style={styles.submitText}>Submeter</Text>
-            )}
-          </Pressable>
+            full
+          />
 
           <Text style={styles.hint}>
             Quando ambos os capitães submeterem o mesmo resultado, o jogo
@@ -236,7 +239,7 @@ export default function SubmitResultScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -291,8 +294,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   playerRowPicked: {
-    backgroundColor: 'rgba(52,211,153,0.08)',
-    borderColor: 'rgba(52,211,153,0.3)',
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brandSoftBorder,
   },
   check: {
     width: 22,
@@ -304,7 +307,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkOn: { backgroundColor: '#34d399', borderColor: '#34d399' },
+  checkOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   checkMark: { color: '#000000', fontWeight: '800', fontSize: 14 },
   playerName: { color: '#ffffff', fontSize: 15 },
   submit: {
