@@ -40,9 +40,14 @@ import {
   type MonthlyStats,
 } from '@/lib/history';
 import {
+  fetchFriends,
   fetchFriendsRecentMatches,
+  fetchIncomingRequests,
+  fetchPendingFriendsCount,
   type FriendMatchEvent,
+  type PendingRequest,
 } from '@/lib/friends';
+import { fetchPlayerStats } from '@/lib/player-stats';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
@@ -58,6 +63,11 @@ export default function HomeScreen() {
   const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
   const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
   const [friendsActivity, setFriendsActivity] = useState<FriendMatchEvent[]>([]);
+  const [incoming, setIncoming] = useState<PendingRequest[]>([]);
+  const [completeness, setCompleteness] = useState<{
+    items: { key: string; label: string; done: boolean }[];
+    percent: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -74,7 +84,7 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
-    const [myTeams, ch, rv, act, u, hist, fa] = await Promise.all([
+    const [myTeams, ch, rv, act, u, hist, fa, inc, friends, myStats] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
       fetchPendingReviewsForUser(session.user.id),
@@ -82,6 +92,9 @@ export default function HomeScreen() {
       fetchUnreadCount(session.user.id),
       fetchUserMatchHistory(session.user.id, 50),
       fetchFriendsRecentMatches(6),
+      fetchIncomingRequests(),
+      fetchFriends(),
+      fetchPlayerStats(session.user.id),
     ]);
     setTeams(myTeams);
     setChallenges(ch);
@@ -90,6 +103,24 @@ export default function HomeScreen() {
     setUnread(u);
     setMonthly(computeMonthlyStats(hist));
     setFriendsActivity(fa);
+    setIncoming(inc);
+
+    const items = [
+      { key: 'photo', label: 'Foto de perfil', done: Boolean(p.photo_url) },
+      { key: 'bio', label: 'Bio preenchida', done: Boolean(p.bio && p.bio.length > 0) },
+      { key: 'team', label: 'Pelo menos 1 equipa', done: myTeams.length > 0 },
+      {
+        key: 'stats',
+        label: 'Sugeriste os teus atributos',
+        done: myStats.some((s) => s.votes > 0),
+      },
+      { key: 'friend', label: 'Pelo menos 1 amigo', done: friends.length > 0 },
+    ];
+    const doneCount = items.filter((it) => it.done).length;
+    setCompleteness({
+      items,
+      percent: Math.round((doneCount / items.length) * 100),
+    });
     if (myTeams.length > 0) {
       const unreadByTeam = await fetchUnreadByTeam(
         myTeams.map((t) => t.id),
@@ -167,9 +198,87 @@ export default function HomeScreen() {
               />
             </Animated.View>
 
+            {completeness && completeness.percent < 100 && (
+              <Animated.View entering={FadeInDown.delay(50).springify()}>
+                <Card variant="subtle">
+                  <View style={styles.completeHeader}>
+                    <Eyebrow>Completa o teu perfil</Eyebrow>
+                    <Text style={styles.completePercent}>
+                      {`${completeness.percent}%`}
+                    </Text>
+                  </View>
+                  <View style={styles.completeTrack}>
+                    <View
+                      style={[
+                        styles.completeFill,
+                        { width: `${completeness.percent}%` },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.completeList}>
+                    {completeness.items.map((it) => (
+                      <View key={it.key} style={styles.completeItem}>
+                        <Ionicons
+                          name={it.done ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={18}
+                          color={it.done ? colors.brand : colors.textDim}
+                        />
+                        <Text
+                          style={[
+                            styles.completeLabel,
+                            it.done && styles.completeLabelDone,
+                          ]}
+                        >
+                          {it.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={{ marginTop: 12 }}>
+                    <Button
+                      label="Continuar perfil"
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => router.push('/(app)/profile/edit')}
+                      full
+                    />
+                  </View>
+                </Card>
+              </Animated.View>
+            )}
+
+            {incoming.length > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(65).springify()}
+                style={{ marginTop: completeness && completeness.percent < 100 ? 12 : 0 }}
+              >
+                <Card
+                  variant="warning"
+                  onPress={() => router.push('/(app)/profile/friends')}
+                >
+                  <View style={styles.cardRow}>
+                    <View style={styles.requestsIcon}>
+                      <Ionicons name="person-add" size={18} color={colors.brand} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardName}>
+                        {incoming.length === 1
+                          ? `${incoming[0]!.name.split(' ')[0]} quer ser teu amigo`
+                          : `${incoming.length} novos pedidos de amizade`}
+                      </Text>
+                      <Text style={styles.cardMeta}>
+                        Tocar para responder
+                      </Text>
+                    </View>
+                    <Text style={styles.arrow}>›</Text>
+                  </View>
+                </Card>
+              </Animated.View>
+            )}
+
             {monthly && monthly.matches > 0 && (
               <Animated.View
-                entering={FadeInDown.delay(60).springify()}
+                entering={FadeInDown.delay(70).springify()}
               >
                 <Card variant="subtle">
                   <Eyebrow>Este mês</Eyebrow>
@@ -576,4 +685,54 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   chatBadgeText: { color: '#0a0a0a', fontSize: 11, fontWeight: '800' },
+  completeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  completePercent: {
+    color: colors.brand,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  completeTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+  completeFill: {
+    height: '100%',
+    backgroundColor: colors.brand,
+    borderRadius: 2,
+  },
+  completeList: { marginTop: 12, gap: 6 },
+  completeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  completeLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    flex: 1,
+    letterSpacing: -0.1,
+  },
+  completeLabelDone: {
+    color: colors.text,
+    textDecorationLine: 'line-through',
+    textDecorationColor: colors.textDim,
+  },
+  requestsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
