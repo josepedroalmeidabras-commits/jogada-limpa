@@ -449,6 +449,49 @@ export function balanceLabel(diff: number): {
   return { label: 'equilibrado', color: 'neutral' };
 }
 
+export type TeamRecord = {
+  wins: number;
+  losses: number;
+  draws: number;
+  goals_for: number;
+  goals_against: number;
+  played: number;
+};
+
+export function computeTeamRecord(
+  matches: MatchSummary[],
+  teamId: string,
+): TeamRecord {
+  const rec: TeamRecord = {
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    goals_for: 0,
+    goals_against: 0,
+    played: 0,
+  };
+  for (const m of matches) {
+    if (
+      m.status !== 'validated' ||
+      m.final_score_a === null ||
+      m.final_score_b === null
+    )
+      continue;
+    const isA = m.side_a.id === teamId;
+    const isB = m.side_b.id === teamId;
+    if (!isA && !isB) continue;
+    const own = isA ? m.final_score_a : m.final_score_b;
+    const opp = isA ? m.final_score_b : m.final_score_a;
+    rec.played += 1;
+    rec.goals_for += own;
+    rec.goals_against += opp;
+    if (own > opp) rec.wins += 1;
+    else if (own < opp) rec.losses += 1;
+    else rec.draws += 1;
+  }
+  return rec;
+}
+
 export function statusLabel(status: MatchStatus): string {
   switch (status) {
     case 'proposed':

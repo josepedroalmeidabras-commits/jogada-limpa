@@ -27,10 +27,12 @@ import {
 import { Alert } from 'react-native';
 import { Avatar } from '@/components/Avatar';
 import {
+  computeTeamRecord,
   fetchMatchesForTeam,
   formatMatchDate,
   statusLabel,
   type MatchSummary,
+  type TeamRecord,
 } from '@/lib/matches';
 
 export default function TeamDetailScreen() {
@@ -126,6 +128,8 @@ export default function TeamDetailScreen() {
             </Text>
           </View>
         </View>
+
+        <TeamStats record={computeTeamRecord(matches, team.id)} />
 
         {isCaptain && (
           <View style={styles.actions}>
@@ -269,6 +273,74 @@ export default function TeamDetailScreen() {
     </SafeAreaView>
   );
 }
+
+function TeamStats({ record }: { record: TeamRecord }) {
+  if (record.played === 0) {
+    return (
+      <Text style={teamStatStyles.empty}>Sem jogos validados ainda.</Text>
+    );
+  }
+  const gd = record.goals_for - record.goals_against;
+  const gdLabel = gd > 0 ? `+${gd}` : `${gd}`;
+  return (
+    <View style={teamStatStyles.row}>
+      <Stat label="V" value={record.wins} color="#34d399" />
+      <Stat label="E" value={record.draws} color="#fbbf24" />
+      <Stat label="D" value={record.losses} color="#f87171" />
+      <Stat label="DG" value={gdLabel} color="#ffffff" />
+      <Stat label="Jogos" value={record.played} color="#a3a3a3" />
+    </View>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  color: string;
+}) {
+  return (
+    <View style={teamStatStyles.stat}>
+      <Text style={[teamStatStyles.statValue, { color }]}>{value}</Text>
+      <Text style={teamStatStyles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const teamStatStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: 16,
+  },
+  stat: { alignItems: 'center', flex: 1 },
+  statValue: { fontSize: 20, fontWeight: '800' },
+  statLabel: {
+    color: '#737373',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  empty: {
+    color: '#737373',
+    fontSize: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+});
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0a0a0a' },
