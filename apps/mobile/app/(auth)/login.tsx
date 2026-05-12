@@ -11,7 +11,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
-import { Heading } from '@/components/Heading';
+import { Logo } from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
 
 type Mode = 'login' | 'signup';
@@ -72,10 +72,12 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.container}>
-          <Animated.View entering={FadeInDown.duration(400).springify()}>
-            <Heading level={1} style={styles.title}>
-              Jogada Limpa
-            </Heading>
+          <Animated.View
+            entering={FadeInDown.duration(400).springify()}
+            style={styles.heroBlock}
+          >
+            <Logo size="xl" />
+            <Text style={styles.eyebrow}>A CASA DO FUTEBOL DE 7</Text>
             <Text style={styles.subtitle}>
               {mode === 'login'
                 ? 'Bem-vindo de volta'
@@ -153,16 +155,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 44,
-    textAlign: 'center',
+  heroBlock: { alignItems: 'center', marginBottom: 32 },
+  eyebrow: {
+    color: '#22c55e',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginTop: 16,
   },
   subtitle: {
     color: '#a3a3a3',
     fontSize: 16,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 40,
+    marginTop: 10,
     letterSpacing: -0.2,
   },
   form: { gap: 12 },

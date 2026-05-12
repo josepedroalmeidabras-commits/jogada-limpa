@@ -99,7 +99,7 @@ export function Button({
             <ActivityIndicator
               color={
                 variant === 'primary'
-                  ? '#000000'
+                  ? '#0a0a0a'
                   : variant === 'danger'
                     ? '#f87171'
                     : '#ffffff'
@@ -151,7 +151,7 @@ const textSizeStyles = StyleSheet.create({
 
 const variantStyles = StyleSheet.create({
   primary: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#22c55e',
   },
   secondary: {
     backgroundColor: 'rgba(255,255,255,0.06)',
@@ -169,7 +169,7 @@ const variantStyles = StyleSheet.create({
 });
 
 const textVariantStyles = StyleSheet.create({
-  primary: { color: '#000000' },
+  primary: { color: '#0a0a0a' },
   secondary: { color: '#ffffff' },
   danger: { color: '#f87171' },
   ghost: { color: '#a3a3a3' },

@@ -97,14 +97,16 @@ export async function fetchUserSports(
     .select(
       `sport_id, declared_level, elo, matches_played,
        is_open_to_sub, open_until,
-       sport:sports!inner(id, name, code)`,
+       sport:sports!inner(id, name, code, is_active)`,
     )
     .eq('user_id', userId);
   if (error || !data) {
     console.error('fetchUserSports error', error);
     return [];
   }
-  return data as unknown as UserSportElo[];
+  // Hide ELO/availability for sports that are no longer active (F5/F11
+  // after the F7 pivot, padel, etc).
+  return (data as any[]).filter((r) => r.sport?.is_active) as UserSportElo[];
 }
 
 export async function setSportAvailability(
