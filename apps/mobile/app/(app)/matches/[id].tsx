@@ -480,15 +480,25 @@ export default function MatchDetailScreen() {
             />
           )}
 
-          {match.status === 'confirmed' && isCaptain && (
-            <Button
-              label="Procurar substituto"
-              variant="secondary"
-              full
-              onPress={() =>
-                router.push(`/(app)/matches/${match.id}/substitutes`)
-              }
-            />
+          {match.status === 'confirmed' && isCaptain && !match.is_internal && (
+            <>
+              <Button
+                label="Convidar substituto"
+                variant="secondary"
+                full
+                onPress={() =>
+                  router.push(`/(app)/matches/${match.id}/substitutes`)
+                }
+              />
+              <Button
+                label="🆘 Pedido aberto de substituto"
+                variant="secondary"
+                full
+                onPress={() =>
+                  router.push(`/(app)/matches/${match.id}/substitute-request`)
+                }
+              />
+            </>
           )}
 
           {(match.status === 'confirmed' || match.status === 'proposed') &&
