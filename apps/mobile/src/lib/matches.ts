@@ -395,6 +395,18 @@ export async function updateMatchNotes(
   return { ok: true };
 }
 
+export async function setMyMatchAvailability(
+  matchId: string,
+  available: boolean,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('set_my_match_availability', {
+    p_match_id: matchId,
+    p_available: available,
+  });
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
+
 export async function isMatchParticipant(
   matchId: string,
   userId: string,

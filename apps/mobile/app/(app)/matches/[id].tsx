@@ -22,6 +22,7 @@ import {
   formatMatchDate,
   isMatchParticipant,
   rejectMatch,
+  setMyMatchAvailability,
   statusLabel,
   type MatchSummary,
 } from '@/lib/matches';
@@ -64,7 +65,12 @@ export default function MatchDetailScreen() {
     const m = await fetchMatchById(id);
     setMatch(m);
     if (m && session) {
-      const needsParticipants = m.is_internal || m.status === 'validated';
+      const needsParticipants =
+        m.is_internal ||
+        m.status === 'validated' ||
+        m.status === 'proposed' ||
+        m.status === 'confirmed' ||
+        m.status === 'result_pending';
       const [part, unread, hh, ref, parts, mvpWin] = await Promise.all([
         isMatchParticipant(m.id, session.user.id),
         fetchMatchUnreadCount(m.id, session.user.id),
@@ -410,6 +416,84 @@ export default function MatchDetailScreen() {
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
+
+        {!match.is_internal &&
+          isParticipant &&
+          !isCaptain &&
+          (match.status === 'proposed' ||
+            match.status === 'confirmed' ||
+            match.status === 'result_pending') && (() => {
+          const myRow = participants.find(
+            (p) => p.user_id === session?.user.id,
+          );
+          return (
+            <Animated.View
+              entering={FadeInDown.delay(125).springify()}
+              style={styles.section}
+            >
+              <Card variant="subtle">
+                <Text style={styles.confirmTitle}>A tua presença</Text>
+                <View style={styles.confirmActions}>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label={
+                        myRow?.invitation_status === 'accepted'
+                          ? '✓ Vou'
+                          : 'Vou'
+                      }
+                      variant={
+                        myRow?.invitation_status === 'accepted'
+                          ? 'primary'
+                          : 'secondary'
+                      }
+                      size="sm"
+                      haptic="light"
+                      loading={respondBusy}
+                      onPress={async () => {
+                        setRespondBusy(true);
+                        const r = await setMyMatchAvailability(match.id, true);
+                        setRespondBusy(false);
+                        if (!r.ok) {
+                          Alert.alert('Erro', r.message);
+                          return;
+                        }
+                        await load();
+                      }}
+                      full
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Button
+                      label={
+                        myRow?.invitation_status === 'declined'
+                          ? '✗ Não vou'
+                          : 'Não vou'
+                      }
+                      variant={
+                        myRow?.invitation_status === 'declined'
+                          ? 'danger'
+                          : 'ghost'
+                      }
+                      size="sm"
+                      loading={respondBusy}
+                      onPress={async () => {
+                        setRespondBusy(true);
+                        const r = await setMyMatchAvailability(match.id, false);
+                        setRespondBusy(false);
+                        if (!r.ok) {
+                          Alert.alert('Erro', r.message);
+                          return;
+                        }
+                        await load();
+                      }}
+                      full
+                    />
+                  </View>
+                </View>
+              </Card>
+            </Animated.View>
+          );
+        })()}
 
         {match.is_internal && (() => {
           const myPart = participants.find((p) => p.user_id === session?.user.id);
