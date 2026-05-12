@@ -54,6 +54,47 @@ export async function fetchTopPlayers(
     );
 }
 
+export type RankedMvp = {
+  user_id: string;
+  name: string;
+  city: string;
+  photo_url: string | null;
+  mvp_votes: number;
+};
+
+export async function fetchTopMvps(
+  city: string | null,
+  limit = 20,
+): Promise<RankedMvp[]> {
+  const { data, error } = await supabase
+    .from('mvp_totals')
+    .select(
+      `user_id, mvp_votes,
+       profile:profiles!inner(id, name, city, photo_url, deleted_at)`,
+    )
+    .order('mvp_votes', { ascending: false })
+    .limit(limit * 2); // overfetch then filter
+
+  if (error || !data) {
+    console.error('fetchTopMvps error', error);
+    return [];
+  }
+
+  return (data as any[])
+    .filter((r) => r.profile && !r.profile.deleted_at)
+    .filter((r) => !city || r.profile.city === city)
+    .map(
+      (r): RankedMvp => ({
+        user_id: r.user_id,
+        name: r.profile.name,
+        city: r.profile.city,
+        photo_url: r.profile.photo_url,
+        mvp_votes: r.mvp_votes,
+      }),
+    )
+    .slice(0, limit);
+}
+
 export async function fetchTopTeams(
   sportId: number,
   city: string | null,

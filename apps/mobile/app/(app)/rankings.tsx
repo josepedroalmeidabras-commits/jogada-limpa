@@ -11,8 +11,10 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { fetchProfile, type Profile, fetchActiveSports, type ActiveSport } from '@/lib/profile';
 import {
+  fetchTopMvps,
   fetchTopPlayers,
   fetchTopTeams,
+  type RankedMvp,
   type RankedPlayer,
   type RankedTeam,
 } from '@/lib/rankings';
@@ -23,7 +25,7 @@ import { Card } from '@/components/Card';
 import { Skeleton } from '@/components/Skeleton';
 import { colors } from '@/theme';
 
-type Tab = 'players' | 'teams';
+type Tab = 'players' | 'teams' | 'mvps';
 
 export default function RankingsScreen() {
   const { session } = useAuth();
@@ -33,6 +35,7 @@ export default function RankingsScreen() {
   const [tab, setTab] = useState<Tab>('players');
   const [players, setPlayers] = useState<RankedPlayer[]>([]);
   const [teams, setTeams] = useState<RankedTeam[]>([]);
+  const [mvps, setMvps] = useState<RankedMvp[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -57,13 +60,15 @@ export default function RankingsScreen() {
       if (!sportId || !profile) return;
       let cancelled = false;
       (async () => {
-        const [pl, tm] = await Promise.all([
+        const [pl, tm, mv] = await Promise.all([
           fetchTopPlayers(sportId, profile.city, 20),
           fetchTopTeams(sportId, profile.city, 20),
+          fetchTopMvps(profile.city, 20),
         ]);
         if (cancelled) return;
         setPlayers(pl);
         setTeams(tm);
+        setMvps(mv);
       })();
       return () => {
         cancelled = true;
@@ -132,6 +137,19 @@ export default function RankingsScreen() {
                   Equipas
                 </Text>
               </Pressable>
+              <Pressable
+                onPress={() => setTab('mvps')}
+                style={[styles.tab, tab === 'mvps' && styles.tabActive]}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    tab === 'mvps' && styles.tabTextActive,
+                  ]}
+                >
+                  👑 MVPs
+                </Text>
+              </Pressable>
             </Animated.View>
 
             {tab === 'players' ? (
@@ -159,25 +177,50 @@ export default function RankingsScreen() {
                   </Animated.View>
                 ))
               )
-            ) : teams.length === 0 ? (
+            ) : tab === 'teams' ? (
+              teams.length === 0 ? (
+                <Card style={{ marginTop: 8 }}>
+                  <Text style={styles.muted}>
+                    Ainda não há equipas suficientes na tua cidade.
+                  </Text>
+                </Card>
+              ) : (
+                teams.map((t, i) => (
+                  <Animated.View
+                    key={t.team_id}
+                    entering={FadeInDown.delay(120 + i * 25).springify()}
+                  >
+                    <RankRow
+                      rank={i + 1}
+                      title={t.name}
+                      subtitle={`${t.member_count} membros`}
+                      photoUrl={t.photo_url}
+                      elo={Math.round(t.elo_avg)}
+                      onPress={() => router.push(`/(app)/teams/${t.team_id}`)}
+                    />
+                  </Animated.View>
+                ))
+              )
+            ) : mvps.length === 0 ? (
               <Card style={{ marginTop: 8 }}>
                 <Text style={styles.muted}>
-                  Ainda não há equipas suficientes na tua cidade.
+                  Ainda ninguém recebeu votos de MVP na tua cidade. Vai a um
+                  jogo validado e vota.
                 </Text>
               </Card>
             ) : (
-              teams.map((t, i) => (
+              mvps.map((m, i) => (
                 <Animated.View
-                  key={t.team_id}
+                  key={m.user_id}
                   entering={FadeInDown.delay(120 + i * 25).springify()}
                 >
                   <RankRow
                     rank={i + 1}
-                    title={t.name}
-                    subtitle={`${t.member_count} membros`}
-                    photoUrl={t.photo_url}
-                    elo={Math.round(t.elo_avg)}
-                    onPress={() => router.push(`/(app)/teams/${t.team_id}`)}
+                    title={m.name}
+                    subtitle={`${m.mvp_votes} voto${m.mvp_votes === 1 ? '' : 's'}`}
+                    photoUrl={m.photo_url}
+                    elo={m.mvp_votes}
+                    onPress={() => router.push(`/(app)/users/${m.user_id}`)}
                   />
                 </Animated.View>
               ))
