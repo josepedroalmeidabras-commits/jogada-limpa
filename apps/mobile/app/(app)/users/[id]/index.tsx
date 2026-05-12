@@ -46,6 +46,15 @@ import {
   totalVotes,
   type AggregateStat,
 } from '@/lib/player-stats';
+import {
+  acceptFriendRequest,
+  cancelFriendRequest,
+  declineFriendRequest,
+  fetchFriendshipStatus,
+  removeFriend,
+  sendFriendRequest,
+  type FriendshipStatus,
+} from '@/lib/friends';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
@@ -75,11 +84,13 @@ export default function PublicProfileScreen() {
   const [mvpCount, setMvpCount] = useState(0);
   const [stats, setStats] = useState<AggregateStat[]>(emptyStats());
   const [canVote, setCanVote] = useState(false);
+  const [friendStatus, setFriendStatus] = useState<FriendshipStatus>('none');
+  const [friendBusy, setFriendBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [p, s, a, h, mvp, ps, cv] = await Promise.all([
+    const [p, s, a, h, mvp, ps, cv, fs] = await Promise.all([
       fetchProfile(id),
       fetchUserSports(id),
       fetchReviewAggregate(id),
@@ -87,6 +98,7 @@ export default function PublicProfileScreen() {
       fetchMvpCount(id),
       fetchPlayerStats(id),
       canVoteOnPlayer(id),
+      isSelf ? Promise.resolve<FriendshipStatus>('none') : fetchFriendshipStatus(id),
     ]);
     setProfile(p);
     setSports(s);
@@ -94,9 +106,10 @@ export default function PublicProfileScreen() {
     setHistory(h);
     setStats(ps);
     setCanVote(cv);
+    setFriendStatus(fs);
     setMvpCount(mvp);
     setLoading(false);
-  }, [id]);
+  }, [id, isSelf]);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,6 +164,64 @@ export default function PublicProfileScreen() {
         },
       ],
     );
+  }
+
+  async function handleFriendAction() {
+    if (!profile) return;
+    setFriendBusy(true);
+    let r: { ok: true } | { ok: false; message: string };
+    if (friendStatus === 'none') {
+      r = await sendFriendRequest(profile.id);
+      if (r.ok) setFriendStatus('pending_sent');
+    } else if (friendStatus === 'pending_sent') {
+      r = await cancelFriendRequest(profile.id);
+      if (r.ok) setFriendStatus('none');
+    } else if (friendStatus === 'pending_received') {
+      r = await acceptFriendRequest(profile.id);
+      if (r.ok) {
+        setFriendStatus('friends');
+        // refresh stats vote eligibility
+        const cv = await canVoteOnPlayer(profile.id);
+        setCanVote(cv);
+      }
+    } else {
+      // already friends — confirm before removing
+      setFriendBusy(false);
+      Alert.alert('Remover amigo?', `${profile.name} deixa de ser teu amigo.`, [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            setFriendBusy(true);
+            const rr = await removeFriend(profile.id);
+            setFriendBusy(false);
+            if (!rr.ok) {
+              Alert.alert('Erro', rr.message);
+              return;
+            }
+            setFriendStatus('none');
+            const cv = await canVoteOnPlayer(profile.id);
+            setCanVote(cv);
+          },
+        },
+      ]);
+      return;
+    }
+    setFriendBusy(false);
+    if (!r.ok) Alert.alert('Erro', r.message);
+  }
+
+  async function handleDeclineRequest() {
+    if (!profile) return;
+    setFriendBusy(true);
+    const r = await declineFriendRequest(profile.id);
+    setFriendBusy(false);
+    if (!r.ok) {
+      Alert.alert('Erro', r.message);
+      return;
+    }
+    setFriendStatus('none');
   }
 
   function handleReport() {
@@ -254,6 +325,51 @@ export default function PublicProfileScreen() {
             );
           })()}
         </Animated.View>
+
+        {!isSelf && (
+          <Animated.View
+            entering={FadeInDown.delay(50).springify()}
+            style={{ marginTop: 20 }}
+          >
+            {friendStatus === 'pending_received' ? (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label="Aceitar pedido"
+                    haptic="medium"
+                    loading={friendBusy}
+                    onPress={handleFriendAction}
+                    full
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label="Recusar"
+                    variant="secondary"
+                    onPress={handleDeclineRequest}
+                    full
+                  />
+                </View>
+              </View>
+            ) : (
+              <Button
+                label={
+                  friendStatus === 'friends'
+                    ? '✓ Amigos'
+                    : friendStatus === 'pending_sent'
+                      ? 'Pedido enviado · tocar para cancelar'
+                      : '+ Adicionar amigo'
+                }
+                variant={
+                  friendStatus === 'friends' ? 'secondary' : 'primary'
+                }
+                loading={friendBusy}
+                onPress={handleFriendAction}
+                full
+              />
+            )}
+          </Animated.View>
+        )}
 
         {profile.bio && (
           <Animated.View

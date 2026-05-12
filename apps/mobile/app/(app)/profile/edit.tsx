@@ -381,6 +381,19 @@ export default function EditProfileScreen() {
 
           <Pressable
             style={[styles.linkRow, { marginTop: 8 }]}
+            onPress={() => router.push('/(app)/profile/friends')}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.linkRowLabel}>Amigos</Text>
+              <Text style={styles.linkRowHint}>
+                Vê quem é teu amigo e gere pedidos.
+              </Text>
+            </View>
+            <Text style={styles.linkRowChevron}>›</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.linkRow, { marginTop: 8 }]}
             onPress={() => router.push('/(app)/profile/blocked')}
           >
             <View style={{ flex: 1 }}>

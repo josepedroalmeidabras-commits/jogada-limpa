@@ -11,6 +11,7 @@ import Animated, {
 type Props = {
   children: ReactNode;
   onPress?: () => void;
+  onLongPress?: () => void;
   variant?: 'default' | 'subtle' | 'warning' | 'success';
   style?: any;
   haptic?: boolean;
@@ -19,6 +20,7 @@ type Props = {
 export function Card({
   children,
   onPress,
+  onLongPress,
   variant = 'default',
   style,
   haptic = true,
@@ -53,6 +55,7 @@ export function Card({
           }
           onPress();
         }}
+        onLongPress={onLongPress}
         style={[styles.base, variantStyles[variant]]}
       >
         {children}
