@@ -206,6 +206,14 @@ export default function TeamDetailScreen() {
               full
             />
             <Button
+              label="⚡ Peladinha interna"
+              variant="secondary"
+              onPress={() =>
+                router.push(`/(app)/teams/${team.id}/internal/new`)
+              }
+              full
+            />
+            <Button
               label="🔔 Publicar desafio aberto"
               variant="secondary"
               onPress={() =>

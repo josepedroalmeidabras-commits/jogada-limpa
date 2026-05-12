@@ -24,6 +24,7 @@ import {
   submitMatchSideResult,
   type MatchParticipant,
 } from '@/lib/result';
+import { submitInternalMatchResult } from '@/lib/internal-match';
 import { Screen } from '@/components/Screen';
 import { Heading } from '@/components/Heading';
 import { Button } from '@/components/Button';
@@ -101,7 +102,11 @@ export default function SubmitResultScreen() {
   }
 
   const mySide: 'A' | 'B' = isCaptainA ? 'A' : 'B';
-  const myParticipants = participants.filter((p) => p.side === mySide);
+  const isInternal = match.is_internal;
+  // For internal matches the captain manages both sides at once
+  const myParticipants = isInternal
+    ? participants
+    : participants.filter((p) => p.side === mySide);
 
   function toggleAttendance(uid: string) {
     setAttended((prev) => {
@@ -150,18 +155,25 @@ export default function SubmitResultScreen() {
       return;
     }
     setSubmitting(true);
-    const participants = myParticipants.map((p) => ({
+    const submitParticipants = myParticipants.map((p) => ({
       user_id: p.user_id,
       attended: attended.has(p.user_id),
       goals: goals[p.user_id] ?? 0,
       assists: assists[p.user_id] ?? 0,
     }));
-    const r = await submitMatchSideResult({
-      match_id: match!.id,
-      score_a: a,
-      score_b: b,
-      participants,
-    });
+    const r = isInternal
+      ? await submitInternalMatchResult({
+          match_id: match!.id,
+          score_a: a,
+          score_b: b,
+          participants: submitParticipants,
+        })
+      : await submitMatchSideResult({
+          match_id: match!.id,
+          score_a: a,
+          score_b: b,
+          participants: submitParticipants,
+        });
     setSubmitting(false);
     if (!r.ok) {
       setError(r.message);

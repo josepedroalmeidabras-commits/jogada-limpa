@@ -146,15 +146,26 @@ export default function MatchDetailScreen() {
       >
         <Animated.View entering={FadeInDown.duration(300).springify()}>
           <Card variant="subtle">
+            {match.is_internal && (
+              <View style={styles.internalBanner}>
+                <Text style={styles.internalBannerText}>
+                  ⚡ Peladinha · {match.side_a.name}
+                </Text>
+              </View>
+            )}
             <View style={styles.scoreboard}>
               <Side
-                name={match.side_a.name}
+                name={match.is_internal && match.side_a_label
+                  ? match.side_a_label
+                  : match.side_a.name}
                 score={match.final_score_a}
                 onPress={() => router.push(`/(app)/teams/${match.side_a.id}`)}
               />
               <Text style={styles.vs}>vs</Text>
               <Side
-                name={match.side_b.name}
+                name={match.is_internal && match.side_b_label
+                  ? match.side_b_label
+                  : match.side_b.name}
                 score={match.final_score_b}
                 onPress={() => router.push(`/(app)/teams/${match.side_b.id}`)}
               />
@@ -180,7 +191,7 @@ export default function MatchDetailScreen() {
           </Card>
         </Animated.View>
 
-        {h2h && h2h.played > 1 && (
+        {h2h && h2h.played > 1 && !match.is_internal && (
           <Animated.View
             entering={FadeInDown.delay(100).springify()}
             style={styles.section}
@@ -486,6 +497,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  internalBanner: {
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(34,197,94,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.3)',
+    marginBottom: 12,
+  },
+  internalBannerText: {
+    color: '#22c55e',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   section: { marginTop: 16 },
   notesHeader: {

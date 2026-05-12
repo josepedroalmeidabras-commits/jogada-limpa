@@ -28,6 +28,9 @@ export type MatchSummary = {
   proposed_by: string;
   final_score_a: number | null;
   final_score_b: number | null;
+  is_internal: boolean;
+  side_a_label: string | null;
+  side_b_label: string | null;
   side_a: TeamLite;
   side_b: TeamLite;
 };
@@ -50,6 +53,7 @@ function unwrapSides(raw: any[]): { a: TeamLite | null; b: TeamLite | null } {
 const MATCH_SELECT = `
   id, sport_id, scheduled_at, status, location_name, location_tbd,
   message, notes, proposed_by, final_score_a, final_score_b,
+  is_internal, side_a_label, side_b_label,
   sides:match_sides!inner(
     side,
     team:teams!inner(id, name, city, captain_id)
@@ -145,6 +149,9 @@ export async function fetchMatchesForUser(
         location_tbd: m.location_tbd,
         message: m.message,
         notes: m.notes ?? null,
+        is_internal: Boolean(m.is_internal),
+        side_a_label: m.side_a_label ?? null,
+        side_b_label: m.side_b_label ?? null,
         proposed_by: m.proposed_by,
         final_score_a: m.final_score_a,
         final_score_b: m.final_score_b,
@@ -195,6 +202,9 @@ export async function fetchMatchesForTeam(
         location_tbd: m.location_tbd,
         message: m.message,
         notes: m.notes ?? null,
+        is_internal: Boolean(m.is_internal),
+        side_a_label: m.side_a_label ?? null,
+        side_b_label: m.side_b_label ?? null,
         proposed_by: m.proposed_by,
         final_score_a: m.final_score_a,
         final_score_b: m.final_score_b,
@@ -230,6 +240,9 @@ export async function fetchMatchById(
     location_tbd: m.location_tbd,
     message: m.message,
     notes: m.notes ?? null,
+    is_internal: Boolean(m.is_internal),
+    side_a_label: m.side_a_label ?? null,
+    side_b_label: m.side_b_label ?? null,
     proposed_by: m.proposed_by,
     final_score_a: m.final_score_a,
     final_score_b: m.final_score_b,
