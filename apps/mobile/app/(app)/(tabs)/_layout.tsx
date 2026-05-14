@@ -129,9 +129,14 @@ const styles = StyleSheet.create({
     height: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
+  // Compensar o padding interno transparente do PNG do crest.
+  // Os Ionicons das outras tabs renderizam o glyph quase ao limite do bbox,
+  // o crest tem ~30% de margem dentro do PNG. Escalamos para casar
+  // visualmente com os outros ícones a 24px nominais.
   logoImg: {
-    width: 30,
-    height: 30,
+    width: 42,
+    height: 42,
   },
 });
