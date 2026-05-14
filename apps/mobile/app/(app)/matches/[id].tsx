@@ -948,10 +948,9 @@ export default function MatchDetailScreen() {
           )}
 
           {match.status === 'confirmed' && (
-            <Button
-              label="📅 Adicionar ao calendário"
-              variant="secondary"
-              full
+            <ActionRow
+              icon="calendar-outline"
+              label="Adicionar ao calendário"
               onPress={async () => {
                 const r = await addMatchToCalendar({
                   title: `${match.side_a.name} vs ${match.side_b.name}`,
@@ -968,18 +967,16 @@ export default function MatchDetailScreen() {
 
           {match.status === 'confirmed' && isCaptain && (
             <>
-              <Button
+              <ActionRow
+                icon="person-add-outline"
                 label="Convidar substituto"
-                variant="secondary"
-                full
                 onPress={() =>
                   router.push(`/(app)/matches/${match.id}/substitutes`)
                 }
               />
-              <Button
-                label="🆘 Pedido aberto de substituto"
-                variant="secondary"
-                full
+              <ActionRow
+                icon="megaphone-outline"
+                label="Pedido aberto de substituto"
                 onPress={() =>
                   router.push(`/(app)/matches/${match.id}/substitute-request`)
                 }
@@ -989,10 +986,9 @@ export default function MatchDetailScreen() {
 
           {(match.status === 'confirmed' || match.status === 'proposed') &&
             isCaptain && (
-              <Button
-                label="📅 Remarcar"
-                variant="secondary"
-                full
+              <ActionRow
+                icon="time-outline"
+                label="Remarcar"
                 onPress={() =>
                   router.push(`/(app)/matches/${match.id}/reschedule`)
                 }
@@ -1230,6 +1226,32 @@ function InfoRow({
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value}</Text>
     </View>
+  );
+}
+
+function ActionRow({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionRow,
+        pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+      ]}
+    >
+      <View style={styles.actionIcon}>
+        <Ionicons name={icon} size={18} color={colors.brand} />
+      </View>
+      <Text style={styles.actionLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+    </Pressable>
   );
 }
 
@@ -1699,6 +1721,34 @@ const styles = StyleSheet.create({
   },
   infoValue: { color: '#ffffff', fontSize: 15, letterSpacing: -0.2 },
   actions: { marginTop: 24, gap: 8 },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+  },
+  actionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+  },
+  actionLabel: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
   error: {
     color: '#f87171',
     textAlign: 'center',
