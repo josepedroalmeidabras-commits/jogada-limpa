@@ -1,6 +1,14 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from './Avatar';
+import { AnimatedNumber } from './AnimatedNumber';
 import { FormStrip, type FormResult } from './FormStrip';
 import { formatDisplayName, type Profile, type Foot } from '@/lib/profile';
 
@@ -134,7 +142,29 @@ export function PlayerFUTCard({
           : 'JOG';
   const tier = inForm ? IN_FORM_TIER : tierFor(overall);
 
+  // Entry animation: scale + opacity, custom ease-out (Emil's curve), ~320ms.
+  // Card é o centerpiece do perfil — moment de revelação.
+  const entryScale = useSharedValue(0.94);
+  const entryOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    entryScale.value = withTiming(1, {
+      duration: 320,
+      easing: Easing.bezier(0.23, 1, 0.32, 1),
+    });
+    entryOpacity.value = withTiming(1, {
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [entryScale, entryOpacity]);
+
+  const entryStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: entryScale.value }],
+    opacity: entryOpacity.value,
+  }));
+
   const inner = (
+   <Animated.View style={entryStyle}>
     <LinearGradient
       colors={tier.gradient}
       start={{ x: 0, y: 0 }}
@@ -144,9 +174,15 @@ export function PlayerFUTCard({
         {/* Top row: rating block + flag */}
         <View style={styles.topRow}>
           <View style={styles.ratingBlock}>
-            <Text style={[styles.overall, { color: overallColor }]}>
-              {overall > 0 ? overall : '—'}
-            </Text>
+            {overall > 0 ? (
+              <AnimatedNumber
+                value={overall}
+                duration={520}
+                style={[styles.overall, { color: overallColor }]}
+              />
+            ) : (
+              <Text style={[styles.overall, { color: overallColor }]}>—</Text>
+            )}
             <View
               style={[
                 styles.positionBadge,
@@ -208,16 +244,24 @@ export function PlayerFUTCard({
 
         {/* Stats grid 2 cols x 3 rows */}
         <View style={styles.statsGrid}>
-          {cats.map((cat) => {
+          {cats.map((cat, i) => {
             const stat = displayStats.find((s) => s.category === cat);
             const value = stat?.value ?? 0;
             const hasVotes = (stat?.votes ?? 0) > 0;
             const color = hasVotes ? ratingColor(value) : colors.textDim;
+            // Stagger 60ms entre stats — sweep effect tipo FIFA card reveal
             return (
               <View key={cat} style={styles.statCell}>
-                <Text style={[styles.statValue, { color }]}>
-                  {hasVotes ? value : '—'}
-                </Text>
+                {hasVotes ? (
+                  <AnimatedNumber
+                    value={value}
+                    duration={420}
+                    delay={120 + i * 60}
+                    style={[styles.statValue, { color }]}
+                  />
+                ) : (
+                  <Text style={[styles.statValue, { color }]}>—</Text>
+                )}
                 <Text style={styles.statShort}>{STAT_SHORT[cat]}</Text>
               </View>
             );
@@ -252,6 +296,7 @@ export function PlayerFUTCard({
           <View style={{ width: tier.name ? 50 : 0 }} />
         </View>
       </LinearGradient>
+    </Animated.View>
   );
 
   const outerStyle = inForm

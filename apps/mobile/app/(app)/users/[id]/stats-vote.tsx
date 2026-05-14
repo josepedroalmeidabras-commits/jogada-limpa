@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import {
@@ -358,22 +358,29 @@ export default function StatsVoteScreen() {
                 )}
 
                 {current !== undefined && (
-                  <Text style={styles.summary}>
-                    <Text
-                      style={{
-                        color: ratingColor(current),
-                        fontWeight: '800',
-                      }}
-                    >
-                      {current}
-                    </Text>
-                    {`  · ${ratingLabel(current)}`}
-                    {myVotes[cat] !== undefined && myVotes[cat] !== current && (
-                      <Text style={{ color: colors.textDim }}>
-                        {`  (antes ${myVotes[cat]})`}
-                      </Text>
+                  <Animated.View
+                    key={current}
+                    entering={FadeIn.duration(160).easing(
+                      Easing.bezier(0.23, 1, 0.32, 1),
                     )}
-                  </Text>
+                  >
+                    <Text style={styles.summary}>
+                      <Text
+                        style={{
+                          color: ratingColor(current),
+                          fontWeight: '800',
+                        }}
+                      >
+                        {current}
+                      </Text>
+                      {`  · ${ratingLabel(current)}`}
+                      {myVotes[cat] !== undefined && myVotes[cat] !== current && (
+                        <Text style={{ color: colors.textDim }}>
+                          {`  (antes ${myVotes[cat]})`}
+                        </Text>
+                      )}
+                    </Text>
+                  </Animated.View>
                 )}
               </Card>
             </Animated.View>
