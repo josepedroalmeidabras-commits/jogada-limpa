@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import {
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -89,10 +87,6 @@ export default function LoginScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <TouchableWithoutFeedback
-          onPress={Keyboard.dismiss}
-          accessible={false}
-        >
         <View style={styles.container}>
           <Animated.View
             entering={FadeInDown.duration(400).springify()}
@@ -209,7 +203,6 @@ export default function LoginScreen() {
             </Pressable>
           </Animated.View>
         </View>
-        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </Screen>
   );
