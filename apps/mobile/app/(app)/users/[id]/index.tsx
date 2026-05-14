@@ -486,16 +486,9 @@ export default function PublicProfileScreen() {
                 <View style={styles.voteCtaIconWrap}>
                   <Ionicons name="star" size={20} color="#0E1812" />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.voteCtaTitle}>
-                    {isSelf ? 'Sugerir os meus atributos' : 'Votar nos atributos'}
-                  </Text>
-                  <Text style={styles.voteCtaSub}>
-                    {isSelf
-                      ? 'Define o teu baseline FUT'
-                      : '+ / = / − em cada categoria'}
-                  </Text>
-                </View>
+                <Text style={[styles.voteCtaTitle, { flex: 1 }]}>
+                  {isSelf ? 'Sugerir os meus atributos' : 'Votar atributos'}
+                </Text>
                 <Ionicons name="chevron-forward" size={20} color="#0E1812" />
               </LinearGradient>
             </Pressable>
