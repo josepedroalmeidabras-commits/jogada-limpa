@@ -708,75 +708,62 @@ export type PendingReview = {
 export async function fetchPendingReviewsForUser(
   userId: string,
 ): Promise<PendingReview[]> {
-  // matches where I participated + validated
-  const { data: parts, error } = await supabase
-    .from('match_participants')
+  // Após migration 0082: reviews individuais entre colegas deixaram de
+  // existir no fluxo. Só capitão da side avalia a equipa adversária em
+  // jogos AMIGÁVEIS (is_internal=false). Peladinhas internas não têm
+  // team-review.
+  const { data: caps, error } = await supabase
+    .from('match_sides')
     .select(
-      `match_id, side,
-       match:matches!inner(
-         id, scheduled_at, status,
+      `match_id, side, team_id,
+       match:matches!inner(id, scheduled_at, status, is_internal,
          sides:match_sides!inner(side, team:teams!inner(id, name))
        )`,
     )
-    .eq('user_id', userId)
-    .in('attendance', ['attended', 'substitute_in']);
+    .eq('captain_id', userId);
 
-  if (error || !parts) {
+  if (error || !caps) {
     console.error('fetchPendingReviewsForUser error', error);
     return [];
   }
 
-  const validated = (parts as any[]).filter(
-    (p) => p.match?.status === 'validated',
+  // Filtrar para jogos validados + não-internal
+  const validated = (caps as any[]).filter(
+    (c) => c.match?.status === 'validated' && c.match?.is_internal === false,
   );
   if (validated.length === 0) return [];
 
-  const matchIds = validated.map((p) => p.match_id);
-
-  // count other participants per match
-  const { data: allParts } = await supabase
-    .from('match_participants')
-    .select('match_id, user_id')
-    .in('match_id', matchIds)
-    .in('attendance', ['attended', 'substitute_in']);
-
-  // count reviews I already submitted
-  const { data: myReviews } = await supabase
-    .from('reviews')
-    .select('match_id, reviewed_id')
+  // Reviews de equipa já submetidas por este capitão
+  const matchIds = validated.map((c) => c.match_id);
+  const { data: doneReviews } = await supabase
+    .from('team_reviews')
+    .select('match_id, reviewed_team_id')
     .in('match_id', matchIds)
     .eq('reviewer_id', userId);
 
-  const partsByMatch = new Map<string, Set<string>>();
-  for (const p of allParts ?? []) {
-    const set = partsByMatch.get(p.match_id) ?? new Set();
-    set.add(p.user_id);
-    partsByMatch.set(p.match_id, set);
-  }
-  const reviewedByMatch = new Map<string, Set<string>>();
-  for (const r of myReviews ?? []) {
-    const set = reviewedByMatch.get(r.match_id) ?? new Set();
-    set.add(r.reviewed_id);
-    reviewedByMatch.set(r.match_id, set);
+  const doneByMatch = new Map<string, Set<string>>();
+  for (const r of doneReviews ?? []) {
+    const set = doneByMatch.get(r.match_id) ?? new Set();
+    set.add(r.reviewed_team_id);
+    doneByMatch.set(r.match_id, set);
   }
 
   return validated
-    .map((p): PendingReview | null => {
-      const m = p.match;
+    .map((c): PendingReview | null => {
+      const m = c.match;
       const a = (m.sides as any[]).find((s) => s.side === 'A')?.team;
       const b = (m.sides as any[]).find((s) => s.side === 'B')?.team;
       if (!a || !b) return null;
-      const allOthers = new Set(partsByMatch.get(m.id) ?? []);
-      allOthers.delete(userId);
-      const reviewed = reviewedByMatch.get(m.id) ?? new Set();
-      const pending = [...allOthers].filter((id) => !reviewed.has(id));
-      if (pending.length === 0) return null;
+      // Equipa adversária à minha (a que devo avaliar)
+      const opponentTeamId = c.side === 'A' ? b.id : a.id;
+      const done = doneByMatch.get(m.id) ?? new Set();
+      if (done.has(opponentTeamId)) return null;
       return {
         match_id: m.id,
         scheduled_at: m.scheduled_at,
         side_a_name: a.name,
         side_b_name: b.name,
-        others_to_review: pending.length,
+        others_to_review: 1,
       };
     })
     .filter((p): p is PendingReview => p !== null);
