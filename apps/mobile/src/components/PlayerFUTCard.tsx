@@ -4,11 +4,11 @@ import { Avatar } from './Avatar';
 import { FormStrip, type FormResult } from './FormStrip';
 import { formatDisplayName, type Profile, type Foot } from '@/lib/profile';
 
-// FIFA-style foot badge: L (esquerdo), R (direito), B (ambidextro)
+// FIFA-style foot badge — letras em pt-PT: E (Esquerdo), D (Direito), A (Ambidestro)
 const FOOT_BADGE: Record<Foot, string> = {
-  left: 'L',
-  right: 'R',
-  both: 'B',
+  left: 'E',
+  right: 'D',
+  both: 'A',
 };
 import {
   categoriesForPosition,

@@ -21,7 +21,6 @@ import {
   ratingColor,
   ratingLabel,
   setStatVote,
-  STAT_ICONS,
   STAT_LABELS,
   type StatCategory,
 } from '@/lib/player-stats';
@@ -29,7 +28,6 @@ import { fetchPreferredPosition } from '@/lib/reviews';
 import { useAuth } from '@/providers/auth';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
-import { Eyebrow } from '@/components/Heading';
 import { Button } from '@/components/Button';
 import { PlayerFUTCard } from '@/components/PlayerFUTCard';
 import { colors } from '@/theme';
@@ -244,9 +242,7 @@ export default function StatsVoteScreen() {
               style={styles.section}
             >
               <View style={styles.sectionHeader}>
-                <Eyebrow>
-                  {`${STAT_ICONS[cat]}  ${STAT_LABELS[cat]}`}
-                </Eyebrow>
+                <Text style={styles.catName}>{STAT_LABELS[cat]}</Text>
                 {!isSelf && aggValue > 0 && (
                   <Text style={styles.aggValue}>
                     {`atual: `}
@@ -450,6 +446,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
+  },
+  catName: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
   aggValue: {
     color: colors.textDim,
