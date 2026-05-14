@@ -1,9 +1,5 @@
 import { type ReactNode } from 'react';
-import {
-  Keyboard,
-  StyleSheet,
-  TouchableWithoutFeedback,
-} from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -13,25 +9,19 @@ type Props = {
 };
 
 /**
- * Reusable dark Screen wrapper. Faz fade-in on mount + dismiss do teclado
- * ao tocar fora de qualquer TextInput (presses em Pressables/Buttons
- * filhos continuam a funcionar — TouchableWithoutFeedback só dispara em
- * áreas vazias).
+ * Reusable dark Screen wrapper com fade-in on mount.
+ * (Keyboard dismiss-on-tap-outside fica nos ecrãs que precisam — para
+ * não interferir com gestos de scroll noutros sítios.)
  */
 export function Screen({ children, edges }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
-      <TouchableWithoutFeedback
-        onPress={Keyboard.dismiss}
-        accessible={false}
+      <Animated.View
+        entering={FadeIn.duration(300).springify().damping(20)}
+        style={styles.inner}
       >
-        <Animated.View
-          entering={FadeIn.duration(300).springify().damping(20)}
-          style={styles.inner}
-        >
-          {children}
-        </Animated.View>
-      </TouchableWithoutFeedback>
+        {children}
+      </Animated.View>
     </SafeAreaView>
   );
 }
