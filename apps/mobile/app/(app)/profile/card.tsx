@@ -21,7 +21,6 @@ import {
   fetchPlayerStats,
   overallRating,
   ratingColor,
-  STAT_ICONS,
   STAT_LABELS,
   type AggregateStat,
   type StatCategory,
@@ -241,8 +240,8 @@ function StatRow({
   const pct = Math.max(0, Math.min(99, value)) / 99;
   return (
     <View style={styles.statRow}>
-      <Text style={styles.statLabel}>
-        {`${STAT_ICONS[category]}  ${STAT_LABELS[category]}`}
+      <Text style={styles.statLabel} numberOfLines={1}>
+        {STAT_LABELS[category]}
       </Text>
       <View style={styles.statBarWrap}>
         <View style={styles.statTrack}>
@@ -358,12 +357,12 @@ const styles = StyleSheet.create({
   statsBlock: { marginTop: 18, gap: 8 },
   statRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statLabel: {
-    flex: 1.2,
+    flex: 1.5,
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
   },
-  statBarWrap: { flex: 1.5 },
+  statBarWrap: { flex: 1.2 },
   statTrack: {
     height: 6,
     borderRadius: 3,
