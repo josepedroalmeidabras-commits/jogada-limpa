@@ -666,7 +666,7 @@ export async function fetchPendingChallengesForUser(
     .select(
       `side, captain_id,
        match:matches!inner(
-         id, scheduled_at, status, location_name, location_tbd,
+         id, scheduled_at, status, location_name, location_tbd, proposed_by,
          sides:match_sides!inner(side, team:teams!inner(id, name, city, captain_id, photo_url))
        )`,
     )
@@ -678,7 +678,13 @@ export async function fetchPendingChallengesForUser(
   }
 
   return (data as any[])
-    .filter((row) => row.match?.status === 'proposed')
+    .filter((row) => {
+      const m = row.match;
+      if (!m || m.status !== 'proposed') return false;
+      // Exclui matches que EU propus — só "convites" recebidos contam.
+      if (m.proposed_by === userId) return false;
+      return true;
+    })
     .map((row): PendingChallenge | null => {
       const m = row.match;
       const mySide = row.side as 'A' | 'B';
