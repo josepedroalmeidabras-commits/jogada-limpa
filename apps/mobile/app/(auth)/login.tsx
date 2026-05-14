@@ -92,8 +92,8 @@ export default function LoginScreen() {
             entering={FadeInDown.duration(400).springify()}
             style={styles.heroBlock}
           >
-            <LogoMark size={96} />
-            <View style={{ marginTop: 16 }}>
+            <LogoMark size={160} />
+            <View style={{ marginTop: 12 }}>
               <Logo size="xl" />
             </View>
             <Text style={styles.subtitle}>
