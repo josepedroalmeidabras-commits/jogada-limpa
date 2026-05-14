@@ -93,7 +93,7 @@ export default function LoginScreen() {
             style={styles.heroBlock}
           >
             <LogoMark size={160} />
-            <View style={{ marginTop: 12 }}>
+            <View style={{ marginTop: -24 }}>
               <Logo size="xl" />
             </View>
             <Text style={styles.subtitle}>

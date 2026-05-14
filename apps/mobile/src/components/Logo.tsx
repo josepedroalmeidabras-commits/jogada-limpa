@@ -30,15 +30,6 @@ export function Logo({ size = 'md', alignment = 'center' }: Props) {
         <Text style={[styles.word, { fontSize: fs }]}>
           S<Text style={styles.seven}>7</Text>VN
         </Text>
-        <View
-          style={[
-            styles.underline,
-            {
-              width: fs * 0.9,
-              marginTop: Math.round(fs * 0.12),
-            },
-          ]}
-        />
       </View>
     </View>
   );
