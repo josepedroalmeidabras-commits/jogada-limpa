@@ -311,44 +311,54 @@ export default function StatsVoteScreen() {
                   </View>
                 ) : (
                   // FRIEND MODE — ainda não votei esta época
-                  <View style={styles.suggestRow}>
-                    <Pressable
-                      onPress={() => suggest(cat, -DELTA)}
-                      style={[
-                        styles.suggestBtn,
-                        current !== undefined &&
-                          current < (myVotes[cat] ?? aggValue) &&
-                          styles.suggestBtnDown,
-                      ]}
-                    >
-                      <Text style={styles.suggestIcon}>−</Text>
-                      <Text style={styles.suggestLabel}>Pior</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => suggest(cat, 0)}
-                      style={[
-                        styles.suggestBtn,
-                        current !== undefined &&
-                          current === (myVotes[cat] ?? aggValue) &&
-                          styles.suggestBtnEq,
-                      ]}
-                    >
-                      <Text style={styles.suggestIcon}>=</Text>
-                      <Text style={styles.suggestLabel}>Igual</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => suggest(cat, DELTA)}
-                      style={[
-                        styles.suggestBtn,
-                        current !== undefined &&
-                          current > (myVotes[cat] ?? aggValue) &&
-                          styles.suggestBtnUp,
-                      ]}
-                    >
-                      <Text style={styles.suggestIcon}>+</Text>
-                      <Text style={styles.suggestLabel}>Melhor</Text>
-                    </Pressable>
-                  </View>
+                  (() => {
+                    // Baseline IGUAL ao usado em suggest() — sem isto, quando
+                    // o jogador não tem agregado (aggValue=0) suggest usa 50
+                    // como fallback mas a comparação caía em "current > 0"
+                    // e destacava sempre o "+".
+                    const baseline =
+                      myVotes[cat] ?? (aggValue > 0 ? aggValue : 50);
+                    return (
+                      <View style={styles.suggestRow}>
+                        <Pressable
+                          onPress={() => suggest(cat, -DELTA)}
+                          style={[
+                            styles.suggestBtn,
+                            current !== undefined &&
+                              current < baseline &&
+                              styles.suggestBtnDown,
+                          ]}
+                        >
+                          <Text style={styles.suggestIcon}>−</Text>
+                          <Text style={styles.suggestLabel}>Pior</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => suggest(cat, 0)}
+                          style={[
+                            styles.suggestBtn,
+                            current !== undefined &&
+                              current === baseline &&
+                              styles.suggestBtnEq,
+                          ]}
+                        >
+                          <Text style={styles.suggestIcon}>=</Text>
+                          <Text style={styles.suggestLabel}>Igual</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => suggest(cat, DELTA)}
+                          style={[
+                            styles.suggestBtn,
+                            current !== undefined &&
+                              current > baseline &&
+                              styles.suggestBtnUp,
+                          ]}
+                        >
+                          <Text style={styles.suggestIcon}>+</Text>
+                          <Text style={styles.suggestLabel}>Melhor</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })()
                 )}
 
                 {current !== undefined && (
