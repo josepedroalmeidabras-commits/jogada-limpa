@@ -10,8 +10,13 @@ import {
 } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  Easing,
   FadeOutUp,
   SlideInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -118,7 +123,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <Animated.View
             key={t.id}
-            entering={SlideInUp.duration(260).springify().damping(18)}
+            entering={SlideInUp.duration(220).easing(
+              Easing.bezier(0.23, 1, 0.32, 1),
+            )}
             exiting={FadeOutUp.duration(180)}
             style={styles.toastWrap}
           >
@@ -132,18 +139,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   { borderColor: TYPE_BORDER[t.type] },
                 ]}
               >
-                <View
-                  style={[
-                    styles.iconRing,
-                    { borderColor: TYPE_BORDER[t.type] },
-                  ]}
-                >
-                  <Ionicons
-                    name={TYPE_ICON[t.type]}
-                    size={18}
-                    color={TYPE_ACCENT[t.type]}
-                  />
-                </View>
+                <ToastIconRing type={t.type} />
                 <Text style={styles.message} numberOfLines={3}>
                   {t.message}
                 </Text>
@@ -153,6 +149,38 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         ))}
       </View>
     </Ctx.Provider>
+  );
+}
+
+function ToastIconRing({ type }: { type: ToastType }) {
+  // Subtle "look at me" scale-up no enter: 1 → 1.12 → 1 em ~600ms.
+  // Emil's principle: rare moments podem ter delight extra.
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withSequence(
+      withTiming(1.12, {
+        duration: 220,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      withTiming(1, {
+        duration: 380,
+        easing: Easing.bezier(0.23, 1, 0.32, 1),
+      }),
+    );
+  }, [scale]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Animated.View
+      style={[
+        styles.iconRing,
+        { borderColor: TYPE_BORDER[type] },
+        animatedStyle,
+      ]}
+    >
+      <Ionicons name={TYPE_ICON[type]} size={18} color={TYPE_ACCENT[type]} />
+    </Animated.View>
   );
 }
 

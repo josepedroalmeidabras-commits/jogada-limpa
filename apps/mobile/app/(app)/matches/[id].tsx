@@ -1193,7 +1193,7 @@ function ActionRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.actionRow,
-        pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+        pressed && { transform: [{ scale: 0.97 }] },
       ]}
     >
       <View style={styles.actionIcon}>

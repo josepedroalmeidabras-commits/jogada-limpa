@@ -1,5 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -71,7 +71,9 @@ export function MatchKindSheet({
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Animated.View
-          entering={FadeInUp.duration(280).springify()}
+          entering={FadeInUp.duration(320).easing(
+            Easing.bezier(0.32, 0.72, 0, 1),
+          )}
           style={styles.sheetWrap}
           // Stop propagation — taps on sheet shouldn't close
           onStartShouldSetResponder={() => true}
