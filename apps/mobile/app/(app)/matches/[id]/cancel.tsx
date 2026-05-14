@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,7 +16,15 @@ import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { Heading, Eyebrow } from '@/components/Heading';
 import { Button } from '@/components/Button';
+import { ConfirmSheet, type ConfirmOption } from '@/components/ConfirmSheet';
+import { useToast } from '@/components/Toast';
 import { colors } from '@/theme';
+
+type ConfirmConfig = {
+  title: string;
+  subtitle?: string;
+  options: ConfirmOption[];
+};
 
 const PRESET_REASONS = [
   'Sem jogadores suficientes',
@@ -33,33 +40,37 @@ export default function CancelMatchScreen() {
   const [reason, setReason] = useState<string | null>(null);
   const [custom, setCustom] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmConfig | null>(null);
+  const { showToast } = useToast();
 
   const finalReason = reason ?? custom.trim();
   const canSubmit = finalReason.length >= 4;
 
   async function handleSubmit() {
     if (!id || !canSubmit) return;
-    Alert.alert(
-      'Cancelar este jogo?',
-      'A outra equipa vai ser notificada. Não pode ser desfeito.',
-      [
-        { text: 'Voltar', style: 'cancel' },
+    setConfirm({
+      title: 'Cancelar este jogo?',
+      subtitle: 'A outra equipa vai ser notificada. Não pode ser desfeito.',
+      options: [
         {
-          text: 'Cancelar jogo',
-          style: 'destructive',
+          label: 'Cancelar jogo',
+          tone: 'danger' as const,
+          icon: 'close-circle' as const,
           onPress: async () => {
+            setConfirm(null);
             setSubmitting(true);
             const r = await cancelConfirmedMatch(id, finalReason);
             setSubmitting(false);
             if (!r.ok) {
-              Alert.alert('Erro', r.message);
+              showToast(r.message, { type: 'error' });
               return;
             }
+            showToast('Jogo cancelado.', { type: 'success' });
             router.back();
           },
         },
       ],
-    );
+    });
   }
 
   return (
@@ -153,6 +164,13 @@ export default function CancelMatchScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <ConfirmSheet
+        visible={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={confirm?.title ?? ''}
+        subtitle={confirm?.subtitle}
+        options={confirm?.options ?? []}
+      />
     </Screen>
   );
 }

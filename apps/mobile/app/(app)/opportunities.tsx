@@ -1,8 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActionSheetIOS,
-  Alert,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -34,7 +31,15 @@ import { Card } from '@/components/Card';
 import { Heading, Eyebrow } from '@/components/Heading';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import { ConfirmSheet, type ConfirmOption } from '@/components/ConfirmSheet';
+import { useToast } from '@/components/Toast';
 import { colors } from '@/theme';
+
+type ConfirmConfig = {
+  title: string;
+  subtitle?: string;
+  options: ConfirmOption[];
+};
 
 type Tab = 'challenges' | 'subs';
 
@@ -49,6 +54,8 @@ export default function OpportunitiesScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmConfig | null>(null);
+  const { showToast } = useToast();
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -89,111 +96,114 @@ export default function OpportunitiesScreen() {
     const r = await acceptOpenRequest(req.id, myTeamId, req.created_by, myTeam?.name);
     setBusy(null);
     if (!r.ok) {
-      Alert.alert('Erro', r.message);
+      showToast(r.message, { type: 'error' });
       return;
     }
-    Alert.alert('Desafio aceite!', 'O jogo está confirmado.', [
-      { text: 'Ver jogo', onPress: () => router.push(`/(app)/matches/${r.match_id}`) },
-    ]);
+    showToast('Desafio aceite. O jogo está confirmado.', { type: 'success' });
+    router.push(`/(app)/matches/${r.match_id}`);
   }
 
   function handleAcceptChallenge(req: OpenRequest) {
     const eligible = myCaptainTeams.filter((t) => t.sport_id === req.sport_id);
     if (eligible.length === 0) {
-      Alert.alert('Sem equipas elegíveis', 'Tens de ser capitão de uma equipa do mesmo desporto.');
+      showToast('Tens de ser capitão de uma equipa do mesmo desporto.', {
+        type: 'error',
+      });
       return;
     }
     if (eligible.length === 1) {
       runAcceptChallenge(req, eligible[0]!.id);
       return;
     }
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: 'Aceitar com qual equipa?',
-          options: [...eligible.map((t) => t.name), 'Cancelar'],
-          cancelButtonIndex: eligible.length,
+    setConfirm({
+      title: 'Aceitar com qual equipa?',
+      subtitle: 'Escolhe a equipa que vai entrar neste desafio.',
+      options: eligible.map((t) => ({
+        label: t.name,
+        icon: 'shield' as const,
+        onPress: () => {
+          setConfirm(null);
+          runAcceptChallenge(req, t.id);
         },
-        (idx) => {
-          if (idx >= 0 && idx < eligible.length) {
-            runAcceptChallenge(req, eligible[idx]!.id);
-          }
-        },
-      );
-    } else {
-      Alert.alert('Aceitar desafio', 'Escolhe a equipa:', [
-        ...eligible.map((t) => ({
-          text: t.name,
-          onPress: () => runAcceptChallenge(req, t.id),
-        })),
-        { text: 'Cancelar', style: 'cancel' as const },
-      ]);
-    }
+      })),
+    });
   }
 
-  async function handleAcceptSub(sub: SubstituteRequest) {
-    Alert.alert(
-      'Aceitar como substituto?',
-      `Entras em ${sub.team?.name ?? 'esta equipa'} para o jogo de ${sub.match ? formatRelativeMatchDate(sub.match.scheduled_at) : ''}.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
+  function handleAcceptSub(sub: SubstituteRequest) {
+    setConfirm({
+      title: 'Aceitar como substituto?',
+      subtitle: `Entras em ${sub.team?.name ?? 'esta equipa'} para o jogo de ${sub.match ? formatRelativeMatchDate(sub.match.scheduled_at) : ''}.`,
+      options: [
         {
-          text: 'Aceitar',
+          label: 'Aceitar e entrar no jogo',
+          icon: 'checkmark-circle' as const,
           onPress: async () => {
+            setConfirm(null);
             setBusy(sub.id);
             const r = await acceptSubstituteRequest(sub.id);
             setBusy(null);
             if (!r.ok) {
-              Alert.alert('Erro', r.message);
+              showToast(r.message, { type: 'error' });
               return;
             }
-            Alert.alert('Aceite!', 'Estás no jogo.', [
-              { text: 'Ver jogo', onPress: () => router.push(`/(app)/matches/${r.match_id}`) },
-            ]);
+            showToast('Estás no jogo!', { type: 'success' });
+            router.push(`/(app)/matches/${r.match_id}`);
           },
         },
       ],
-    );
+    });
   }
 
   function handleCancelChallenge(req: OpenRequest) {
-    Alert.alert('Cancelar este desafio?', 'Sai da lista para os outros.', [
-      { text: 'Voltar', style: 'cancel' },
-      {
-        text: 'Cancelar desafio',
-        style: 'destructive',
-        onPress: async () => {
-          setBusy(req.id);
-          const r = await cancelOpenRequest(req.id);
-          setBusy(null);
-          if (!r.ok) {
-            Alert.alert('Erro', r.message);
-            return;
-          }
-          setChallenges((prev) => prev.filter((x) => x.id !== req.id));
+    setConfirm({
+      title: 'Cancelar este desafio?',
+      subtitle: 'Sai da lista para os outros.',
+      options: [
+        {
+          label: 'Cancelar desafio',
+          tone: 'danger' as const,
+          icon: 'close-circle' as const,
+          onPress: async () => {
+            setConfirm(null);
+            setBusy(req.id);
+            const r = await cancelOpenRequest(req.id);
+            setBusy(null);
+            if (!r.ok) {
+              showToast(r.message, { type: 'error' });
+              return;
+            }
+            setChallenges((prev) => prev.filter((x) => x.id !== req.id));
+            showToast('Desafio cancelado.', { type: 'success' });
+          },
         },
-      },
-    ]);
+      ],
+    });
   }
 
   function handleCancelSub(sub: SubstituteRequest) {
-    Alert.alert('Cancelar pedido?', 'Sai da lista para os outros.', [
-      { text: 'Voltar', style: 'cancel' },
-      {
-        text: 'Cancelar',
-        style: 'destructive',
-        onPress: async () => {
-          setBusy(sub.id);
-          const r = await cancelSubstituteRequest(sub.id);
-          setBusy(null);
-          if (!r.ok) {
-            Alert.alert('Erro', r.message);
-            return;
-          }
-          setSubs((prev) => prev.filter((x) => x.id !== sub.id));
+    setConfirm({
+      title: 'Cancelar pedido?',
+      subtitle: 'Sai da lista para os outros.',
+      options: [
+        {
+          label: 'Cancelar pedido',
+          tone: 'danger' as const,
+          icon: 'close-circle' as const,
+          onPress: async () => {
+            setConfirm(null);
+            setBusy(sub.id);
+            const r = await cancelSubstituteRequest(sub.id);
+            setBusy(null);
+            if (!r.ok) {
+              showToast(r.message, { type: 'error' });
+              return;
+            }
+            setSubs((prev) => prev.filter((x) => x.id !== sub.id));
+            showToast('Pedido cancelado.', { type: 'success' });
+          },
         },
-      },
-    ]);
+      ],
+    });
   }
 
   return (
@@ -434,6 +444,13 @@ export default function OpportunitiesScreen() {
           </>
         )}
       </ScrollView>
+      <ConfirmSheet
+        visible={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={confirm?.title ?? ''}
+        subtitle={confirm?.subtitle}
+        options={confirm?.options ?? []}
+      />
     </Screen>
   );
 }

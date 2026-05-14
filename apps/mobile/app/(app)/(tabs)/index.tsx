@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -49,6 +48,14 @@ import { Avatar } from '@/components/Avatar';
 import { PlayerStatsCard } from '@/components/PlayerStatsCard';
 import { WelcomeTutorial } from '@/components/WelcomeTutorial';
 import { MatchKindSheet } from '@/components/MatchKindSheet';
+import { ConfirmSheet, type ConfirmOption } from '@/components/ConfirmSheet';
+import { useToast } from '@/components/Toast';
+
+type ConfirmConfig = {
+  title: string;
+  subtitle?: string;
+  options: ConfirmOption[];
+};
 import { MatchResultRow } from '@/components/MatchResultRow';
 import { fetchUnreadCount } from '@/lib/notifications';
 import { fetchMvpOfWeek } from '@/lib/mvp';
@@ -229,6 +236,8 @@ export default function HomeScreen() {
   const primaryTeam = myLeaderTeams[0] ?? teams[0] ?? null;
 
   const [matchKindOpen, setMatchKindOpen] = useState(false);
+  const [confirm, setConfirm] = useState<ConfirmConfig | null>(null);
+  const { showToast } = useToast();
 
   const handlePrimaryAction = useCallback(() => {
     if (myLeaderTeams.length === 0) {
@@ -252,13 +261,18 @@ export default function HomeScreen() {
         go(myLeaderTeams[0]!.id);
         return;
       }
-      Alert.alert('Para que equipa?', 'Escolhe a equipa', [
-        ...myLeaderTeams.map((t) => ({
-          text: t.name,
-          onPress: () => go(t.id),
+      setConfirm({
+        title: 'Para que equipa?',
+        subtitle: 'Escolhe a equipa que vai marcar este jogo.',
+        options: myLeaderTeams.map((t) => ({
+          label: t.name,
+          icon: 'shield' as const,
+          onPress: () => {
+            setConfirm(null);
+            go(t.id);
+          },
         })),
-        { text: 'Cancelar', style: 'cancel' as const },
-      ]);
+      });
     },
     [myLeaderTeams, router],
   );
@@ -270,6 +284,13 @@ export default function HomeScreen() {
         visible={matchKindOpen}
         onClose={() => setMatchKindOpen(false)}
         onSelect={handleMatchKindPick}
+      />
+      <ConfirmSheet
+        visible={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={confirm?.title ?? ''}
+        subtitle={confirm?.subtitle}
+        options={confirm?.options ?? []}
       />
       <ScrollView
         contentContainerStyle={styles.scroll}

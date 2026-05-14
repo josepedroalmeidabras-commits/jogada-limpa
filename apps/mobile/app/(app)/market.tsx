@@ -1,9 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useMemo } from 'react';
 import {
-  ActionSheetIOS,
-  Alert,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -33,6 +30,14 @@ import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import { ConfirmSheet, type ConfirmOption } from '@/components/ConfirmSheet';
+import { useToast } from '@/components/Toast';
+
+type ConfirmConfig = {
+  title: string;
+  subtitle?: string;
+  options: ConfirmOption[];
+};
 import { colors } from '@/theme';
 
 type Tab = 'players' | 'teams';
@@ -49,6 +54,8 @@ export default function MarketScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [inviting, setInviting] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [confirm, setConfirm] = useState<ConfirmConfig | null>(null);
+  const { showToast } = useToast();
 
   const filteredAgents = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -117,7 +124,9 @@ export default function MarketScreen() {
       (t) => t.sport_id === agent.sport_id,
     );
     if (eligibleTeams.length === 0) {
-      Alert.alert('Sem equipas elegíveis', 'Cria uma equipa do mesmo desporto.');
+      showToast('Cria uma equipa do mesmo desporto para convidar.', {
+        type: 'error',
+      });
       return;
     }
 
@@ -129,10 +138,11 @@ export default function MarketScreen() {
       });
       setInviting(null);
       if (!r.ok) {
-        Alert.alert('Erro', r.message);
+        showToast(r.message, { type: 'error' });
         return;
       }
       setAgents((prev) => prev.filter((a) => a.user_id !== agent.user_id));
+      showToast(`Convite enviado a ${agent.name}.`, { type: 'success' });
     };
 
     if (eligibleTeams.length === 1) {
@@ -140,32 +150,18 @@ export default function MarketScreen() {
       return;
     }
 
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: `Adicionar ${agent.name} a qual equipa?`,
-          options: [...eligibleTeams.map((t) => t.name), 'Cancelar'],
-          cancelButtonIndex: eligibleTeams.length,
+    setConfirm({
+      title: `Adicionar ${agent.name}`,
+      subtitle: 'Escolhe a equipa que vai mandar o convite.',
+      options: eligibleTeams.map((t) => ({
+        label: t.name,
+        icon: 'shield' as const,
+        onPress: () => {
+          setConfirm(null);
+          runInvite(t.id);
         },
-        (idx) => {
-          if (idx >= 0 && idx < eligibleTeams.length) {
-            runInvite(eligibleTeams[idx]!.id);
-          }
-        },
-      );
-    } else {
-      Alert.alert(
-        `Adicionar ${agent.name}`,
-        'Escolhe a equipa:',
-        [
-          ...eligibleTeams.map((t) => ({
-            text: t.name,
-            onPress: () => runInvite(t.id),
-          })),
-          { text: 'Cancelar', style: 'cancel' as const },
-        ],
-      );
-    }
+      })),
+    });
   }
 
   return (
@@ -364,6 +360,13 @@ export default function MarketScreen() {
           ))
         )}
       </ScrollView>
+      <ConfirmSheet
+        visible={!!confirm}
+        onClose={() => setConfirm(null)}
+        title={confirm?.title ?? ''}
+        subtitle={confirm?.subtitle}
+        options={confirm?.options ?? []}
+      />
     </Screen>
   );
 }

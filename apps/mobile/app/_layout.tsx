@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/providers/auth';
+import { ToastProvider } from '@/components/Toast';
 
 function AuthGate() {
   const { session, loading } = useAuth();
@@ -39,9 +41,13 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
-      <AuthGate />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <StatusBar style="light" />
+          <AuthGate />
+        </ToastProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
