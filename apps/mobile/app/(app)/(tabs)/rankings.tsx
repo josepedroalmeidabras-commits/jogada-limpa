@@ -124,14 +124,7 @@ export default function RankingsScreen() {
 
   return (
     <Screen>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerTitle: 'Ranking',
-          headerStyle: { backgroundColor: colors.bg },
-          headerTintColor: colors.text,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
