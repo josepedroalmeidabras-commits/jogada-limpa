@@ -16,6 +16,7 @@ import {
   canVoteOnPlayer,
   categoriesForPosition,
   fetchMyVotesFor,
+  fetchMyVotesForThisSeason,
   fetchPlayerStats,
   ratingColor,
   ratingLabel,
@@ -71,6 +72,10 @@ export default function StatsVoteScreen() {
   const [myVotes, setMyVotes] = useState<
     Record<StatCategory, number | undefined>
   >({} as Record<StatCategory, number | undefined>);
+  const [myVotesThisSeason, setMyVotesThisSeason] = useState<
+    Record<StatCategory, number | undefined>
+  >({} as Record<StatCategory, number | undefined>);
+  const currentSeason = String(new Date().getFullYear());
   const [pending, setPending] = useState<Record<StatCategory, number>>(
     {} as Record<StatCategory, number>,
   );
@@ -87,9 +92,10 @@ export default function StatsVoteScreen() {
     if (!id) return;
     let cancelled = false;
     (async () => {
-      const [p, votes, can, pos] = await Promise.all([
+      const [p, votes, votesSeason, can, pos] = await Promise.all([
         fetchProfile(id),
         fetchMyVotesFor(id),
+        fetchMyVotesForThisSeason(id),
         canVoteOnPlayer(id),
         fetchPreferredPosition(id),
       ]);
@@ -97,6 +103,7 @@ export default function StatsVoteScreen() {
       setProfile(p);
       setPosition(pos);
       setMyVotes(votes);
+      setMyVotesThisSeason(votesSeason);
       const cats = categoriesForPosition(pos);
       const init: Record<string, number> = {};
       for (const c of cats) {
@@ -189,7 +196,8 @@ export default function StatsVoteScreen() {
         />
         <View style={styles.center}>
           <Text style={styles.muted}>
-            Só colegas de equipa podem votar nos atributos deste jogador.
+            Só amigos podem votar nos atributos deste jogador. Manda-lhe
+            pedido de amizade primeiro.
           </Text>
         </View>
       </Screen>
@@ -220,8 +228,8 @@ export default function StatsVoteScreen() {
           </Heading>
           <Text style={styles.heroHint}>
             {isSelf
-              ? 'Sugere os teus próprios valores. Os colegas vão poder ajustar.'
-              : 'Sugere subir ou descer cada atributo. A média dos votos é o que aparece no perfil.'}
+              ? 'Define o teu baseline. Os amigos podem ajustar para cima ou para baixo.'
+              : `Sugere subir ou descer cada atributo. 1 voto por categoria em ${currentSeason} — sem updates até à próxima época.`}
           </Text>
         </Animated.View>
 
@@ -291,8 +299,18 @@ export default function StatsVoteScreen() {
                       );
                     })}
                   </View>
+                ) : myVotesThisSeason[cat] !== undefined ? (
+                  // FRIEND MODE — já votei esta época, read-only
+                  <View style={styles.lockedRow}>
+                    <Text style={styles.lockedTitle}>
+                      {`✓ Voto registado em ${currentSeason}`}
+                    </Text>
+                    <Text style={styles.lockedHint}>
+                      {`Volta na próxima época (${Number(currentSeason) + 1}) para ajustar.`}
+                    </Text>
+                  </View>
                 ) : (
-                  // MODO TEAMMATE — sugerir subir / igual / descer
+                  // FRIEND MODE — ainda não votei esta época
                   <View style={styles.suggestRow}>
                     <Pressable
                       onPress={() => suggest(cat, -DELTA)}
@@ -433,6 +451,26 @@ const styles = StyleSheet.create({
   suggestRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  lockedRow: {
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+  },
+  lockedTitle: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  lockedHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
   },
   suggestBtn: {
     flex: 1,

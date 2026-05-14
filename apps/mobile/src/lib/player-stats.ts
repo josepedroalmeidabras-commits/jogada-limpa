@@ -183,6 +183,30 @@ export async function fetchMyVotesFor(
   return result as Record<StatCategory, number | undefined>;
 }
 
+// Categorias em que já votei este alvo na época corrente (depois de 0083).
+export async function fetchMyVotesForThisSeason(
+  targetId: string,
+): Promise<Record<StatCategory, number | undefined>> {
+  const { data: auth } = await supabase.auth.getUser();
+  const me = auth.user?.id;
+  if (!me) return {} as Record<StatCategory, number | undefined>;
+  const currentSeason = String(new Date().getFullYear());
+  const { data, error } = await supabase
+    .from('player_stat_votes')
+    .select('category, value, season')
+    .eq('voter_id', me)
+    .eq('target_id', targetId)
+    .eq('season', currentSeason);
+  if (error || !data) {
+    return {} as Record<StatCategory, number | undefined>;
+  }
+  const result: Record<string, number | undefined> = {};
+  for (const row of data as Array<{ category: string; value: number }>) {
+    result[row.category] = row.value;
+  }
+  return result as Record<StatCategory, number | undefined>;
+}
+
 export async function setStatVote(
   targetId: string,
   category: StatCategory,
@@ -209,10 +233,11 @@ export type PendingTeammate = {
   photo_url: string | null;
 };
 
-export async function fetchPendingStatVoteTeammates(
+// Amigos cujos atributos eu ainda não votei nesta época (1 vote/season after 0083)
+export async function fetchPendingStatVoteFriends(
   limit = 6,
 ): Promise<PendingTeammate[]> {
-  const { data, error } = await supabase.rpc('pending_stat_vote_teammates', {
+  const { data, error } = await supabase.rpc('pending_stat_vote_friends', {
     p_limit: limit,
   });
   if (error || !data) return [];
@@ -221,6 +246,22 @@ export async function fetchPendingStatVoteTeammates(
     name: r.name,
     photo_url: r.photo_url ?? null,
   }));
+}
+
+// Alias para compat — código antigo continua a chamar com o nome de "teammates"
+// mas agora resolve para amigos. Remover quando todos os callers migrarem.
+export const fetchPendingStatVoteTeammates = fetchPendingStatVoteFriends;
+
+export async function hasVotedThisSeason(
+  targetId: string,
+  category: StatCategory,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('has_voted_this_season', {
+    p_target_id: targetId,
+    p_category: category,
+  });
+  if (error) return false;
+  return Boolean(data);
 }
 
 export async function canVoteOnPlayer(targetId: string): Promise<boolean> {

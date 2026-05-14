@@ -16,7 +16,7 @@ import { fetchMyTeams, isTeamLeader, type TeamWithSport } from '@/lib/teams';
 import { fetchPreferredPosition } from '@/lib/reviews';
 import {
   categoriesForPosition,
-  fetchPendingStatVoteTeammates,
+  fetchPendingStatVoteFriends,
   fetchPlayerStats,
   overallRating,
   ratingColor,
@@ -167,7 +167,7 @@ export default function HomeScreen() {
     ]);
     setMyPosition(position);
     setPlayerStats(myStats);
-    setPendingVotes(await fetchPendingStatVoteTeammates(6));
+    setPendingVotes(await fetchPendingStatVoteFriends(6));
     if (p.city) {
       const [mw, cp] = await Promise.all([
         fetchMvpOfWeek(p.city),
@@ -644,11 +644,11 @@ export default function HomeScreen() {
                 entering={FadeInDown.delay(69).springify()}
                 style={styles.section}
               >
-                <Eyebrow>{`Vota nos colegas · ${pendingVotes.length}`}</Eyebrow>
+                <Eyebrow>{`Vota nos amigos · ${pendingVotes.length}`}</Eyebrow>
                 <Card variant="subtle" style={{ marginTop: 8 }}>
                   <Text style={styles.statsHint}>
-                    Tens colegas de equipa que ainda não avaliaste. Cada voto
-                    afina os atributos no perfil deles.
+                    Tens amigos que ainda não avaliaste este ano. 1 voto por
+                    categoria por época — sem updates até à próxima.
                   </Text>
                   <View style={styles.pendingRow}>
                     {pendingVotes.slice(0, 6).map((t) => (
