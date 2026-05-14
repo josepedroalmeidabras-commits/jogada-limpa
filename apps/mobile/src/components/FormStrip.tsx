@@ -20,7 +20,7 @@ function letter(r: FormResult) {
 
 function bg(r: FormResult) {
   return r === 'win'
-    ? colors.brand
+    ? colors.success
     : r === 'loss'
       ? colors.danger
       : colors.textMuted;
