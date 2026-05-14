@@ -136,7 +136,7 @@ select 'future_matches', (select count(*)::text from public.matches
 
 
 -- ============================================================================
--- 0082 — Reviews overhaul: só MVP + capitão avalia equipa adversária
+-- 0082_mvp_only_reviews
 -- ============================================================================
 -- =============================================================================
 -- 0082 — Reviews overhaul: só MVP + capitão avalia equipa adversária
@@ -251,7 +251,7 @@ grant execute on function public.submit_team_review(uuid, uuid, int, text) to au
 
 
 -- ============================================================================
--- 0083 — Stats votes: friends-only + seasonal + Elo-light algorithm
+-- 0083_stats_friends_seasonal
 -- ============================================================================
 -- =============================================================================
 -- 0083 — Stats votes: friends-only + seasonal (1x/época) + Elo-light algorithm
@@ -456,9 +456,9 @@ $$;
 
 grant execute on function public.compute_stat_aggregate(uuid, text) to authenticated, anon;
 
--- 7) Replace aggregate view com o novo algoritmo
-drop view if exists public.player_stats_aggregate;
-create view public.player_stats_aggregate as
+-- 7) Replace aggregate view com o novo algoritmo (CREATE OR REPLACE — colunas
+-- iguais às originais, evita cascade conflicts com team_stats_aggregate)
+create or replace view public.player_stats_aggregate as
 select
   target_id                                                    as user_id,
   category::text                                               as category,
@@ -513,7 +513,7 @@ grant execute on function public.pending_stat_vote_friends(int) to authenticated
 
 
 -- ============================================================================
--- 0084 — Backend hardening pre-launch (audit fixes)
+-- 0084_backend_hardening
 -- ============================================================================
 -- =============================================================================
 -- 0084 — Backend hardening pre-launch (audit fixes)
@@ -660,8 +660,8 @@ revoke all on function public.submit_match_side_result(uuid, int, int, jsonb) fr
 grant execute on function public.submit_match_side_result(uuid, int, int, jsonb) to authenticated;
 
 -- ─── #6: player_stats_aggregate exclui perfis soft-deleted ───────────────
-drop view if exists public.player_stats_aggregate;
-create view public.player_stats_aggregate as
+-- CREATE OR REPLACE — colunas iguais, sem cascade conflicts
+create or replace view public.player_stats_aggregate as
 select
   v.target_id                                                  as user_id,
   v.category::text                                             as category,
@@ -675,8 +675,7 @@ group by v.target_id, v.category;
 grant select on public.player_stats_aggregate to authenticated, anon;
 
 -- ─── #7: team_review_aggregates exclui matches disputed/cancelled ────────
-drop view if exists public.team_review_aggregates;
-create view public.team_review_aggregates as
+create or replace view public.team_review_aggregates as
 select
   tr.reviewed_team_id                                                          as team_id,
   count(*)::int                                                                as total_reviews,
@@ -695,8 +694,7 @@ group by tr.reviewed_team_id;
 grant select on public.team_review_aggregates to authenticated, anon;
 
 -- Bónus: review_aggregates (singular, individual users) com mesmo filtro
-drop view if exists public.review_aggregates;
-create view public.review_aggregates as
+create or replace view public.review_aggregates as
 select
   r.reviewed_id                                                                as user_id,
   count(*)::int                                                                as total_reviews,
@@ -718,7 +716,7 @@ grant select on public.review_aggregates to authenticated, anon;
 
 
 -- ============================================================================
--- 0085 — Re-aplicar fix_macroman_encoding em registos que escaparam
+-- 0085_rerun_encoding_fix
 -- ============================================================================
 -- =============================================================================
 -- 0085 — Re-aplicar fix_macroman_encoding() em registos que escaparam ao 0076

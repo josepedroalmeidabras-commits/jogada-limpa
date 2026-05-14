@@ -201,9 +201,9 @@ $$;
 
 grant execute on function public.compute_stat_aggregate(uuid, text) to authenticated, anon;
 
--- 7) Replace aggregate view com o novo algoritmo
-drop view if exists public.player_stats_aggregate;
-create view public.player_stats_aggregate as
+-- 7) Replace aggregate view com o novo algoritmo (CREATE OR REPLACE — colunas
+-- iguais às originais, evita cascade conflicts com team_stats_aggregate)
+create or replace view public.player_stats_aggregate as
 select
   target_id                                                    as user_id,
   category::text                                               as category,
