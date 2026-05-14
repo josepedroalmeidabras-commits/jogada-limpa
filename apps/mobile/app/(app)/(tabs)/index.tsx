@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -50,6 +50,7 @@ import { WelcomeTutorial } from '@/components/WelcomeTutorial';
 import { MatchKindSheet } from '@/components/MatchKindSheet';
 import { ConfirmSheet, type ConfirmOption } from '@/components/ConfirmSheet';
 import { useToast } from '@/components/Toast';
+import { TuaVez, type TuaVezItem } from '@/components/TuaVez';
 
 type ConfirmConfig = {
   title: string;
@@ -239,6 +240,73 @@ export default function HomeScreen() {
   const [confirm, setConfirm] = useState<ConfirmConfig | null>(null);
   const { showToast } = useToast();
 
+  const pendingItems = useMemo<TuaVezItem[]>(() => {
+    const out: TuaVezItem[] = [];
+    if (incoming.length > 0) {
+      out.push({
+        key: 'friends',
+        icon: 'person-add',
+        iconColor: colors.brand,
+        label:
+          incoming.length === 1
+            ? `${incoming[0]!.name.split(' ')[0]} quer ser teu amigo`
+            : `${incoming.length} pedidos de amizade`,
+        meta: 'Aceita ou recusa',
+        onPress: () => router.push('/(app)/profile/friends'),
+      });
+    }
+    if (challenges.length > 0) {
+      const first = challenges[0]!;
+      out.push({
+        key: 'challenges',
+        icon: 'mail-open',
+        iconColor: '#FBD774',
+        iconBg: ['rgba(251,191,36,0.22)', 'rgba(251,191,36,0.04)'],
+        iconBorder: 'rgba(251,191,36,0.35)',
+        label:
+          challenges.length === 1
+            ? 'Tens 1 convite para jogo'
+            : `${challenges.length} convites para jogos`,
+        meta: `Próximo: ${first.opponent_team_name}`,
+        onPress: () => router.push(`/(app)/matches/${first.match_id}`),
+      });
+    }
+    if (peladinhas.length > 0) {
+      const first = peladinhas[0]!;
+      out.push({
+        key: 'peladinhas',
+        icon: 'flame',
+        iconColor: '#FFC489',
+        iconBg: ['rgba(255,138,61,0.26)', 'rgba(201,162,107,0.06)'],
+        iconBorder: 'rgba(255,138,61,0.4)',
+        label:
+          peladinhas.length === 1
+            ? 'Peladinha por confirmar'
+            : `${peladinhas.length} peladinhas por confirmar`,
+        meta: first.team_name,
+        onPress: () => router.push(`/(app)/matches/${first.match_id}`),
+      });
+    }
+    if (reviews.length > 0) {
+      const first = reviews[0]!;
+      out.push({
+        key: 'reviews',
+        icon: 'star',
+        iconColor: colors.success,
+        iconBg: ['rgba(52,211,153,0.22)', 'rgba(52,211,153,0.04)'],
+        iconBorder: colors.successSoftBorder,
+        label:
+          reviews.length === 1
+            ? 'Avaliação por fazer'
+            : `${reviews.length} avaliações por fazer`,
+        meta: `${first.side_a_name} vs ${first.side_b_name}`,
+        onPress: () =>
+          router.push(`/(app)/matches/${first.match_id}/review`),
+      });
+    }
+    return out;
+  }, [incoming, challenges, peladinhas, reviews, router]);
+
   const handlePrimaryAction = useCallback(() => {
     if (myLeaderTeams.length === 0) {
       router.push('/(app)/teams/new');
@@ -395,36 +463,9 @@ export default function HomeScreen() {
               </Pressable>
             </Animated.View>
 
-            {mvpWeek && (
-              <Animated.View entering={FadeInDown.delay(30).springify()}>
-                <Pressable
-                  style={styles.mvpChip}
-                  onPress={() => router.push(`/(app)/users/${mvpWeek.user_id}`)}
-                >
-                  <View style={styles.mvpIcon}>
-                    <Ionicons name="trophy" size={14} color={colors.goldDeep} />
-                  </View>
-                  <Avatar
-                    url={mvpWeek.photo_url}
-                    name={mvpWeek.name}
-                    size={24}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mvpName} numberOfLines={1}>
-                      {mvpWeek.name}
-                    </Text>
-                    <Text style={styles.mvpMeta}>
-                      {`MVP da semana · ${mvpWeek.votes} voto${mvpWeek.votes === 1 ? '' : 's'}`}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
-                </Pressable>
-              </Animated.View>
-            )}
-
             <Animated.View
               entering={FadeInDown.delay(40).springify()}
-              style={primaryTeam || mvpWeek ? { marginTop: 12 } : undefined}
+              style={primaryTeam ? { marginTop: 12 } : undefined}
             >
               <Card
                 variant={nextMatch ? 'hero' : 'subtle'}
@@ -536,6 +577,12 @@ export default function HomeScreen() {
               </Card>
             </Animated.View>
 
+            {pendingItems.length > 0 ? (
+              <View style={{ marginTop: 16 }}>
+                <TuaVez items={pendingItems} />
+              </View>
+            ) : null}
+
             <Animated.View
               entering={FadeInDown.delay(60).springify()}
               style={styles.actions}
@@ -591,68 +638,6 @@ export default function HomeScreen() {
                 />
               )}
             </Animated.View>
-
-            {incoming.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(65).springify()}
-                style={{ marginTop: completeness && completeness.percent < 100 ? 12 : 0 }}
-              >
-                <Card
-                  variant="warning"
-                  onPress={() => router.push('/(app)/profile/friends')}
-                >
-                  <View style={styles.cardRow}>
-                    <View style={styles.requestsIcon}>
-                      <Ionicons name="person-add" size={18} color={colors.brand} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardName}>
-                        {incoming.length === 1
-                          ? `${incoming[0]!.name.split(' ')[0]} quer ser teu amigo`
-                          : `${incoming.length} novos pedidos de amizade`}
-                      </Text>
-                      <Text style={styles.cardMeta}>
-                        Tocar para responder
-                      </Text>
-                    </View>
-                    <Text style={styles.arrow}>›</Text>
-                  </View>
-                </Card>
-              </Animated.View>
-            )}
-
-            {peladinhas.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(68).springify()}
-                style={styles.section}
-              >
-                <Eyebrow>{`Peladinhas · ${peladinhas.length} por confirmar`}</Eyebrow>
-                {peladinhas.slice(0, 3).map((p, i) => (
-                  <Animated.View
-                    key={p.match_id}
-                    entering={FadeInDown.delay(100 + i * 40).springify()}
-                  >
-                    <Card
-                      onPress={() => router.push(`/(app)/matches/${p.match_id}`)}
-                      style={{ marginTop: 8 }}
-                    >
-                      <View style={styles.cardRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardName}>{p.team_name}</Text>
-                          <Text style={styles.cardMeta}>
-                            {formatRelativeMatchDate(p.scheduled_at)} ·{' '}
-                            {p.location_tbd
-                              ? 'A combinar'
-                              : (p.location_name ?? '—')}
-                          </Text>
-                        </View>
-                        <Text style={styles.arrow}>›</Text>
-                      </View>
-                    </Card>
-                  </Animated.View>
-                ))}
-              </Animated.View>
-            )}
 
             {pendingVotes.length > 0 && (
               <Animated.View
@@ -745,213 +730,32 @@ export default function HomeScreen() {
               </Animated.View>
             )}
 
-            {challenges.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(80).springify()}
-                style={styles.section}
-              >
-                <Eyebrow>
-                  {`Convites · ${challenges.length}`}
-                </Eyebrow>
-                {challenges.map((c, i) => (
-                  <Animated.View
-                    key={c.match_id}
-                    entering={FadeInDown.delay(120 + i * 40).springify()}
-                  >
-                    <Card
-                      variant="warning"
-                      onPress={() =>
-                        router.push(`/(app)/matches/${c.match_id}`)
-                      }
-                      style={{ marginTop: 8 }}
-                    >
-                      <View style={styles.cardRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardName}>
-                            {c.my_side === 'B'
-                              ? `Desafio de ${c.opponent_team_name}`
-                              : `Aguardas resposta de ${c.opponent_team_name}`}
-                          </Text>
-                          <Text style={styles.cardMeta}>
-                            {formatRelativeMatchDate(c.scheduled_at)} ·{' '}
-                            {c.location_tbd
-                              ? 'A combinar'
-                              : (c.location_name ?? '—')}
-                          </Text>
-                        </View>
-                        <Text style={styles.arrow}>›</Text>
-                      </View>
-                    </Card>
-                  </Animated.View>
-                ))}
-              </Animated.View>
-            )}
-
-            {reviews.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(140).springify()}
-                style={styles.section}
-              >
-                <Eyebrow>{`Avaliações · ${reviews.length}`}</Eyebrow>
-                {reviews.map((r, i) => (
-                  <Animated.View
-                    key={r.match_id}
-                    entering={FadeInDown.delay(180 + i * 40).springify()}
-                  >
-                    <Card
-                      variant="success"
-                      onPress={() =>
-                        router.push(`/(app)/matches/${r.match_id}/review`)
-                      }
-                      style={{ marginTop: 8 }}
-                    >
-                      <View style={styles.cardRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardName}>
-                            {`${r.side_a_name} vs ${r.side_b_name}`}
-                          </Text>
-                          <Text style={styles.cardMeta}>
-                            {`${r.others_to_review} jogador(es) para avaliar`}
-                          </Text>
-                        </View>
-                        <Text style={styles.arrow}>›</Text>
-                      </View>
-                    </Card>
-                  </Animated.View>
-                ))}
-              </Animated.View>
-            )}
-
             <Animated.View
               entering={FadeInDown.delay(280).springify()}
               style={styles.section}
             >
-              <Eyebrow>Os teus amigos jogaram</Eyebrow>
-              {friendsActivity.length > 0 ? (
-                friendsActivity.map((m, i) => (
-                  <Animated.View
-                    key={m.match_id}
-                    entering={FadeInDown.delay(320 + i * 30).springify()}
-                    style={{ marginTop: 8 }}
-                  >
-                    <View style={styles.feedCardOuter}>
-                      <Pressable
-                        onPress={() => router.push(`/(app)/users/${m.friend_id}`)}
-                        style={styles.friendChip}
-                      >
-                        <Avatar
-                          url={m.friend_photo}
-                          name={m.friend_name}
-                          size={22}
-                        />
-                        <Text style={styles.friendChipName} numberOfLines={1}>
-                          {m.friend_name}
-                        </Text>
-                      </Pressable>
-                      <MatchResultRow
-                        scheduledAt={m.scheduled_at}
-                        isInternal={m.is_internal}
-                        status="validated"
-                        sideAName={m.side_a_name}
-                        sideBName={m.side_b_name}
-                        sideAPhoto={m.side_a_photo}
-                        sideBPhoto={m.side_b_photo}
-                        scoreA={m.final_score_a}
-                        scoreB={m.final_score_b}
-                        mySide={m.friend_side}
-                        myGoals={m.friend_goals}
-                        myAssists={m.friend_assists}
-                        onPress={() => router.push(`/(app)/matches/${m.match_id}`)}
-                      />
-                    </View>
-                  </Animated.View>
-                ))
-              ) : (
-                <Card
-                  variant="subtle"
-                  style={{ marginTop: 8 }}
-                  onPress={() => router.push('/(app)/profile/find-friends')}
-                >
-                  <View style={styles.emptyRow}>
-                    <View style={styles.emptyIcon}>
-                      <Ionicons name="people-outline" size={22} color={colors.goldDeep} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.emptyTitle}>
-                        Ainda não tens amigos no S7VN
-                      </Text>
-                      <Text style={styles.emptyBody}>
-                        Encontra-os e vê aqui o que jogam.
-                      </Text>
-                    </View>
-                    <Ionicons name="arrow-forward" size={16} color={colors.brand} />
-                  </View>
-                </Card>
-              )}
-            </Animated.View>
-
-            <Animated.View
-              entering={FadeInDown.delay(360).springify()}
-              style={styles.section}
-            >
-              <Eyebrow>{`Atividade em ${profile?.city ?? ''}`}</Eyebrow>
-              {cityPulse &&
-                cityPulse.matches_7d + cityPulse.active_teams > 0 && (
-                  <Text style={styles.cityPulseLine}>
-                    {`${cityPulse.matches_7d} jogo${cityPulse.matches_7d === 1 ? '' : 's'} esta semana · ${cityPulse.active_teams} equipa${cityPulse.active_teams === 1 ? '' : 's'} · ${cityPulse.active_players} jogador${cityPulse.active_players === 1 ? '' : 'es'}`}
+              <Pressable
+                onPress={() => router.push('/(app)/activity')}
+                style={({ pressed }) => [
+                  styles.activityLink,
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+                ]}
+              >
+                <View style={styles.activityIcon}>
+                  <Ionicons name="pulse" size={18} color={colors.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.activityTitle}>Atividade</Text>
+                  <Text style={styles.activityMeta}>
+                    {`Amigos e jogos em ${profile?.city ?? 'Coimbra'}`}
                   </Text>
-                )}
-              {activity.length > 0 ? (
-                activity.map((m, i) => (
-                  <Animated.View
-                    key={m.match_id}
-                    entering={FadeInDown.delay(340 + i * 30).springify()}
-                    style={{ marginTop: 8 }}
-                  >
-                    <View style={styles.feedCardOuter}>
-                      <MatchResultRow
-                        scheduledAt={m.scheduled_at}
-                        isInternal={m.is_internal}
-                        status="validated"
-                        sideAName={m.side_a_name}
-                        sideBName={m.side_b_name}
-                        sideAPhoto={m.side_a_photo}
-                        sideBPhoto={m.side_b_photo}
-                        scoreA={m.final_score_a}
-                        scoreB={m.final_score_b}
-                        onPress={() => router.push(`/(app)/matches/${m.match_id}`)}
-                      />
-                    </View>
-                  </Animated.View>
-                ))
-              ) : (
-                <Card
-                  variant="subtle"
-                  style={{ marginTop: 8 }}
-                  onPress={
-                    isLeader
-                      ? handlePrimaryAction
-                      : () => router.push('/(app)/search')
-                  }
-                >
-                  <View style={styles.emptyRow}>
-                    <View style={styles.emptyIcon}>
-                      <Ionicons name="flame-outline" size={22} color={colors.goldDeep} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.emptyTitle}>
-                        {`Sê dos primeiros em ${profile?.city ?? 'Coimbra'}`}
-                      </Text>
-                      <Text style={styles.emptyBody}>
-                        {isLeader
-                          ? 'Marca o primeiro jogo e aparece aqui para os teus vizinhos verem.'
-                          : 'Procura equipas e jogadores e ajuda a animar a cena local.'}
-                      </Text>
-                    </View>
-                    <Ionicons name="arrow-forward" size={16} color={colors.brand} />
-                  </View>
-                </Card>
-              )}
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.textDim}
+                />
+              </Pressable>
             </Animated.View>
 
             {completeness && completeness.percent < 100 && (
@@ -1484,6 +1288,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.3,
     marginTop: 4,
+  },
+  activityLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+  },
+  activityIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+  },
+  activityTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  activityMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+    letterSpacing: -0.1,
   },
   emptyRow: {
     flexDirection: 'row',
