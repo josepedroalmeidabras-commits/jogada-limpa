@@ -231,7 +231,7 @@ export default function PublicProfileScreen() {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen edges={["bottom"]}>
         <View style={{ padding: 24, gap: 12, alignItems: 'center' }}>
           <Skeleton width={80} height={80} radius={40} />
           <Skeleton width={160} height={28} />
@@ -244,7 +244,7 @@ export default function PublicProfileScreen() {
 
   if (!profile) {
     return (
-      <Screen>
+      <Screen edges={["bottom"]}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: colors.textMuted }}>Jogador não encontrado.</Text>
         </View>
@@ -378,7 +378,7 @@ export default function PublicProfileScreen() {
   const isLocked = !isSelf && profile.is_private && friendStatus !== 'friends';
 
   return (
-    <Screen>
+    <Screen edges={["bottom"]}>
       <Stack.Screen
         options={{
           headerShown: true,
