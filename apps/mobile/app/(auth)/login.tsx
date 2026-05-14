@@ -11,7 +11,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
-import { Logo } from '@/components/Logo';
+import { Logo, LogoMark } from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/theme';
 
@@ -92,8 +92,10 @@ export default function LoginScreen() {
             entering={FadeInDown.duration(400).springify()}
             style={styles.heroBlock}
           >
-            <Logo size="xl" />
-            <Text style={styles.eyebrow}>A CASA DO FUTEBOL DE 7</Text>
+            <LogoMark size={96} />
+            <View style={{ marginTop: 16 }}>
+              <Logo size="xl" />
+            </View>
             <Text style={styles.subtitle}>
               {mode === 'login'
                 ? 'Bem-vindo de volta'
@@ -214,13 +216,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroBlock: { alignItems: 'center', marginBottom: 32 },
-  eyebrow: {
-    color: '#C9A26B',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 2,
-    marginTop: 16,
-  },
   subtitle: {
     color: colors.textMuted,
     fontSize: 16,
