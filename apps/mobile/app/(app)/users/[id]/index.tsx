@@ -863,7 +863,7 @@ function AggBar({ label, value }: { label: string; value: number }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { paddingHorizontal: 24, paddingBottom: 48, paddingTop: 8 },
   voteCta: {
     marginTop: 14,
     alignSelf: 'stretch',
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
   headerBlock: {
     alignItems: 'center',
     gap: 6,
-    marginTop: 16,
+    marginTop: 0,
   },
   city: { color: colors.textMuted, fontSize: 14, letterSpacing: -0.1 },
   avatarRow: { position: 'relative' },
