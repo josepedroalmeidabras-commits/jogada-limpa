@@ -49,7 +49,9 @@ import { colors } from '@/theme';
 import { formatMatchDate } from '@/lib/matches';
 import {
   canVoteOnPlayer,
+  categoriesForPosition,
   emptyStats,
+  fetchMyVotesForThisSeason,
   fetchPlayerStats,
   overallRating,
   totalVotes,
@@ -157,6 +159,7 @@ export default function PublicProfileScreen() {
   const [position, setPosition] = useState<string | null>(null);
   const [stats, setStats] = useState<AggregateStat[]>(emptyStats());
   const [canVote, setCanVote] = useState(false);
+  const [allCatsVotedThisSeason, setAllCatsVotedThisSeason] = useState(false);
   const [friendStatus, setFriendStatus] = useState<FriendshipStatus>('none');
   const [friendBusy, setFriendBusy] = useState(false);
   const [mutual, setMutual] = useState<{ list: MutualFriend[]; total: number }>({
@@ -187,6 +190,13 @@ export default function PublicProfileScreen() {
     ]);
     const positionRaw = s.find((x) => x.sport_id === 2)?.preferred_position ?? null;
     const ps = await fetchPlayerStats(id, positionRaw);
+    // Já votei em todas as categorias deste user esta época?
+    let allVoted = false;
+    if (!isSelf) {
+      const seasonVotes = await fetchMyVotesForThisSeason(id);
+      const cats = categoriesForPosition(positionRaw);
+      allVoted = cats.length > 0 && cats.every((c) => seasonVotes[c] !== undefined);
+    }
     setProfile(p);
     setSports(s);
     setAggregate(a);
@@ -194,6 +204,7 @@ export default function PublicProfileScreen() {
     setPosition(positionRaw);
     setStats(ps);
     setCanVote(cv);
+    setAllCatsVotedThisSeason(allVoted);
     setFriendStatus(fs);
     setMutual(mf);
     setSeasonStats(ss);
@@ -469,30 +480,39 @@ export default function PublicProfileScreen() {
             inForm={!!inForm}
           />
 
-          {canVote && (
-            <Pressable
-              onPress={() => router.push(`/(app)/users/${id}/stats-vote`)}
-              style={({ pressed }) => [
-                styles.voteCta,
-                pressed && { transform: [{ scale: 0.985 }], opacity: 0.92 },
-              ]}
-            >
-              <LinearGradient
-                colors={['#E0B97C', '#C9A26B', '#B58E55']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.voteCtaInner}
+          {(() => {
+            // Mostra o CTA se:
+            //  - é o meu próprio perfil (sempre); OU
+            //  - é amigo + canVote + ainda não votei todas as categorias esta época
+            const showVoteCta =
+              canVote &&
+              (isSelf || (friendStatus === 'friends' && !allCatsVotedThisSeason));
+            if (!showVoteCta) return null;
+            return (
+              <Pressable
+                onPress={() => router.push(`/(app)/users/${id}/stats-vote`)}
+                style={({ pressed }) => [
+                  styles.voteCta,
+                  pressed && { transform: [{ scale: 0.985 }], opacity: 0.92 },
+                ]}
               >
-                <View style={styles.voteCtaIconWrap}>
-                  <Ionicons name="star" size={20} color="#0E1812" />
-                </View>
-                <Text style={[styles.voteCtaTitle, { flex: 1 }]}>
-                  {isSelf ? 'Sugerir os meus atributos' : 'Votar atributos'}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color="#0E1812" />
-              </LinearGradient>
-            </Pressable>
-          )}
+                <LinearGradient
+                  colors={['#E0B97C', '#C9A26B', '#B58E55']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.voteCtaInner}
+                >
+                  <View style={styles.voteCtaIconWrap}>
+                    <Ionicons name="star" size={20} color="#0E1812" />
+                  </View>
+                  <Text style={[styles.voteCtaTitle, { flex: 1 }]}>
+                    {isSelf ? 'Sugerir os meus atributos' : 'Votar atributos'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color="#0E1812" />
+                </LinearGradient>
+              </Pressable>
+            );
+          })()}
 
           {(() => {
             const s = sports[0];
@@ -826,6 +846,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
   voteCta: {
     marginTop: 14,
+    alignSelf: 'stretch',
     borderRadius: 18,
     overflow: 'hidden',
     shadowColor: '#C9A26B',
