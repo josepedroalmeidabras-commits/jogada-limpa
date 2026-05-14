@@ -398,14 +398,16 @@ export default function EditProfileScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Button
-            label="Guardar"
-            size="lg"
-            haptic="medium"
-            loading={submitting}
-            onPress={handleSubmit}
-            full
-          />
+          <View style={{ marginTop: 20 }}>
+            <Button
+              label="Guardar"
+              size="lg"
+              haptic="medium"
+              loading={submitting}
+              onPress={handleSubmit}
+              full
+            />
+          </View>
 
           <Text style={[styles.label, { marginTop: 32 }]}>Posição preferida</Text>
           <Text style={styles.subhint}>
