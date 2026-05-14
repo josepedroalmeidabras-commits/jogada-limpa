@@ -8,7 +8,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  ZoomIn,
+} from 'react-native-reanimated';
 import {
   Stack,
   useFocusEffect,
@@ -293,23 +296,31 @@ export default function MatchDetailScreen() {
               <Text style={styles.recapLabel}>Recap</Text>
               <View style={styles.recapRow}>
                 {mvp && (
-                  <Pressable
-                    onPress={() => router.push(`/(app)/users/${mvp.user_id}`)}
-                    style={styles.recapCell}
+                  <Animated.View
+                    entering={ZoomIn.delay(180).duration(520).springify().damping(8)}
+                    style={[styles.recapCell, styles.recapCellMvp, { flex: 1 }]}
                   >
-                    <Avatar
-                      url={mvp.photo_url}
-                      name={mvp.name}
-                      size={44}
-                    />
-                    <Text style={styles.recapCellLabel}>MVP</Text>
-                    <Text style={styles.recapCellName} numberOfLines={1}>
-                      {mvp.name.split(' ')[0]}
-                    </Text>
-                    <Text style={styles.recapCellMeta}>
-                      {`${mvp.votes} voto${mvp.votes === 1 ? '' : 's'}`}
-                    </Text>
-                  </Pressable>
+                    <Pressable
+                      onPress={() => router.push(`/(app)/users/${mvp.user_id}`)}
+                      style={{ alignItems: 'center' }}
+                    >
+                      <View style={styles.mvpCrown}>
+                        <Ionicons name="trophy" size={14} color={colors.goldDeep} />
+                      </View>
+                      <Avatar
+                        url={mvp.photo_url}
+                        name={mvp.name}
+                        size={44}
+                      />
+                      <Text style={styles.recapCellLabel}>MVP</Text>
+                      <Text style={styles.recapCellName} numberOfLines={1}>
+                        {mvp.name.split(' ')[0]}
+                      </Text>
+                      <Text style={styles.recapCellMeta}>
+                        {`${mvp.votes} voto${mvp.votes === 1 ? '' : 's'}`}
+                      </Text>
+                    </Pressable>
+                  </Animated.View>
                 )}
                 {topGoal && (
                   <Pressable
@@ -1537,6 +1548,26 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
     backgroundColor: 'rgba(255,255,255,0.03)',
     alignItems: 'center',
+  },
+  recapCellMvp: {
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+    shadowColor: '#C9A26B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  mvpCrown: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(224,185,124,0.18)',
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   recapCellLabel: {
     color: colors.textMuted,

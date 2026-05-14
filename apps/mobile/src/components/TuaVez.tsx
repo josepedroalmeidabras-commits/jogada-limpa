@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AnimatedNumber } from './AnimatedNumber';
 import { colors } from '@/theme';
 
 export type TuaVezItem = {
@@ -40,7 +41,11 @@ export function TuaVez({ items }: Props) {
             <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
           <View style={styles.totalBadge}>
-            <Text style={styles.totalBadgeText}>{total}</Text>
+            <AnimatedNumber
+              value={total}
+              duration={280}
+              style={styles.totalBadgeText}
+            />
           </View>
         </View>
 

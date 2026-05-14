@@ -8,7 +8,15 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { Easing, FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import {
@@ -131,12 +139,32 @@ export default function StatsVoteScreen() {
     setPending((prev) => ({ ...prev, [cat]: value }));
   }
 
+  // Pequeno tilt na FUT card como feedback físico do voto.
+  const cardTilt = useSharedValue(0);
+  const cardTiltStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: cardTilt.value }],
+  }));
+
   // Modo teammate: aplica um delta (−5 / 0 / +5) sobre o valor atual agregado
   // (ou o teu voto anterior se já existir).
   function suggest(cat: StatCategory, delta: number) {
     const agg = aggregates[cat]?.value ?? 0;
     const baseline = myVotes[cat] ?? (agg > 0 ? agg : 50);
     setPending((prev) => ({ ...prev, [cat]: clamp(baseline + delta) }));
+    // Feedback: tilt direita para +, esquerda para −, sem tilt para =
+    if (delta !== 0) {
+      const dir = delta > 0 ? 1 : -1;
+      cardTilt.value = withSequence(
+        withTiming(dir * 5, {
+          duration: 90,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        }),
+        withTiming(0, {
+          duration: 140,
+          easing: Easing.bezier(0.23, 1, 0.32, 1),
+        }),
+      );
+    }
   }
 
   async function handleSave() {
@@ -219,11 +247,13 @@ export default function StatsVoteScreen() {
         <Animated.View
           entering={FadeInDown.duration(300).springify()}
         >
-          <PlayerFUTCard
-            profile={profile}
-            position={position}
-            stats={Object.values(aggregates)}
-          />
+          <Animated.View style={cardTiltStyle}>
+            <PlayerFUTCard
+              profile={profile}
+              position={position}
+              stats={Object.values(aggregates)}
+            />
+          </Animated.View>
           <Text style={styles.heroHint}>
             {isSelf
               ? 'Define o teu baseline. Os amigos podem ajustar para cima ou para baixo.'
