@@ -469,6 +469,38 @@ export default function PublicProfileScreen() {
             inForm={!!inForm}
           />
 
+          {canVote && (
+            <Pressable
+              onPress={() => router.push(`/(app)/users/${id}/stats-vote`)}
+              style={({ pressed }) => [
+                styles.voteCta,
+                pressed && { transform: [{ scale: 0.985 }], opacity: 0.92 },
+              ]}
+            >
+              <LinearGradient
+                colors={['#E0B97C', '#C9A26B', '#B58E55']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.voteCtaInner}
+              >
+                <View style={styles.voteCtaIconWrap}>
+                  <Ionicons name="star" size={20} color="#0E1812" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.voteCtaTitle}>
+                    {isSelf ? 'Sugerir os meus atributos' : 'Votar nos atributos'}
+                  </Text>
+                  <Text style={styles.voteCtaSub}>
+                    {isSelf
+                      ? 'Define o teu baseline FUT'
+                      : '+ / = / − em cada categoria'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#0E1812" />
+              </LinearGradient>
+            </Pressable>
+          )}
+
           {(() => {
             const s = sports[0];
             if (!s) return null;
@@ -673,37 +705,6 @@ export default function PublicProfileScreen() {
             overall={overallRating(stats)}
             totalVotes={totalVotes(stats)}
           />
-          {canVote && (
-            <Pressable
-              onPress={() => router.push(`/(app)/users/${id}/stats-vote`)}
-              style={({ pressed }) => [
-                styles.voteCta,
-                pressed && { transform: [{ scale: 0.985 }], opacity: 0.92 },
-              ]}
-            >
-              <LinearGradient
-                colors={['#E0B97C', '#C9A26B', '#B58E55']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.voteCtaInner}
-              >
-                <View style={styles.voteCtaIconWrap}>
-                  <Ionicons name="star" size={20} color="#0E1812" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.voteCtaTitle}>
-                    {isSelf ? 'Sugerir os meus atributos' : 'Votar nos atributos'}
-                  </Text>
-                  <Text style={styles.voteCtaSub}>
-                    {isSelf
-                      ? 'Define o teu baseline FUT'
-                      : '+ / = / − em cada categoria'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#0E1812" />
-              </LinearGradient>
-            </Pressable>
-          )}
           {!isSelf && session && (
             <View style={{ marginTop: 8 }}>
               <Button
