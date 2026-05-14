@@ -117,6 +117,17 @@ export default function OnboardingScreen() {
       if (!cancelled) {
         setSports(data);
         setLoadingSports(false);
+        // Auto-pick todos os desportos activos (hoje só F7). User só precisa
+        // de escolher a posição.
+        setPicks((prev) =>
+          prev.length > 0
+            ? prev
+            : data.map((s) => ({
+                sport_id: s.id,
+                declared_level: 5,
+                preferred_position: null,
+              })),
+        );
       }
     })();
     return () => {
@@ -436,79 +447,16 @@ export default function OnboardingScreen() {
             />
           </Animated.View>
 
-          <Animated.View
-            entering={FadeInDown.delay(240).springify()}
-            style={{ marginTop: 24 }}
-          >
-            <Eyebrow>Desportos</Eyebrow>
-            {loadingSports ? (
-              <ActivityIndicator color="#ffffff" style={{ marginTop: 12 }} />
-            ) : (
-              <View style={styles.sportsRow}>
-                {sports.map((s) => {
-                  const picked = pickedSet.has(s.id);
-                  return (
-                    <Pressable
-                      key={s.id}
-                      onPress={() => toggleSport(s.id)}
-                      disabled={submitting}
-                      style={[styles.chip, picked && styles.chipPicked]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          picked && styles.chipTextPicked,
-                        ]}
-                      >
-                        {s.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </Animated.View>
-
-          {picks.map((pick) => {
-            const sport = sports.find((s) => s.id === pick.sport_id);
-            if (!sport) return null;
-            return (
+          {loadingSports ? (
+            <ActivityIndicator color="#ffffff" style={{ marginTop: 24 }} />
+          ) : (
+            picks.map((pick) => (
               <Animated.View
                 key={pick.sport_id}
-                entering={FadeInDown.springify()}
-                style={styles.levelBlock}
+                entering={FadeInDown.delay(240).springify()}
+                style={{ marginTop: 24 }}
               >
-                <Text style={styles.levelLabel}>
-                  {`Nível em ${sport.name}: `}
-                  <Text style={styles.levelValue}>
-                    {`${pick.declared_level} · ${levelLabel(pick.declared_level)}`}
-                  </Text>
-                </Text>
-                <View style={styles.levelRow}>
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
-                    const active = pick.declared_level >= n;
-                    return (
-                      <Pressable
-                        key={n}
-                        onPress={() => setSportLevel(pick.sport_id, n)}
-                        disabled={submitting}
-                        style={[styles.dot, active && styles.dotActive]}
-                      >
-                        <Text
-                          style={[
-                            styles.dotText,
-                            active && styles.dotTextActive,
-                          ]}
-                        >
-                          {n}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Text style={[styles.levelLabel, { marginTop: 14 }]}>
-                  Posição preferida
-                </Text>
+                <Text style={styles.levelLabel}>Posição preferida</Text>
                 <View style={styles.posRow}>
                   {POSITIONS.map((p) => {
                     const active = pick.preferred_position === p.value;
@@ -537,8 +485,8 @@ export default function OnboardingScreen() {
                   })}
                 </View>
               </Animated.View>
-            );
-          })}
+            ))
+          )}
 
           <Animated.View
             entering={FadeInDown.delay(320).springify()}
