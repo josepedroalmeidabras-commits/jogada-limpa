@@ -106,7 +106,7 @@ export default function PlayerCardScreen() {
   }
 
   return (
-    <Screen>
+    <Screen edges={['bottom']}>
       <Stack.Screen
         options={{
           headerShown: true,
