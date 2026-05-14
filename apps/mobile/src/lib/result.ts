@@ -9,6 +9,10 @@ export type MatchParticipant = {
   attendance: 'attended' | 'missed' | 'substitute_in' | 'substitute_out' | null;
   goals: number;
   assists: number;
+  has_paid: boolean;
+  self_reported_goals: number | null;
+  self_reported_assists: number | null;
+  self_reported_at: string | null;
   profile: { id: string; name: string; photo_url: string | null } | null;
 };
 
@@ -18,7 +22,8 @@ export async function fetchMatchParticipants(
   const { data, error } = await supabase
     .from('match_participants')
     .select(
-      `match_id, user_id, side, invitation_status, attendance, goals, assists,
+      `match_id, user_id, side, invitation_status, attendance, goals, assists, has_paid,
+       self_reported_goals, self_reported_assists, self_reported_at,
        profile:profiles!inner(id, name, photo_url)`,
     )
     .eq('match_id', matchId);
@@ -31,15 +36,30 @@ export async function fetchMatchParticipants(
     ...p,
     goals: p.goals ?? 0,
     assists: p.assists ?? 0,
+    has_paid: p.has_paid ?? false,
   }));
+}
+
+export async function submitMatchSelfReport(args: {
+  matchId: string;
+  goals: number;
+  assists: number;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('submit_match_self_report', {
+    p_match_id: args.matchId,
+    p_goals: args.goals,
+    p_assists: args.assists,
+  });
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
 }
 
 export type OpenSubstitute = {
   user_id: string;
   name: string;
   city: string;
-  elo: number;
-  matches_played: number;
+  win_pct: number;
+  matches: number;
   open_until: string | null;
 };
 
@@ -50,7 +70,7 @@ export async function fetchOpenSubstitutes(
   const { data, error } = await supabase
     .from('user_sports')
     .select(
-      `user_id, elo, matches_played, open_until,
+      `user_id, open_until,
        profile:profiles!inner(id, name, city)`,
     )
     .eq('sport_id', sportId)
@@ -61,19 +81,36 @@ export async function fetchOpenSubstitutes(
     return [];
   }
   const excluded = new Set(excludeUserIds);
-  return (data as any[])
-    .filter((r) => !excluded.has(r.user_id))
+  const filtered = (data as any[]).filter((r) => !excluded.has(r.user_id));
+  if (filtered.length === 0) return [];
+
+  const { data: winRows } = await supabase
+    .from('user_win_stats')
+    .select('user_id, win_pct, matches')
+    .eq('sport_id', sportId)
+    .in('user_id', filtered.map((r) => r.user_id));
+  const winMap = new Map(
+    (winRows ?? []).map((w: any) => [
+      w.user_id as string,
+      { win_pct: Number(w.win_pct), matches: w.matches as number },
+    ]),
+  );
+
+  return filtered
     .map(
       (r): OpenSubstitute => ({
         user_id: r.user_id,
         name: r.profile?.name ?? 'Jogador',
         city: r.profile?.city ?? '',
-        elo: Number(r.elo),
-        matches_played: r.matches_played,
+        win_pct: winMap.get(r.user_id)?.win_pct ?? 0,
+        matches: winMap.get(r.user_id)?.matches ?? 0,
         open_until: r.open_until,
       }),
     )
-    .sort((a, b) => b.elo - a.elo);
+    .sort((a, b) => {
+      if (b.win_pct !== a.win_pct) return b.win_pct - a.win_pct;
+      return b.matches - a.matches;
+    });
 }
 
 export async function inviteSubstitute(input: {

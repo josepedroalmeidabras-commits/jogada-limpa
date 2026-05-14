@@ -25,7 +25,6 @@ type Scores = {
   fair_play: number;
   punctuality: number;
   technical_level: number;
-  attitude: number;
 };
 
 const CATEGORIES: Array<{ key: keyof Scores; label: string; hint: string }> = [
@@ -44,11 +43,6 @@ const CATEGORIES: Array<{ key: keyof Scores; label: string; hint: string }> = [
     label: 'Critério técnico',
     hint: 'Conhecia as regras, leu bem o jogo?',
   },
-  {
-    key: 'attitude',
-    label: 'Postura',
-    hint: 'Calma, autoridade, comunicação?',
-  },
 ];
 
 export default function RefereeReviewScreen() {
@@ -59,7 +53,6 @@ export default function RefereeReviewScreen() {
     fair_play: 4,
     punctuality: 4,
     technical_level: 4,
-    attitude: 4,
   });
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);

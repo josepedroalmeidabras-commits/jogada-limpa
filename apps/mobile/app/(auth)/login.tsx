@@ -14,7 +14,7 @@ import { Button } from '@/components/Button';
 import { Logo } from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
 
-type Mode = 'login' | 'signup';
+type Mode = 'login' | 'signup' | 'forgot';
 
 export default function LoginScreen() {
   const [mode, setMode] = useState<Mode>('login');
@@ -28,13 +28,19 @@ export default function LoginScreen() {
     setError(null);
     setInfo(null);
 
-    if (!email.trim() || !password) {
-      setError('Preenche email e password.');
+    if (!email.trim()) {
+      setError('Preenche o email.');
       return;
     }
-    if (password.length < 8) {
-      setError('A password tem de ter pelo menos 8 caracteres.');
-      return;
+    if (mode !== 'forgot') {
+      if (!password) {
+        setError('Preenche a password.');
+        return;
+      }
+      if (password.length < 8) {
+        setError('A password tem de ter pelo menos 8 caracteres.');
+        return;
+      }
     }
 
     setPending(true);
@@ -50,6 +56,15 @@ export default function LoginScreen() {
             'Conta criada. Verifica o email para confirmar antes de entrar.',
           );
         }
+      } else if (mode === 'forgot') {
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          email.trim().toLowerCase(),
+          { redirectTo: 'https://jogadalimpa.app/reset' },
+        );
+        if (error) throw error;
+        setInfo(
+          'Se este email tiver conta, recebes um link de recuperação em alguns minutos.',
+        );
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim().toLowerCase(),
@@ -81,7 +96,9 @@ export default function LoginScreen() {
             <Text style={styles.subtitle}>
               {mode === 'login'
                 ? 'Bem-vindo de volta'
-                : 'Cria a tua conta'}
+                : mode === 'signup'
+                  ? 'Cria a tua conta'
+                  : 'Recuperar password'}
             </Text>
           </Animated.View>
 
@@ -101,21 +118,29 @@ export default function LoginScreen() {
               editable={!pending}
               style={styles.input}
             />
-            <TextInput
-              placeholder="Password"
-              placeholderTextColor="#5a5a5a"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              editable={!pending}
-              style={styles.input}
-            />
+            {mode !== 'forgot' && (
+              <TextInput
+                placeholder="Password"
+                placeholderTextColor="#5a5a5a"
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                editable={!pending}
+                style={styles.input}
+              />
+            )}
 
             {error && <Text style={styles.error}>{error}</Text>}
             {info && <Text style={styles.info}>{info}</Text>}
 
             <Button
-              label={mode === 'login' ? 'Entrar' : 'Criar conta'}
+              label={
+                mode === 'login'
+                  ? 'Entrar'
+                  : mode === 'signup'
+                    ? 'Criar conta'
+                    : 'Enviar link de recuperação'
+              }
               onPress={handleSubmit}
               loading={pending}
               size="lg"
@@ -123,9 +148,32 @@ export default function LoginScreen() {
               haptic="medium"
             />
 
+            {mode === 'login' && (
+              <Pressable
+                onPress={() => {
+                  setMode('forgot');
+                  setError(null);
+                  setInfo(null);
+                  setPassword('');
+                }}
+                disabled={pending}
+                hitSlop={10}
+              >
+                <Text style={styles.forgotText}>
+                  Esqueceste-te da password?
+                </Text>
+              </Pressable>
+            )}
+
             <Pressable
               onPress={() => {
-                setMode(mode === 'login' ? 'signup' : 'login');
+                setMode(
+                  mode === 'login'
+                    ? 'signup'
+                    : mode === 'signup'
+                      ? 'login'
+                      : 'login',
+                );
                 setError(null);
                 setInfo(null);
               }}
@@ -133,12 +181,21 @@ export default function LoginScreen() {
               hitSlop={10}
             >
               <Text style={styles.switchText}>
-                {mode === 'login'
-                  ? 'Ainda não tens conta? '
-                  : 'Já tens conta? '}
-                <Text style={styles.switchAction}>
-                  {mode === 'login' ? 'Criar' : 'Entrar'}
-                </Text>
+                {mode === 'login' ? (
+                  <>
+                    Ainda não tens conta?{' '}
+                    <Text style={styles.switchAction}>Criar</Text>
+                  </>
+                ) : mode === 'signup' ? (
+                  <>
+                    Já tens conta?{' '}
+                    <Text style={styles.switchAction}>Entrar</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.switchAction}>← Voltar ao login</Text>
+                  </>
+                )}
               </Text>
             </Pressable>
           </Animated.View>
@@ -194,4 +251,11 @@ const styles = StyleSheet.create({
   },
   error: { color: '#f87171', textAlign: 'center', fontSize: 13, marginTop: 4 },
   info: { color: '#a7f3d0', textAlign: 'center', fontSize: 13, marginTop: 4 },
+  forgotText: {
+    color: '#a3a3a3',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: '600',
+  },
 });

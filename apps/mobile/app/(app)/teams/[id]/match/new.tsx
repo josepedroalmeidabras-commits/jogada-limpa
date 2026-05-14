@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
-import { fetchTeamById, type TeamWithSport } from '@/lib/teams';
+import { fetchTeamById, isTeamLeader, type TeamWithSport } from '@/lib/teams';
+import { fetchLocationsByCity, type Location } from '@/lib/locations';
+import { Ionicons } from '@expo/vector-icons';
 import {
   balanceLabel,
   fetchOpponentCandidates,
@@ -70,6 +72,19 @@ export default function NewMatchScreen() {
   const [time, setTime] = useState('');
   const [locationName, setLocationName] = useState('');
   const [locationTbd, setLocationTbd] = useState(false);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | 'other' | null>(null);
+  const timeScrollRef = useRef<ScrollView | null>(null);
+
+  // Auto-scroll time picker to 18:00 zone (popular slot)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      // 9h:00 is index 0, each slot ~72px wide (paddingH 14 + text ~36 + gap 8)
+      // 18:00 is index (18-9)*2 = 18 → offset ≈ 18*72 = 1296
+      timeScrollRef.current?.scrollTo({ x: 1180, animated: false });
+    }, 100);
+    return () => clearTimeout(t);
+  }, []);
   const [message, setMessage] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +100,8 @@ export default function NewMatchScreen() {
         return;
       }
       setTeam(t);
+      const locs = await fetchLocationsByCity(t.city);
+      if (!cancelled) setLocations(locs);
       const list = await fetchOpponentCandidates(t.sport_id, t.id);
       if (cancelled) return;
       const stats = await fetchTeamEloStats([t.id, ...list.map((l) => l.id)]);
@@ -114,8 +131,8 @@ export default function NewMatchScreen() {
       setError('Sessão inválida.');
       return;
     }
-    if (team.captain_id !== session.user.id) {
-      setError('Só o capitão pode marcar jogos.');
+    if (!isTeamLeader(team, session.user.id)) {
+      setError('Só o capitão ou sub-capitão pode marcar jogos.');
       return;
     }
     if (!opponentId) {
@@ -314,89 +331,213 @@ export default function NewMatchScreen() {
             </View>
           )}
 
-          <Text style={styles.label}>Atalhos rápidos</Text>
-          <View style={styles.presetRow}>
-            {(
-              [
-                { label: 'Sábado · 19h', day: 6, hour: 19, minute: 0 },
-                { label: 'Sábado · 21h', day: 6, hour: 21, minute: 0 },
-                { label: 'Domingo · 10h', day: 0, hour: 10, minute: 0 },
-              ]
-            ).map((p) => (
-              <Pressable
-                key={p.label}
-                style={styles.presetChip}
-                onPress={() => {
-                  const now = new Date();
-                  const target = new Date(now);
-                  const diff = (p.day - now.getDay() + 7) % 7 || 7;
-                  target.setDate(now.getDate() + diff);
-                  target.setHours(p.hour, p.minute, 0, 0);
-                  const dd = String(target.getDate()).padStart(2, '0');
-                  const mm = String(target.getMonth() + 1).padStart(2, '0');
-                  const yyyy = target.getFullYear();
-                  const hh = String(target.getHours()).padStart(2, '0');
-                  const mi = String(target.getMinutes()).padStart(2, '0');
-                  setDate(`${dd}/${mm}/${yyyy}`);
-                  setTime(`${hh}:${mi}`);
-                }}
-              >
-                <Text style={styles.presetChipText}>{p.label}</Text>
-              </Pressable>
-            ))}
+          <Text style={styles.label}>Dia</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipScroll}
+          >
+            {(() => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+              return Array.from({ length: 14 }, (_, i) => {
+                const d = new Date(today);
+                d.setDate(today.getDate() + i);
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                const dateStr = `${dd}/${mm}/${yyyy}`;
+                const label = i === 0 ? 'Hoje' : i === 1 ? 'Amanhã' : days[d.getDay()]!;
+                const active = date === dateStr;
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => setDate(dateStr)}
+                    style={[styles.dayChip, active && styles.dayChipActive]}
+                  >
+                    <Text style={[styles.dayChipLabel, active && styles.dayChipLabelActive]}>
+                      {label}
+                    </Text>
+                    <Text style={[styles.dayChipDate, active && styles.dayChipDateActive]}>
+                      {`${dd}/${mm}`}
+                    </Text>
+                  </Pressable>
+                );
+              });
+            })()}
+          </ScrollView>
+
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Hora</Text>
+            <Text style={styles.labelHint}>Mais jogos · 18h–23h</Text>
+          </View>
+          <ScrollView
+            ref={timeScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipScroll}
+          >
+            {(() => {
+              const slots: string[] = [];
+              for (let h = 9; h <= 23; h++) {
+                slots.push(`${String(h).padStart(2, '0')}:00`);
+                slots.push(`${String(h).padStart(2, '0')}:30`);
+              }
+              return slots.map((s) => {
+                const active = time === s;
+                const hour = parseInt(s.slice(0, 2), 10);
+                const popular = hour >= 18 && hour <= 23;
+                return (
+                  <Pressable
+                    key={s}
+                    onPress={() => setTime(s)}
+                    style={[
+                      styles.timeChip,
+                      popular && !active && styles.timeChipPopular,
+                      active && styles.timeChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.timeChipText,
+                        popular && !active && styles.timeChipTextPopular,
+                        active && styles.timeChipTextActive,
+                      ]}
+                    >
+                      {s}
+                    </Text>
+                  </Pressable>
+                );
+              });
+            })()}
+          </ScrollView>
+
+          <Text style={styles.label}>Local</Text>
+          <View style={styles.locList}>
+            <ScrollView
+              style={{ maxHeight: 220 }}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
+              {locations.map((loc, idx) => {
+                const active = selectedLocationId === loc.id;
+                return (
+                  <Pressable
+                    key={loc.id}
+                    onPress={() => {
+                      setSelectedLocationId(loc.id);
+                      setLocationName(loc.name);
+                      setLocationTbd(false);
+                    }}
+                    style={[
+                      styles.locRow,
+                      idx > 0 && styles.locRowBorder,
+                      active && styles.locRowActive,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.locIcon,
+                        active && styles.locIconActive,
+                      ]}
+                    >
+                      <Ionicons
+                        name="location"
+                        size={14}
+                        color={active ? colors.brand : colors.textDim}
+                      />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text
+                        style={[
+                          styles.locName,
+                          active && styles.locNameActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {loc.name}
+                      </Text>
+                      {loc.address && (
+                        <Text style={styles.locAddress} numberOfLines={1}>
+                          {loc.address}
+                        </Text>
+                      )}
+                    </View>
+                    {active && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color={colors.brand}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
 
-          <Text style={styles.label}>Data (DD/MM/AAAA)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="20/05/2026"
-            placeholderTextColor="#666"
-            value={date}
-            onChangeText={(t) => setDate(formatDateInput(t))}
-            keyboardType="number-pad"
-            maxLength={10}
-            editable={!submitting}
-          />
-
-          <Text style={styles.label}>Hora (HH:MM)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="19:30"
-            placeholderTextColor="#666"
-            value={time}
-            onChangeText={(t) => setTime(formatTimeInput(t))}
-            keyboardType="number-pad"
-            maxLength={5}
-            editable={!submitting}
-          />
-
-          <Pressable
-            style={styles.tbdRow}
-            onPress={() => setLocationTbd((v) => !v)}
-            disabled={submitting}
-          >
-            <View
-              style={[styles.checkbox, locationTbd && styles.checkboxChecked]}
+          <View style={styles.locExtras}>
+            <Pressable
+              onPress={() => {
+                setSelectedLocationId('other');
+                setLocationName('');
+                setLocationTbd(false);
+              }}
+              style={[
+                styles.locExtraChip,
+                selectedLocationId === 'other' && styles.locExtraChipActive,
+              ]}
             >
-              {locationTbd && <Text style={styles.checkboxMark}>✓</Text>}
-            </View>
-            <Text style={styles.tbdText}>Local a combinar</Text>
-          </Pressable>
-
-          {!locationTbd && (
-            <>
-              <Text style={styles.label}>Local</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Campo Municipal de Celas"
-                placeholderTextColor="#666"
-                value={locationName}
-                onChangeText={setLocationName}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!submitting}
+              <Ionicons
+                name="create-outline"
+                size={13}
+                color={selectedLocationId === 'other' ? colors.brand : colors.textDim}
               />
-            </>
+              <Text
+                style={[
+                  styles.locExtraText,
+                  selectedLocationId === 'other' && styles.locExtraTextActive,
+                ]}
+              >
+                Outro local
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setLocationTbd(true);
+                setSelectedLocationId(null);
+                setLocationName('');
+              }}
+              style={[styles.locExtraChip, locationTbd && styles.locExtraChipActive]}
+            >
+              <Ionicons
+                name="help-circle-outline"
+                size={13}
+                color={locationTbd ? colors.brand : colors.textDim}
+              />
+              <Text
+                style={[
+                  styles.locExtraText,
+                  locationTbd && styles.locExtraTextActive,
+                ]}
+              >
+                A combinar
+              </Text>
+            </Pressable>
+          </View>
+
+          {selectedLocationId === 'other' && (
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              placeholder="Nome do local"
+              placeholderTextColor="#666"
+              value={locationName}
+              onChangeText={setLocationName}
+              autoCapitalize="words"
+              autoCorrect={false}
+              editable={!submitting}
+            />
           )}
 
           <Text style={styles.label}>Mensagem (opcional)</Text>
@@ -425,15 +566,17 @@ export default function NewMatchScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Button
-            label="Enviar desafio"
-            size="lg"
-            haptic="medium"
-            loading={submitting}
-            disabled={opponents.length === 0}
-            onPress={handleSubmit}
-            full
-          />
+          <View style={{ alignSelf: 'stretch' }}>
+            <Button
+              label="Enviar desafio"
+              size="lg"
+              haptic="medium"
+              loading={submitting}
+              disabled={opponents.length === 0}
+              onPress={handleSubmit}
+              full
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -444,7 +587,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0E1812' },
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { padding: 24, paddingBottom: 48, alignItems: 'stretch' },
   heading: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
   sub: { color: '#a3a3a3', fontSize: 14, marginTop: 4, marginBottom: 16 },
   label: {
@@ -509,6 +652,151 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandSoft,
   },
   presetChipText: { color: colors.brand, fontSize: 12, fontWeight: '700' },
+  chipScroll: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  dayChip: {
+    width: 64,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'center',
+  },
+  dayChipActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  dayChipLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  dayChipLabelActive: { color: '#0E1812' },
+  dayChipDate: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    marginTop: 4,
+  },
+  dayChipDateActive: { color: '#0E1812' },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  labelHint: {
+    color: colors.goldDeep,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  timeChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  timeChipPopular: {
+    borderColor: colors.goldDim,
+    backgroundColor: 'rgba(201,162,107,0.08)',
+  },
+  timeChipActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  timeChipText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  timeChipTextPopular: { color: colors.goldDeep },
+  timeChipTextActive: { color: '#0E1812' },
+  locList: {
+    marginTop: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    overflow: 'hidden',
+  },
+  locRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  locRowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  locRowActive: {
+    backgroundColor: colors.brandSoft,
+  },
+  locIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locIconActive: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.goldDim,
+  },
+  locName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  locNameActive: { color: colors.brand },
+  locAddress: {
+    color: colors.textDim,
+    fontSize: 11,
+    marginTop: 2,
+    letterSpacing: 0.1,
+  },
+  locExtras: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  locExtraChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  locExtraChipActive: {
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+  },
+  locExtraText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  locExtraTextActive: { color: colors.brand },
   formRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
   formDot: {
     width: 18,

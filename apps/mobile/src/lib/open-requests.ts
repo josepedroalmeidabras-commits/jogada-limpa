@@ -22,7 +22,8 @@ export type OpenRequest = {
     photo_url: string | null;
     city: string;
   } | null;
-  team_elo_avg?: number | null;
+  team_win_pct?: number | null;
+  team_matches?: number;
 };
 
 export async function fetchOpenRequests(city: string): Promise<OpenRequest[]> {
@@ -31,7 +32,7 @@ export async function fetchOpenRequests(city: string): Promise<OpenRequest[]> {
     .select(
       `id, team_id, sport_id, city, scheduled_at, location_name, location_tbd,
        notes, min_elo, max_elo, status, match_id, created_by, created_at,
-       team:teams!inner(id, name, photo_url, city, is_active)`,
+       team:teams!open_match_requests_team_id_fkey!inner(id, name, photo_url, city, is_active)`,
     )
     .eq('status', 'open')
     .eq('city', city)
@@ -46,19 +47,23 @@ export async function fetchOpenRequests(city: string): Promise<OpenRequest[]> {
   const filtered = (data as any[]).filter((r) => r.team?.is_active !== false);
   if (filtered.length === 0) return [];
 
-  // join team_elo for badges
+  // join team win stats for badges
   const teamIds = Array.from(new Set(filtered.map((r) => r.team_id)));
-  const { data: elos } = await supabase
-    .from('team_elo')
-    .select('team_id, elo_avg')
+  const { data: wins } = await supabase
+    .from('team_win_stats')
+    .select('team_id, win_pct, matches')
     .in('team_id', teamIds);
-  const eloMap = new Map(
-    (elos ?? []).map((e: any) => [e.team_id as string, Number(e.elo_avg)]),
+  const winMap = new Map(
+    (wins ?? []).map((w: any) => [
+      w.team_id as string,
+      { win_pct: Number(w.win_pct), matches: w.matches as number },
+    ]),
   );
 
   return filtered.map((r) => ({
     ...r,
-    team_elo_avg: eloMap.get(r.team_id) ?? null,
+    team_win_pct: winMap.get(r.team_id)?.win_pct ?? null,
+    team_matches: winMap.get(r.team_id)?.matches ?? 0,
   })) as OpenRequest[];
 }
 
@@ -72,7 +77,7 @@ export async function fetchMyOpenRequests(): Promise<OpenRequest[]> {
     .select(
       `id, team_id, sport_id, city, scheduled_at, location_name, location_tbd,
        notes, min_elo, max_elo, status, match_id, created_by, created_at,
-       team:teams!inner(id, name, photo_url, city)`,
+       team:teams!open_match_requests_team_id_fkey!inner(id, name, photo_url, city)`,
     )
     .eq('status', 'open')
     .eq('created_by', me)

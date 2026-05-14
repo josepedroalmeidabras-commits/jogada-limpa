@@ -27,7 +27,15 @@ type EyebrowProps = {
 };
 
 export function Eyebrow({ children, style }: EyebrowProps) {
-  return <Text style={[eyebrowStyle, style]}>{children}</Text>;
+  // iOS RN corrompe caracteres acentuados com `textTransform: uppercase`,
+  // então uppercase em JS (Unicode correcto) e sem CSS transform.
+  return (
+    <Text style={[eyebrowStyle, style]}>
+      {typeof children === 'string'
+        ? children.toLocaleUpperCase('pt-PT')
+        : children}
+    </Text>
+  );
 }
 
 const levelStyles = StyleSheet.create({
@@ -58,6 +66,5 @@ const eyebrowStyle: TextStyle = {
   color: '#737373',
   fontSize: 11,
   fontWeight: '700',
-  textTransform: 'uppercase',
   letterSpacing: 1.5,
 };

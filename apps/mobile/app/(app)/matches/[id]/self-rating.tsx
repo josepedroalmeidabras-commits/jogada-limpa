@@ -41,11 +41,6 @@ const CATEGORIES: Array<{ key: CategoryKey; label: string; hint: string }> = [
     label: 'Nível técnico',
     hint: 'Como te saíste em campo.',
   },
-  {
-    key: 'attitude',
-    label: 'Atitude',
-    hint: 'Espírito de equipa, postura, vibe.',
-  },
 ];
 
 export default function SelfRatingScreen() {
@@ -55,7 +50,6 @@ export default function SelfRatingScreen() {
     fair_play: 4,
     punctuality: 4,
     technical_level: 4,
-    attitude: 4,
   });
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -73,7 +67,6 @@ export default function SelfRatingScreen() {
           fair_play: existing.fair_play,
           punctuality: existing.punctuality,
           technical_level: existing.technical_level,
-          attitude: existing.attitude,
         });
         setComment(existing.comment ?? '');
         setHasExisting(true);

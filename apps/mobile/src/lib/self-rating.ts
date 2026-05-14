@@ -4,7 +4,6 @@ export type SelfRatingScores = {
   fair_play: number;
   punctuality: number;
   technical_level: number;
-  attitude: number;
 };
 
 export async function fetchMySelfRating(
@@ -15,7 +14,7 @@ export async function fetchMySelfRating(
   if (!me) return null;
   const { data, error } = await supabase
     .from('self_ratings')
-    .select('fair_play, punctuality, technical_level, attitude, comment')
+    .select('fair_play, punctuality, technical_level, comment')
     .eq('user_id', me)
     .eq('match_id', matchId)
     .maybeSingle();
@@ -24,7 +23,6 @@ export async function fetchMySelfRating(
     fair_play: data.fair_play,
     punctuality: data.punctuality,
     technical_level: data.technical_level,
-    attitude: data.attitude,
     comment: data.comment ?? null,
   };
 }
@@ -39,7 +37,6 @@ export async function submitSelfRating(input: {
     p_fair_play: input.scores.fair_play,
     p_punctuality: input.scores.punctuality,
     p_technical_level: input.scores.technical_level,
-    p_attitude: input.scores.attitude,
     p_comment: input.comment ?? null,
   });
   if (error) {

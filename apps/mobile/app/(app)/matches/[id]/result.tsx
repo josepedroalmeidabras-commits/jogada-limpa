@@ -54,6 +54,24 @@ export default function SubmitResultScreen() {
     ]);
     setMatch(m);
     setParticipants(p);
+    // Pre-fill goals/assists with self-reported values when present
+    const initialGoals: Record<string, number> = {};
+    const initialAssists: Record<string, number> = {};
+    const initialAttended = new Set<string>();
+    for (const part of p) {
+      if (part.self_reported_goals !== null && part.self_reported_goals !== undefined) {
+        initialGoals[part.user_id] = part.self_reported_goals;
+      }
+      if (part.self_reported_assists !== null && part.self_reported_assists !== undefined) {
+        initialAssists[part.user_id] = part.self_reported_assists;
+      }
+      if (part.attendance === 'attended' || part.attendance === 'substitute_in') {
+        initialAttended.add(part.user_id);
+      }
+    }
+    setGoals(initialGoals);
+    setAssists(initialAssists);
+    if (initialAttended.size > 0) setAttended(initialAttended);
     setLoading(false);
   }, [id]);
 
@@ -267,17 +285,24 @@ export default function SubmitResultScreen() {
                     <Text style={styles.playerName}>
                       {p.profile?.name ?? 'Jogador'}
                     </Text>
+                    {p.self_reported_at && (
+                      <View style={styles.selfReportedBadge}>
+                        <Text style={styles.selfReportedBadgeText}>
+                          AUTO
+                        </Text>
+                      </View>
+                    )}
                   </Pressable>
                   {picked && (
                     <View style={styles.statsRow}>
                       <Stepper
-                        label="⚽ Golos"
+                        label="Golos"
                         value={g}
                         onChange={(d) => step(setGoals, p.user_id, d)}
                         disabled={submitting}
                       />
                       <Stepper
-                        label="🎁 Assist."
+                        label="Assist."
                         value={a}
                         onChange={(d) => step(setAssists, p.user_id, d)}
                         disabled={submitting}
@@ -302,7 +327,7 @@ export default function SubmitResultScreen() {
 
           <Text style={styles.hint}>
             Quando ambos os capitães submeterem o mesmo resultado, o jogo
-            valida automaticamente e o ELO é atualizado.
+            valida automaticamente e entra para as estatísticas.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -456,7 +481,21 @@ const styles = StyleSheet.create({
   },
   checkOn: { backgroundColor: colors.brand, borderColor: colors.brand },
   checkMark: { color: '#000000', fontWeight: '800', fontSize: 14 },
-  playerName: { color: '#ffffff', fontSize: 15 },
+  playerName: { color: '#ffffff', fontSize: 15, flex: 1 },
+  selfReportedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.goldDim,
+  },
+  selfReportedBadgeText: {
+    color: colors.goldDeep,
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
   submit: {
     backgroundColor: '#ffffff',
     borderRadius: 999,

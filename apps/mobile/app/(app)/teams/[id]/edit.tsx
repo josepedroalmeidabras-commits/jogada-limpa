@@ -14,9 +14,11 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import {
+  addTeamSubCaptain,
   deactivateTeam,
   fetchTeamById,
   fetchTeamMembers,
+  removeTeamSubCaptain,
   setTeamAnnouncement,
   transferCaptaincy,
   updateTeam,
@@ -41,6 +43,8 @@ export default function EditTeamScreen() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [subCaps, setSubCaps] = useState<string[]>([]);
+  const [subBusy, setSubBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +68,7 @@ export default function EditTeamScreen() {
       setAnnouncement(t.announcement ?? '');
       setPhotoUrl(t.photo_url ?? null);
       setMembers(m);
+      setSubCaps(t.sub_captain_ids ?? []);
       setIsCaptain(t.captain_id === session.user.id);
       setLoading(false);
     })();
@@ -296,6 +301,113 @@ export default function EditTeamScreen() {
           {members.filter((m) => m.role !== 'captain').length > 0 && (
             <>
               <Text style={[styles.label, { marginTop: 32 }]}>
+                {`Sub-capitães · ${subCaps.length}`}
+              </Text>
+              <Text style={styles.hint}>
+                Sem limite. Sub-capitães podem marcar jogos e peladinhas em
+                teu nome. Não podem editar a equipa.
+              </Text>
+              {subCaps.map((uid) => {
+                const member = members.find((m) => m.user_id === uid);
+                return (
+                  <Pressable
+                    key={uid}
+                    style={[
+                      styles.memberRow,
+                      { opacity: subBusy ? 0.5 : 1 },
+                    ]}
+                    disabled={subBusy}
+                    onPress={() =>
+                      Alert.alert(
+                        'Remover sub-capitão?',
+                        `${member?.profile?.name ?? 'Sub-capitão'} deixa de poder marcar jogos.`,
+                        [
+                          { text: 'Cancelar', style: 'cancel' },
+                          {
+                            text: 'Remover',
+                            style: 'destructive',
+                            onPress: async () => {
+                              if (!id) return;
+                              setSubBusy(true);
+                              const r = await removeTeamSubCaptain(id, uid);
+                              setSubBusy(false);
+                              if (!r.ok) {
+                                Alert.alert('Erro', r.message);
+                                return;
+                              }
+                              setSubCaps((prev) => prev.filter((x) => x !== uid));
+                            },
+                          },
+                        ],
+                      )
+                    }
+                  >
+                    <Avatar
+                      url={member?.profile?.photo_url}
+                      name={member?.profile?.name}
+                      size={36}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.memberRowName}>
+                        {member?.profile?.name ?? 'Sub-capitão'}
+                      </Text>
+                    </View>
+                    <Text style={styles.memberRowArrow}>✕</Text>
+                  </Pressable>
+                );
+              })}
+              {(() => {
+                const candidates = members.filter(
+                  (m) =>
+                    m.role !== 'captain' && !subCaps.includes(m.user_id),
+                );
+                if (candidates.length === 0) return null;
+                return (
+                  <Pressable
+                    style={[
+                      styles.memberRow,
+                      styles.addRow,
+                      { opacity: subBusy ? 0.5 : 1 },
+                    ]}
+                    disabled={subBusy}
+                    onPress={() => {
+                      Alert.alert(
+                        'Adicionar sub-capitão',
+                        'Escolhe um membro',
+                        [
+                          ...candidates.slice(0, 10).map((m) => ({
+                            text: m.profile?.name ?? 'Membro',
+                            onPress: async () => {
+                              if (!id) return;
+                              setSubBusy(true);
+                              const r = await addTeamSubCaptain(id, m.user_id);
+                              setSubBusy(false);
+                              if (!r.ok) {
+                                Alert.alert('Erro', r.message);
+                                return;
+                              }
+                              setSubCaps((prev) => [...prev, m.user_id]);
+                            },
+                          })),
+                          { text: 'Cancelar', style: 'cancel' as const },
+                        ],
+                      );
+                    }}
+                  >
+                    <View style={styles.emptySlot}>
+                      <Text style={styles.emptySlotText}>+</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.memberRowName}>
+                        Adicionar sub-capitão
+                      </Text>
+                    </View>
+                    <Text style={styles.memberRowArrow}>›</Text>
+                  </Pressable>
+                );
+              })()}
+
+              <Text style={[styles.label, { marginTop: 32 }]}>
                 Transferir capitania
               </Text>
               <Text style={styles.hint}>
@@ -468,7 +580,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     marginBottom: 8,
   },
-  memberRowName: { color: '#ffffff', flex: 1, fontSize: 15 },
+  memberRowName: { color: '#ffffff', fontSize: 15 },
+  emptySlot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.brandSoftBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptySlotText: { color: colors.brand, fontSize: 14, fontWeight: '800' },
+  addRow: {
+    borderStyle: 'dashed',
+  },
   memberRowArrow: { color: '#737373', fontSize: 20 },
   dangerBlock: {
     marginTop: 40,

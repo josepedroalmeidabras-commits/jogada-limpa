@@ -42,6 +42,7 @@ export default function EditProfileScreen() {
   const [nickname, setNickname] = useState('');
   const [jerseyNumber, setJerseyNumber] = useState('');
   const [preferredFoot, setPreferredFoot] = useState<'left' | 'right' | 'both' | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [sports, setSports] = useState<UserSportElo[]>([]);
@@ -68,6 +69,7 @@ export default function EditProfileScreen() {
       setNickname(p.nickname ?? '');
       setJerseyNumber(p.jersey_number ? String(p.jersey_number) : '');
       setPreferredFoot(p.preferred_foot ?? null);
+      setIsPrivate(p.is_private ?? false);
       setPhotoUrl(p.photo_url ?? null);
       setSports(s);
       setLoading(false);
@@ -211,6 +213,7 @@ export default function EditProfileScreen() {
       nickname: nickname.trim() || null,
       jersey_number: parsedJersey,
       preferred_foot: preferredFoot,
+      is_private: isPrivate,
     });
     setSubmitting(false);
     if (!r.ok) {
@@ -366,6 +369,31 @@ export default function EditProfileScreen() {
             editable={!submitting}
           />
           <Text style={styles.charHint}>{`${bio.length} / 300`}</Text>
+
+          <Text style={[styles.label, { marginTop: 24 }]}>Privacidade</Text>
+          <Pressable
+            onPress={() => setIsPrivate((v) => !v)}
+            disabled={submitting}
+            style={styles.privacyRow}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.privacyTitle}>
+                {isPrivate ? 'Perfil privado' : 'Perfil público'}
+              </Text>
+              <Text style={styles.privacyBody}>
+                {isPrivate
+                  ? 'Só amigos podem ver as tuas estatísticas e jogos. Outros vêem só nome e cidade.'
+                  : 'Qualquer pessoa pode ver o teu perfil completo, jogos e estatísticas.'}
+              </Text>
+            </View>
+            <View
+              style={[styles.toggle, isPrivate && styles.toggleOn]}
+            >
+              <View
+                style={[styles.toggleKnob, isPrivate && styles.toggleKnobOn]}
+              />
+            </View>
+          </Pressable>
 
           {error && <Text style={styles.error}>{error}</Text>}
 
@@ -661,6 +689,29 @@ const styles = StyleSheet.create({
   },
   footChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
   footChipTextActive: { color: '#0E1812' },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    marginTop: 8,
+  },
+  privacyTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  privacyBody: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+  },
   posSportLabel: {
     color: '#a3a3a3',
     fontSize: 12,

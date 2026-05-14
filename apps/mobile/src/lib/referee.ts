@@ -38,7 +38,6 @@ export type RefereeReviewInput = {
   fair_play: number;
   punctuality: number;
   technical_level: number;
-  attitude: number;
   comment?: string;
 };
 
@@ -50,7 +49,6 @@ export async function submitRefereeReview(
     p_fair_play: input.fair_play,
     p_punctuality: input.punctuality,
     p_technical_level: input.technical_level,
-    p_attitude: input.attitude,
     p_comment: input.comment ?? null,
   });
   if (error) {

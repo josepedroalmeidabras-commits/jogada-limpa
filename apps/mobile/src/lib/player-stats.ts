@@ -60,6 +60,21 @@ export const STAT_LABELS: Record<StatCategory, string> = {
   saidas: 'Saídas',
 };
 
+// FUT-style 3-letter codes
+export const STAT_SHORT: Record<StatCategory, string> = {
+  velocidade: 'VEL',
+  remate: 'REM',
+  drible: 'DRI',
+  passe: 'PAS',
+  defesa: 'DEF',
+  fisico: 'FÍS',
+  reflexos: 'REF',
+  defesa_aerea: 'AÉR',
+  posicionamento: 'POS',
+  distribuicao: 'DIS',
+  saidas: 'SAÍ',
+};
+
 export const STAT_ICONS: Record<StatCategory, string> = {
   velocidade: '⚡',
   remate: '🎯',
@@ -185,6 +200,26 @@ export async function setStatVote(
     };
   }
   return { ok: true };
+}
+
+export type PendingTeammate = {
+  user_id: string;
+  name: string;
+  photo_url: string | null;
+};
+
+export async function fetchPendingStatVoteTeammates(
+  limit = 6,
+): Promise<PendingTeammate[]> {
+  const { data, error } = await supabase.rpc('pending_stat_vote_teammates', {
+    p_limit: limit,
+  });
+  if (error || !data) return [];
+  return (data as any[]).map((r) => ({
+    user_id: r.user_id,
+    name: r.name,
+    photo_url: r.photo_url ?? null,
+  }));
 }
 
 export async function canVoteOnPlayer(targetId: string): Promise<boolean> {

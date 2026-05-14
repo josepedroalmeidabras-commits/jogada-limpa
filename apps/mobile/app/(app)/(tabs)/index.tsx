@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -7,15 +8,25 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, {
-  FadeInDown,
-  FadeIn,
-} from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { supabase } from '@/lib/supabase';
 import { fetchProfile, type Profile } from '@/lib/profile';
-import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
+import { fetchMyTeams, isTeamLeader, type TeamWithSport } from '@/lib/teams';
+import { fetchPreferredPosition } from '@/lib/reviews';
+import {
+  categoriesForPosition,
+  fetchPendingStatVoteTeammates,
+  fetchPlayerStats,
+  overallRating,
+  ratingColor,
+  STAT_ICONS,
+  STAT_LABELS,
+  totalVotes,
+  type AggregateStat,
+  type PendingTeammate,
+} from '@/lib/player-stats';
 import {
   fetchCityActivity,
   fetchNextMatchForUser,
@@ -33,9 +44,15 @@ import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Avatar } from '@/components/Avatar';
+import { PlayerStatsCard } from '@/components/PlayerStatsCard';
+import { WelcomeTutorial } from '@/components/WelcomeTutorial';
+import { MatchKindSheet } from '@/components/MatchKindSheet';
+import { MatchResultRow } from '@/components/MatchResultRow';
 import { fetchUnreadCount } from '@/lib/notifications';
-import { fetchUnreadByTeam } from '@/lib/chat';
+import { fetchMvpOfWeek } from '@/lib/mvp';
+import { fetchCityPulse, type CityPulse } from '@/lib/city';
 import {
   computeMonthlyStats,
   computeWinStreak,
@@ -43,6 +60,10 @@ import {
   type MatchHistoryEntry,
   type MonthlyStats,
 } from '@/lib/history';
+import {
+  fetchPlayerMonthStats,
+  type MonthStats,
+} from '@/lib/season-stats';
 import {
   fetchFriends,
   fetchFriendsRecentMatches,
@@ -55,7 +76,6 @@ import {
   fetchPendingPeladinhaInvites,
   type PendingPeladinhaInvite,
 } from '@/lib/internal-match';
-import { fetchPlayerStats } from '@/lib/player-stats';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
@@ -69,24 +89,45 @@ export default function HomeScreen() {
   const [activity, setActivity] = useState<CityActivity[]>([]);
   const [unread, setUnread] = useState(0);
   const [monthly, setMonthly] = useState<MonthlyStats | null>(null);
+  const [monthStats, setMonthStats] = useState<MonthStats | null>(null);
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
-  const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
   const [friendsActivity, setFriendsActivity] = useState<FriendMatchEvent[]>([]);
   const [nextMatch, setNextMatch] = useState<MatchSummary | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, []);
   const [incoming, setIncoming] = useState<PendingRequest[]>([]);
   const [peladinhas, setPeladinhas] = useState<PendingPeladinhaInvite[]>([]);
+  const [playerStats, setPlayerStats] = useState<AggregateStat[]>([]);
+  const [pendingVotes, setPendingVotes] = useState<PendingTeammate[]>([]);
+  const [mvpWeek, setMvpWeek] = useState<{
+    user_id: string;
+    name: string;
+    photo_url: string | null;
+    votes: number;
+  } | null>(null);
+  const [cityPulse, setCityPulse] = useState<CityPulse | null>(null);
+  const [myPosition, setMyPosition] = useState<string | null>(null);
   const [completeness, setCompleteness] = useState<{
     items: { key: string; label: string; done: boolean }[];
     percent: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const seen = await AsyncStorage.getItem('s7vn:welcome_seen');
+      if (!cancelled && !seen) setShowWelcome(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dismissWelcome = useCallback(async () => {
+    setShowWelcome(false);
+    await AsyncStorage.setItem('s7vn:welcome_seen', '1');
+  }, []);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -101,6 +142,7 @@ export default function HomeScreen() {
       return;
     }
     setProfile(p);
+    const position = await fetchPreferredPosition(session.user.id);
     const [myTeams, ch, rv, act, u, hist, fa, inc, friends, myStats, nxt, pel] = await Promise.all([
       fetchMyTeams(session.user.id),
       fetchPendingChallengesForUser(session.user.id),
@@ -111,16 +153,34 @@ export default function HomeScreen() {
       fetchFriendsRecentMatches(6),
       fetchIncomingRequests(),
       fetchFriends(),
-      fetchPlayerStats(session.user.id),
+      fetchPlayerStats(session.user.id, position),
       fetchNextMatchForUser(session.user.id),
       fetchPendingPeladinhaInvites(),
     ]);
+    setMyPosition(position);
+    setPlayerStats(myStats);
+    setPendingVotes(await fetchPendingStatVoteTeammates(6));
+    if (p.city) {
+      const [mw, cp] = await Promise.all([
+        fetchMvpOfWeek(p.city),
+        fetchCityPulse(p.city),
+      ]);
+      setMvpWeek(mw);
+      setCityPulse(cp);
+    }
     setTeams(myTeams);
     setChallenges(ch);
     setReviews(rv);
     setActivity(act);
     setUnread(u);
     setMonthly(computeMonthlyStats(hist));
+    const now = new Date();
+    const ms = await fetchPlayerMonthStats(
+      session.user.id,
+      now.getFullYear(),
+      now.getMonth() + 1,
+    );
+    setMonthStats(ms);
     setHistory(hist);
     setFriendsActivity(fa);
     setNextMatch(nxt);
@@ -143,13 +203,6 @@ export default function HomeScreen() {
       items,
       percent: Math.round((doneCount / items.length) * 100),
     });
-    if (myTeams.length > 0) {
-      const unreadByTeam = await fetchUnreadByTeam(
-        myTeams.map((t) => t.id),
-        session.user.id,
-      );
-      setChatUnread(unreadByTeam);
-    }
     setLoading(false);
   }, [session, router]);
 
@@ -169,8 +222,55 @@ export default function HomeScreen() {
     }, [load]),
   );
 
+  const myLeaderTeams = teams.filter((t) =>
+    isTeamLeader(t, session?.user.id),
+  );
+  const isLeader = myLeaderTeams.length > 0;
+  const primaryTeam = myLeaderTeams[0] ?? teams[0] ?? null;
+
+  const [matchKindOpen, setMatchKindOpen] = useState(false);
+
+  const handlePrimaryAction = useCallback(() => {
+    if (myLeaderTeams.length === 0) {
+      router.push('/(app)/teams/new');
+      return;
+    }
+    setMatchKindOpen(true);
+  }, [myLeaderTeams, router]);
+
+  const handleMatchKindPick = useCallback(
+    (kind: 'match' | 'internal' | 'open') => {
+      setMatchKindOpen(false);
+      const go = (teamId: string) => {
+        if (kind === 'match')
+          router.push(`/(app)/teams/${teamId}/match/new`);
+        else if (kind === 'internal')
+          router.push(`/(app)/teams/${teamId}/internal/new`);
+        else router.push(`/(app)/teams/${teamId}/open-request`);
+      };
+      if (myLeaderTeams.length === 1) {
+        go(myLeaderTeams[0]!.id);
+        return;
+      }
+      Alert.alert('Para que equipa?', 'Escolhe a equipa', [
+        ...myLeaderTeams.map((t) => ({
+          text: t.name,
+          onPress: () => go(t.id),
+        })),
+        { text: 'Cancelar', style: 'cancel' as const },
+      ]);
+    },
+    [myLeaderTeams, router],
+  );
+
   return (
     <Screen>
+      <WelcomeTutorial visible={showWelcome} onClose={dismissWelcome} />
+      <MatchKindSheet
+        visible={matchKindOpen}
+        onClose={() => setMatchKindOpen(false)}
+        onSelect={handleMatchKindPick}
+      />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -190,28 +290,55 @@ export default function HomeScreen() {
               entering={FadeInDown.duration(300).springify()}
               style={styles.header}
             >
-              <View style={{ flex: 1 }}>
-                {(() => {
-                  const streak = computeWinStreak(history);
-                  const hour = new Date().getHours();
-                  const greet =
-                    hour < 6 ? 'Madrugada'
-                    : hour < 12 ? 'Bom dia'
-                    : hour < 19 ? 'Boa tarde'
-                    : 'Boa noite';
-                  let eyebrow: string = profile?.city ?? '';
-                  if (streak.current >= 5) eyebrow = `🌋 ${streak.current} vitórias seguidas`;
-                  else if (streak.current >= 3) eyebrow = `🔥 ${streak.current} vitórias seguidas`;
-                  return (
-                    <>
-                      <Eyebrow>{eyebrow}</Eyebrow>
-                      <Heading level={1} style={{ marginTop: 4 }}>
-                        {`${greet}, ${(profile?.name ?? '').split(' ')[0]}`}
-                      </Heading>
-                    </>
-                  );
-                })()}
-              </View>
+              {primaryTeam ? (
+                <Pressable
+                  style={[styles.teamBadge, { flex: 1 }]}
+                  onPress={() =>
+                    router.push(`/(app)/teams/${primaryTeam.id}`)
+                  }
+                >
+                  <Avatar
+                    url={primaryTeam.photo_url}
+                    name={primaryTeam.name}
+                    size={28}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.teamBadgeName} numberOfLines={1}>
+                      {primaryTeam.name}
+                    </Text>
+                    <Text style={styles.teamBadgeRole}>
+                      {(
+                        (primaryTeam.captain_id === session?.user.id
+                          ? 'Capitão'
+                          : session?.user.id &&
+                              primaryTeam.sub_captain_ids.includes(
+                                session.user.id,
+                              )
+                            ? 'Sub-capitão'
+                            : 'Jogador') +
+                        (teams.length > 1 ? ` · +${teams.length - 1}` : '')
+                      ).toLocaleUpperCase('pt-PT')}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={[styles.teamBadge, { flex: 1 }]}
+                  onPress={() => router.push('/(app)/teams/new')}
+                >
+                  <View style={styles.teamBadgePlaceholderAvatar}>
+                    <Text style={styles.teamBadgePlaceholderText}>+</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.teamBadgeName} numberOfLines={1}>
+                      Criar equipa
+                    </Text>
+                    <Text style={styles.teamBadgeRole}>
+                      {(profile?.city ?? 'Coimbra').toLocaleUpperCase('pt-PT')}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
               <Pressable
                 style={styles.bell}
                 onPress={() => router.push('/(app)/search')}
@@ -235,176 +362,214 @@ export default function HomeScreen() {
                   </View>
                 )}
               </Pressable>
-              <Avatar
-                url={profile?.photo_url}
-                name={profile?.name}
-                size={44}
-              />
+              <Pressable
+                onPress={() => router.push('/(app)/(tabs)/profile')}
+                hitSlop={8}
+              >
+                <Avatar
+                  url={profile?.photo_url}
+                  name={profile?.name}
+                  size={44}
+                />
+              </Pressable>
             </Animated.View>
 
-            {nextMatch && (() => {
-              const scheduled = new Date(nextMatch.scheduled_at).getTime();
-              const diff = scheduled - now;
-              const mins = Math.floor(diff / 60_000);
-              const hours = Math.floor(mins / 60);
-              const days = Math.floor(hours / 24);
-              const urgent = diff > 0 && diff < 2 * 60 * 60 * 1000;
-              const live = diff <= 0 && diff > -4 * 60 * 60 * 1000;
+            {mvpWeek && (
+              <Animated.View entering={FadeInDown.delay(30).springify()}>
+                <Pressable
+                  style={styles.mvpChip}
+                  onPress={() => router.push(`/(app)/users/${mvpWeek.user_id}`)}
+                >
+                  <View style={styles.mvpIcon}>
+                    <Ionicons name="trophy" size={14} color={colors.goldDeep} />
+                  </View>
+                  <Avatar
+                    url={mvpWeek.photo_url}
+                    name={mvpWeek.name}
+                    size={24}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.mvpName} numberOfLines={1}>
+                      {mvpWeek.name}
+                    </Text>
+                    <Text style={styles.mvpMeta}>
+                      {`MVP da semana · ${mvpWeek.votes} voto${mvpWeek.votes === 1 ? '' : 's'}`}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+                </Pressable>
+              </Animated.View>
+            )}
 
-              let when: string;
-              let badge: string | null = null;
-              if (live) {
-                when = 'A decorrer agora';
-                badge = '🔴 AO VIVO';
-              } else if (diff <= 0) {
-                when = 'Acabou de terminar';
-              } else if (mins < 60) {
-                when = `Em ${mins} minuto${mins === 1 ? '' : 's'}`;
-                badge = 'AGORA';
-              } else if (hours < 24) {
-                const remMins = mins % 60;
-                when = remMins === 0
-                  ? `Em ${hours}h`
-                  : `Em ${hours}h ${remMins}min`;
-                badge = 'HOJE';
-              } else if (days < 2) {
-                when = `Amanhã às ${new Date(nextMatch.scheduled_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`;
-                badge = 'AMANHÃ';
-              } else {
-                when = formatRelativeMatchDate(nextMatch.scheduled_at);
-              }
-
-              return (
-                <Animated.View entering={FadeInDown.delay(40).springify()}>
-                  <Pressable
-                    onPress={() =>
-                      router.push(`/(app)/matches/${nextMatch.id}`)
+            <Animated.View
+              entering={FadeInDown.delay(40).springify()}
+              style={primaryTeam || mvpWeek ? { marginTop: 12 } : undefined}
+            >
+              <Card
+                variant={nextMatch ? 'hero' : 'subtle'}
+                onPress={
+                  nextMatch
+                    ? () => router.push(`/(app)/matches/${nextMatch.id}`)
+                    : undefined
+                }
+              >
+                {nextMatch ? (
+                  (() => {
+                    const diff =
+                      new Date(nextMatch.scheduled_at).getTime() - Date.now();
+                    const minsAhead = Math.floor(diff / 60_000);
+                    let chip: { label: string; tone: 'live' | 'warn' | null } =
+                      { label: '', tone: null };
+                    if (diff <= 0 && diff > -4 * 60 * 60 * 1000) {
+                      chip = { label: 'AO VIVO', tone: 'live' };
+                    } else if (minsAhead >= 0 && minsAhead < 60) {
+                      chip = {
+                        label: `EM ${minsAhead || 1} MIN`,
+                        tone: 'warn',
+                      };
+                    } else if (minsAhead < 120) {
+                      const h = Math.floor(minsAhead / 60);
+                      const m = minsAhead % 60;
+                      chip = {
+                        label: m === 0 ? `EM ${h}H` : `EM ${h}H ${m}MIN`,
+                        tone: 'warn',
+                      };
                     }
-                    style={[
-                      styles.nextMatchCard,
-                      urgent && styles.nextMatchCardUrgent,
-                      live && styles.nextMatchCardLive,
-                    ]}
-                  >
-                    <View style={styles.nextMatchHeader}>
-                      <Text style={styles.nextMatchLabel}>📅 Próximo jogo</Text>
-                      {badge && (
-                        <View
-                          style={[
-                            styles.nextMatchBadge,
-                            urgent && styles.nextMatchBadgeUrgent,
-                            live && styles.nextMatchBadgeLive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.nextMatchBadgeText,
-                              (urgent || live) && { color: '#0E1812' },
-                            ]}
-                          >
-                            {badge}
-                          </Text>
+                    return (
+                      <>
+                        <View style={styles.statusHead}>
+                          <Eyebrow>Próximo jogo</Eyebrow>
+                          {chip.label ? (
+                            <View
+                              style={[
+                                styles.statusChip,
+                                chip.tone === 'live' && styles.statusChipLive,
+                                chip.tone === 'warn' && styles.statusChipWarn,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusChipText,
+                                  chip.tone === 'live' && {
+                                    color: '#0E1812',
+                                  },
+                                ]}
+                              >
+                                {chip.label}
+                              </Text>
+                            </View>
+                          ) : (
+                            <Text style={styles.nextMatchDate}>
+                              {formatRelativeMatchDate(nextMatch.scheduled_at).toUpperCase()}
+                            </Text>
+                          )}
                         </View>
-                      )}
-                    </View>
-                    <Text style={styles.nextMatchTeams} numberOfLines={1}>
-                      {`${nextMatch.side_a.name}  vs  ${nextMatch.side_b.name}`}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.nextMatchWhen,
-                        urgent && { color: '#f87171' },
-                        live && { color: '#f87171' },
-                      ]}
-                    >
-                      {when}
-                    </Text>
-                    <Text style={styles.nextMatchWhere} numberOfLines={1}>
-                      {`📍 ${nextMatch.location_tbd ? 'A combinar' : (nextMatch.location_name ?? '—')}`}
-                    </Text>
-                  </Pressable>
-                </Animated.View>
-              );
-            })()}
-
-            {(teams.length === 0 || history.length === 0) && (
-              <Animated.View entering={FadeInDown.delay(45).springify()}>
-                <Card variant="subtle">
-                  <Eyebrow>🚀 Próximos passos</Eyebrow>
-                  <View style={styles.guideList}>
-                    <GuideRow
-                      done={teams.length > 0}
-                      label="Cria ou junta-te a uma equipa"
-                    />
-                    <GuideRow
-                      done={
-                        teams.some(
-                          (t) => t.captain_id === session?.user.id,
-                        ) || teams.length > 1
-                      }
-                      label="Convida pelo menos 1 jogador"
-                    />
-                    <GuideRow
-                      done={!!nextMatch || history.length > 0}
-                      label="Marca o primeiro jogo"
-                    />
-                    <GuideRow
-                      done={history.length > 0}
-                      label="Joga e valida o resultado"
-                    />
-                  </View>
-                </Card>
-              </Animated.View>
-            )}
-
-            {completeness && completeness.percent < 100 && (
-              <Animated.View entering={FadeInDown.delay(50).springify()}>
-                <Card variant="subtle">
-                  <View style={styles.completeHeader}>
-                    <Eyebrow>Completa o teu perfil</Eyebrow>
-                    <Text style={styles.completePercent}>
-                      {`${completeness.percent}%`}
-                    </Text>
-                  </View>
-                  <View style={styles.completeTrack}>
-                    <View
-                      style={[
-                        styles.completeFill,
-                        { width: `${completeness.percent}%` },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.completeList}>
-                    {completeness.items.map((it) => (
-                      <View key={it.key} style={styles.completeItem}>
-                        <Ionicons
-                          name={it.done ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={18}
-                          color={it.done ? colors.brand : colors.textDim}
-                        />
-                        <Text
-                          style={[
-                            styles.completeLabel,
-                            it.done && styles.completeLabelDone,
-                          ]}
-                        >
-                          {it.label}
+                        <View style={styles.nextMatchTeams}>
+                          <View style={styles.nextMatchTeam}>
+                            <Avatar
+                              url={nextMatch.side_a.photo_url}
+                              name={nextMatch.side_a.name}
+                              size={44}
+                            />
+                            <Text
+                              style={styles.nextMatchTeamName}
+                              numberOfLines={1}
+                            >
+                              {nextMatch.is_internal && nextMatch.side_a_label
+                                ? nextMatch.side_a_label
+                                : nextMatch.side_a.name}
+                            </Text>
+                          </View>
+                          <Text style={styles.nextMatchVs}>vs</Text>
+                          <View style={styles.nextMatchTeam}>
+                            <Avatar
+                              url={nextMatch.side_b.photo_url}
+                              name={nextMatch.side_b.name}
+                              size={44}
+                            />
+                            <Text
+                              style={styles.nextMatchTeamName}
+                              numberOfLines={1}
+                            >
+                              {nextMatch.is_internal && nextMatch.side_b_label
+                                ? nextMatch.side_b_label
+                                : nextMatch.side_b.name}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.statusMeta} numberOfLines={2}>
+                          {nextMatch.location_tbd
+                            ? 'Local a combinar'
+                            : (nextMatch.location_name ?? '—')}
                         </Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={{ marginTop: 12 }}>
-                    <Button
-                      label="Continuar perfil"
-                      variant="secondary"
-                      size="sm"
-                      onPress={() => router.push('/(app)/profile/edit')}
-                      full
-                    />
-                  </View>
-                </Card>
-              </Animated.View>
-            )}
+                      </>
+                    );
+                  })()
+                ) : (
+                  <Text style={styles.statusMuted}>
+                    {teams.length === 0
+                      ? 'Ainda sem equipa. Cria a tua para começar.'
+                      : 'Sem jogos marcados.'}
+                  </Text>
+                )}
+              </Card>
+            </Animated.View>
+
+            <Animated.View
+              entering={FadeInDown.delay(60).springify()}
+              style={styles.actions}
+            >
+              {isLeader ? (
+                <Button
+                  label="Marcar jogo"
+                  size="lg"
+                  full
+                  haptic="medium"
+                  onPress={handlePrimaryAction}
+                />
+              ) : (
+                <Button
+                  label={
+                    teams.length === 0 ? 'Criar equipa' : 'Entrar com código'
+                  }
+                  size="lg"
+                  full
+                  haptic="medium"
+                  onPress={() =>
+                    router.push(
+                      teams.length === 0
+                        ? '/(app)/teams/new'
+                        : '/(app)/teams/join',
+                    )
+                  }
+                />
+              )}
+              <Button
+                label="Oportunidades abertas"
+                variant="secondary"
+                size="lg"
+                full
+                onPress={() => router.push('/(app)/opportunities')}
+              />
+              {isLeader && (
+                <Button
+                  label="Mercado livre"
+                  variant="secondary"
+                  size="lg"
+                  full
+                  onPress={() => router.push('/(app)/market')}
+                />
+              )}
+              {isLeader && (
+                <Button
+                  label="Entrar com código"
+                  variant="ghost"
+                  size="md"
+                  full
+                  onPress={() => router.push('/(app)/teams/join')}
+                />
+              )}
+            </Animated.View>
 
             {incoming.length > 0 && (
               <Animated.View
@@ -440,7 +605,7 @@ export default function HomeScreen() {
                 entering={FadeInDown.delay(68).springify()}
                 style={styles.section}
               >
-                <Eyebrow>{`⚡ Peladinhas · ${peladinhas.length} por confirmar`}</Eyebrow>
+                <Eyebrow>{`Peladinhas · ${peladinhas.length} por confirmar`}</Eyebrow>
                 {peladinhas.slice(0, 3).map((p, i) => (
                   <Animated.View
                     key={p.match_id}
@@ -468,37 +633,93 @@ export default function HomeScreen() {
               </Animated.View>
             )}
 
-            {monthly && monthly.matches > 0 && (
+            {pendingVotes.length > 0 && (
               <Animated.View
-                entering={FadeInDown.delay(70).springify()}
+                entering={FadeInDown.delay(69).springify()}
+                style={styles.section}
               >
+                <Eyebrow>{`Vota nos colegas · ${pendingVotes.length}`}</Eyebrow>
+                <Card variant="subtle" style={{ marginTop: 8 }}>
+                  <Text style={styles.statsHint}>
+                    Tens colegas de equipa que ainda não avaliaste. Cada voto
+                    afina os atributos no perfil deles.
+                  </Text>
+                  <View style={styles.pendingRow}>
+                    {pendingVotes.slice(0, 6).map((t) => (
+                      <Pressable
+                        key={t.user_id}
+                        onPress={() =>
+                          router.push(`/(app)/users/${t.user_id}/stats-vote`)
+                        }
+                        style={styles.pendingChip}
+                      >
+                        <Avatar
+                          url={t.photo_url}
+                          name={t.name}
+                          size={36}
+                        />
+                        <Text style={styles.pendingChipName} numberOfLines={1}>
+                          {t.name.split(' ')[0]}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </Card>
+              </Animated.View>
+            )}
+
+            {monthStats && monthStats.matches_played > 0 && (
+              <Animated.View entering={FadeInDown.delay(70).springify()}>
                 <Card variant="subtle">
                   <Eyebrow>Este mês</Eyebrow>
-                  <View style={styles.statsRow}>
-                    <StatCell
-                      value={String(monthly.matches)}
-                      label={monthly.matches === 1 ? 'jogo' : 'jogos'}
-                    />
-                    <StatCell
-                      value={String(monthly.wins)}
-                      label="vitórias"
-                      tone="positive"
-                    />
-                    <StatCell
-                      value={String(monthly.draws)}
-                      label="empates"
-                    />
-                    <StatCell
-                      value={String(monthly.losses)}
-                      label="derrotas"
-                      tone="negative"
-                    />
+                  <View style={styles.monthRow}>
+                    <View style={styles.monthCell}>
+                      <Text style={styles.monthValue}>
+                        {monthStats.matches_played}
+                      </Text>
+                      <Text style={styles.monthLabel}>
+                        {monthStats.matches_played === 1 ? 'jogo' : 'jogos'}
+                      </Text>
+                    </View>
+                    <View style={styles.monthCell}>
+                      <Text
+                        style={[
+                          styles.monthValue,
+                          { color: colors.warning },
+                        ]}
+                      >
+                        {monthStats.goals}
+                      </Text>
+                      <Text style={styles.monthLabel}>Golos</Text>
+                    </View>
+                    <View style={styles.monthCell}>
+                      <Text
+                        style={[
+                          styles.monthValue,
+                          { color: colors.success },
+                        ]}
+                      >
+                        {monthStats.assists}
+                      </Text>
+                      <Text style={styles.monthLabel}>Assist.</Text>
+                    </View>
+                    <View style={styles.monthCell}>
+                      <Text
+                        style={[
+                          styles.monthValue,
+                          { color: colors.goldDeep },
+                        ]}
+                      >
+                        {monthStats.mvps}
+                      </Text>
+                      <Text style={styles.monthLabel}>MVPs</Text>
+                    </View>
                   </View>
-                  {(monthly.goals_for > 0 || monthly.goals_against > 0) && (
-                    <Text style={styles.goalsLine}>
-                      {`Golos · ${monthly.goals_for} marcados · ${monthly.goals_against} sofridos`}
+                  <View style={styles.monthRecord}>
+                    <Text style={styles.monthRecordText}>
+                      {`${monthStats.wins}V · ${monthStats.draws}E · ${monthStats.losses}D`}
                     </Text>
-                  )}
+                  </View>
                 </Card>
               </Animated.View>
             )}
@@ -581,169 +802,322 @@ export default function HomeScreen() {
             )}
 
             <Animated.View
-              entering={FadeInDown.delay(200).springify()}
+              entering={FadeInDown.delay(280).springify()}
               style={styles.section}
             >
-              <Eyebrow>As tuas equipas</Eyebrow>
-              {teams.length === 0 ? (
-                <Card style={{ marginTop: 8 }}>
-                  <Text style={styles.emptyTitle}>Sem equipas ainda</Text>
-                  <Text style={styles.emptyBody}>
-                    Cria a tua equipa e convida jogadores, ou entra noutra com
-                    um código.
-                  </Text>
-                </Card>
-              ) : (
-                teams.map((t, i) => {
-                  const unreadChat = chatUnread[t.id] ?? 0;
-                  return (
-                    <Animated.View
-                      key={t.id}
-                      entering={FadeInDown.delay(240 + i * 40).springify()}
-                    >
-                      <Card
-                        onPress={() => router.push(`/(app)/teams/${t.id}`)}
-                        style={{ marginTop: 8 }}
-                      >
-                        <View style={styles.cardRow}>
-                          <Avatar
-                            url={t.photo_url}
-                            name={t.name}
-                            size={44}
-                          />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.cardName}>{t.name}</Text>
-                            <Text style={styles.cardMeta}>
-                              {`${t.sport?.name ?? 'Futebol 7'} · ${t.city}`}
-                            </Text>
-                          </View>
-                          {unreadChat > 0 && (
-                            <View style={styles.chatBadge}>
-                              <Ionicons
-                                name="chatbubble"
-                                size={10}
-                                color="#0E1812"
-                              />
-                              <Text style={styles.chatBadgeText}>
-                                {unreadChat > 9 ? '9+' : String(unreadChat)}
-                              </Text>
-                            </View>
-                          )}
-                          <Text style={styles.arrow}>›</Text>
-                        </View>
-                      </Card>
-                    </Animated.View>
-                  );
-                })
-              )}
-            </Animated.View>
-
-            {friendsActivity.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(280).springify()}
-                style={styles.section}
-              >
-                <Eyebrow>Os teus amigos jogaram</Eyebrow>
-                {friendsActivity.map((m, i) => (
+              <Eyebrow>Os teus amigos jogaram</Eyebrow>
+              {friendsActivity.length > 0 ? (
+                friendsActivity.map((m, i) => (
                   <Animated.View
                     key={m.match_id}
                     entering={FadeInDown.delay(320 + i * 30).springify()}
+                    style={{ marginTop: 8 }}
                   >
-                    <Card
-                      onPress={() =>
-                        router.push(`/(app)/matches/${m.match_id}`)
-                      }
-                      style={{ marginTop: 8 }}
-                    >
-                      <View style={styles.cardRow}>
+                    <View style={styles.feedCardOuter}>
+                      <Pressable
+                        onPress={() => router.push(`/(app)/users/${m.friend_id}`)}
+                        style={styles.friendChip}
+                      >
                         <Avatar
                           url={m.friend_photo}
                           name={m.friend_name}
-                          size={36}
+                          size={22}
                         />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardName}>
-                            {`${m.side_a_name} ${m.final_score_a}–${m.final_score_b} ${m.side_b_name}`}
-                          </Text>
-                          <Text style={styles.cardMeta}>
-                            {`${m.friend_name.split(' ')[0]} · ${formatMatchDate(m.scheduled_at)}`}
-                          </Text>
-                        </View>
-                      </View>
-                    </Card>
+                        <Text style={styles.friendChipName} numberOfLines={1}>
+                          {m.friend_name}
+                        </Text>
+                      </Pressable>
+                      <MatchResultRow
+                        scheduledAt={m.scheduled_at}
+                        isInternal={m.is_internal}
+                        status="validated"
+                        sideAName={m.side_a_name}
+                        sideBName={m.side_b_name}
+                        sideAPhoto={m.side_a_photo}
+                        sideBPhoto={m.side_b_photo}
+                        scoreA={m.final_score_a}
+                        scoreB={m.final_score_b}
+                        mySide={m.friend_side}
+                        myGoals={m.friend_goals}
+                        myAssists={m.friend_assists}
+                        onPress={() => router.push(`/(app)/matches/${m.match_id}`)}
+                      />
+                    </View>
                   </Animated.View>
-                ))}
-              </Animated.View>
-            )}
+                ))
+              ) : (
+                <Card
+                  variant="subtle"
+                  style={{ marginTop: 8 }}
+                  onPress={() => router.push('/(app)/profile/find-friends')}
+                >
+                  <View style={styles.emptyRow}>
+                    <View style={styles.emptyIcon}>
+                      <Ionicons name="people-outline" size={22} color={colors.goldDeep} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.emptyTitle}>
+                        Ainda não tens amigos no S7VN
+                      </Text>
+                      <Text style={styles.emptyBody}>
+                        Encontra-os e vê aqui o que jogam.
+                      </Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color={colors.brand} />
+                  </View>
+                </Card>
+              )}
+            </Animated.View>
 
-            {activity.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(360).springify()}
-                style={styles.section}
-              >
-                <Eyebrow>{`Atividade em ${profile?.city ?? ''}`}</Eyebrow>
-                {activity.map((m, i) => (
+            <Animated.View
+              entering={FadeInDown.delay(360).springify()}
+              style={styles.section}
+            >
+              <Eyebrow>{`Atividade em ${profile?.city ?? ''}`}</Eyebrow>
+              {cityPulse &&
+                cityPulse.matches_7d + cityPulse.active_teams > 0 && (
+                  <Text style={styles.cityPulseLine}>
+                    {`${cityPulse.matches_7d} jogo${cityPulse.matches_7d === 1 ? '' : 's'} esta semana · ${cityPulse.active_teams} equipa${cityPulse.active_teams === 1 ? '' : 's'} · ${cityPulse.active_players} jogador${cityPulse.active_players === 1 ? '' : 'es'}`}
+                  </Text>
+                )}
+              {activity.length > 0 ? (
+                activity.map((m, i) => (
                   <Animated.View
                     key={m.match_id}
                     entering={FadeInDown.delay(340 + i * 30).springify()}
+                    style={{ marginTop: 8 }}
                   >
-                    <Card
-                      onPress={() => router.push(`/(app)/matches/${m.match_id}`)}
-                      style={{ marginTop: 8 }}
-                    >
-                      <View style={styles.cardRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.cardName}>
-                            {`${m.side_a_name} ${m.final_score_a} – ${m.final_score_b} ${m.side_b_name}`}
-                          </Text>
-                          <Text style={styles.cardMeta}>
-                            {formatMatchDate(m.scheduled_at)}
-                          </Text>
-                        </View>
-                      </View>
-                    </Card>
+                    <View style={styles.feedCardOuter}>
+                      <MatchResultRow
+                        scheduledAt={m.scheduled_at}
+                        isInternal={m.is_internal}
+                        status="validated"
+                        sideAName={m.side_a_name}
+                        sideBName={m.side_b_name}
+                        sideAPhoto={m.side_a_photo}
+                        sideBPhoto={m.side_b_photo}
+                        scoreA={m.final_score_a}
+                        scoreB={m.final_score_b}
+                        onPress={() => router.push(`/(app)/matches/${m.match_id}`)}
+                      />
+                    </View>
                   </Animated.View>
-                ))}
+                ))
+              ) : (
+                <Card
+                  variant="subtle"
+                  style={{ marginTop: 8 }}
+                  onPress={
+                    isLeader
+                      ? handlePrimaryAction
+                      : () => router.push('/(app)/search')
+                  }
+                >
+                  <View style={styles.emptyRow}>
+                    <View style={styles.emptyIcon}>
+                      <Ionicons name="flame-outline" size={22} color={colors.goldDeep} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.emptyTitle}>
+                        {`Sê dos primeiros em ${profile?.city ?? 'Coimbra'}`}
+                      </Text>
+                      <Text style={styles.emptyBody}>
+                        {isLeader
+                          ? 'Marca o primeiro jogo e aparece aqui para os teus vizinhos verem.'
+                          : 'Procura equipas e jogadores e ajuda a animar a cena local.'}
+                      </Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color={colors.brand} />
+                  </View>
+                </Card>
+              )}
+            </Animated.View>
+
+            {completeness && completeness.percent < 100 && (
+              <Animated.View
+                entering={FadeInDown.delay(365).springify()}
+                style={styles.section}
+              >
+                <Card variant="subtle">
+                  <View style={styles.completeHeader}>
+                    <Eyebrow>Completa o teu perfil</Eyebrow>
+                    <Text style={styles.completePercent}>
+                      {`${completeness.percent}%`}
+                    </Text>
+                  </View>
+                  <View style={styles.completeTrack}>
+                    <View
+                      style={[
+                        styles.completeFill,
+                        { width: `${completeness.percent}%` },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.completeList}>
+                    {completeness.items.map((it) => {
+                      const path: string =
+                        it.key === 'team'
+                          ? '/(app)/teams/new'
+                          : it.key === 'stats'
+                            ? `/(app)/users/${session?.user.id}/stats-vote`
+                            : it.key === 'friend'
+                              ? '/(app)/search'
+                              : '/(app)/profile/edit';
+                      return (
+                        <Pressable
+                          key={it.key}
+                          style={styles.completeItem}
+                          onPress={() =>
+                            !it.done && router.push(path as any)
+                          }
+                          disabled={it.done}
+                        >
+                          <Ionicons
+                            name={
+                              it.done
+                                ? 'checkmark-circle'
+                                : 'ellipse-outline'
+                            }
+                            size={18}
+                            color={it.done ? colors.brand : colors.textDim}
+                          />
+                          <Text
+                            style={[
+                              styles.completeLabel,
+                              it.done && styles.completeLabelDone,
+                            ]}
+                          >
+                            {it.label}
+                          </Text>
+                          {!it.done && (
+                            <Text style={styles.completeArrow}>›</Text>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </Card>
               </Animated.View>
             )}
 
             <Animated.View
-              entering={FadeIn.delay(400).duration(400)}
-              style={styles.actions}
+              entering={FadeInDown.delay(370).springify()}
+              style={styles.section}
             >
-              <Button
-                label="Criar equipa"
-                size="lg"
-                full
-                haptic="medium"
-                onPress={() => router.push('/(app)/teams/new')}
+              <PlayerStatsCard
+                stats={playerStats}
+                overall={overallRating(playerStats)}
+                totalVotes={totalVotes(playerStats)}
               />
-              <Button
-                label="Entrar com código"
-                variant="secondary"
-                size="lg"
-                full
-                onPress={() => router.push('/(app)/teams/join')}
-              />
-              <Button
-                label="🔔 Oportunidades abertas"
-                variant="ghost"
-                size="md"
-                full
-                onPress={() => router.push('/(app)/opportunities')}
-              />
-              <Button
-                label="🏟️ Mercado livre"
-                variant="ghost"
-                size="md"
-                full
-                onPress={() => router.push('/(app)/market')}
-              />
+              {totalVotes(playerStats) === 0 && (
+                <Text style={styles.statsHint}>
+                  Pede aos teus colegas para votarem nos teus atributos para
+                  veres a tua classificação aqui.
+                </Text>
+              )}
             </Animated.View>
           </>
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function MatchFeedRow({
+  sideAName,
+  sideBName,
+  sideAPhoto,
+  sideBPhoto,
+  scoreA,
+  scoreB,
+  meta,
+  isInternal = false,
+}: {
+  sideAName: string;
+  sideBName: string;
+  sideAPhoto: string | null;
+  sideBPhoto: string | null;
+  scoreA: number | null;
+  scoreB: number | null;
+  meta: string;
+  isInternal?: boolean;
+}) {
+  const aWon = scoreA !== null && scoreB !== null && scoreA > scoreB;
+  const bWon = scoreA !== null && scoreB !== null && scoreB > scoreA;
+  const railColor = isInternal ? colors.goldDeep : colors.compete;
+  return (
+    <View
+      style={[
+        styles.feedRowWrap,
+        { borderLeftColor: railColor },
+      ]}
+    >
+      <View style={styles.feedDateCol}>
+        <Text style={styles.feedDate}>{meta}</Text>
+        <View
+          style={[
+            styles.feedKindChip,
+            {
+              backgroundColor: isInternal
+                ? colors.brandSoft
+                : colors.competeSoft,
+              borderColor: isInternal ? colors.goldDim : colors.competeDim,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.feedKindChipText,
+              { color: isInternal ? colors.goldDeep : colors.compete },
+            ]}
+          >
+            {isInternal ? 'PELADINHA' : 'AMIGÁVEL'}
+          </Text>
+        </View>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={styles.feedTeamLine}>
+          <Avatar url={sideAPhoto} name={sideAName} size={20} />
+          <Text
+            style={[
+              styles.feedTeamName,
+              !aWon && scoreA !== null && styles.feedTeamNameDim,
+            ]}
+            numberOfLines={1}
+          >
+            {sideAName}
+          </Text>
+          <Text
+            style={[
+              styles.feedScore,
+              !aWon && scoreA !== null && styles.feedScoreDim,
+            ]}
+          >
+            {scoreA ?? '—'}
+          </Text>
+        </View>
+        <View style={[styles.feedTeamLine, { marginTop: 4 }]}>
+          <Avatar url={sideBPhoto} name={sideBName} size={20} />
+          <Text
+            style={[
+              styles.feedTeamName,
+              !bWon && scoreB !== null && styles.feedTeamNameDim,
+            ]}
+            numberOfLines={1}
+          >
+            {sideBName}
+          </Text>
+          <Text
+            style={[
+              styles.feedScore,
+              !bWon && scoreB !== null && styles.feedScoreDim,
+            ]}
+          >
+            {scoreB ?? '—'}
+          </Text>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -772,30 +1146,6 @@ function StatCell({
   );
 }
 
-function GuideRow({ done, label }: { done: boolean; label: string }) {
-  return (
-    <View style={styles.guideRow}>
-      <Ionicons
-        name={done ? 'checkmark-circle' : 'ellipse-outline'}
-        size={18}
-        color={done ? colors.brand : colors.textDim}
-      />
-      <Text
-        style={[
-          styles.guideLabel,
-          done && {
-            color: colors.text,
-            textDecorationLine: 'line-through',
-            textDecorationColor: colors.textDim,
-          },
-        ]}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 function HomeSkeleton() {
   return (
     <View style={{ gap: 16 }}>
@@ -814,7 +1164,7 @@ function HomeSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { padding: 24, paddingBottom: 120 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -860,19 +1210,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   arrow: { color: '#5a5a5a', fontSize: 24, fontWeight: '300' },
-  emptyTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-  },
-  emptyBody: {
-    color: '#a3a3a3',
-    fontSize: 14,
-    marginTop: 8,
-    lineHeight: 20,
-  },
-  actions: { marginTop: 32, gap: 8 },
+  actions: { marginTop: 16, gap: 10 },
   statsRow: {
     flexDirection: 'row',
     marginTop: 12,
@@ -898,85 +1236,359 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
   },
-  nextMatchCard: {
-    padding: 18,
-    borderRadius: 18,
-    backgroundColor: colors.brandSoft,
-    borderWidth: 1,
-    borderColor: colors.brandSoftBorder,
-    marginBottom: 8,
+  statusTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+    marginTop: 10,
+    lineHeight: 26,
   },
-  nextMatchCardUrgent: {
-    backgroundColor: 'rgba(248,113,113,0.10)',
-    borderColor: 'rgba(248,113,113,0.40)',
-  },
-  nextMatchCardLive: {
-    backgroundColor: 'rgba(248,113,113,0.16)',
-    borderColor: 'rgba(248,113,113,0.6)',
-  },
-  nextMatchHeader: {
+  nextMatchTeams: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 14,
   },
-  nextMatchLabel: {
+  nextMatchTeam: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  nextMatchTeamName: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    textAlign: 'center',
+    minHeight: 16,
+  },
+  nextMatchVs: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    paddingHorizontal: 4,
+  },
+  nextMatchDate: {
     color: colors.brand,
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
-  nextMatchBadge: {
+  monthRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  monthCell: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  monthValue: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -1,
+    lineHeight: 28,
+  },
+  monthLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+    letterSpacing: 0.4,
+  },
+  monthRecord: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+  },
+  monthRecordText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+  },
+  statusMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 12,
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    lineHeight: 17,
+  },
+  statusMuted: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    letterSpacing: -0.1,
+  },
+  statusHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  statusChip: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: 'rgba(201,162,107,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(201,162,107,0.4)',
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
   },
-  nextMatchBadgeUrgent: {
-    backgroundColor: '#fbbf24',
-    borderColor: '#fbbf24',
-  },
-  nextMatchBadgeLive: {
-    backgroundColor: '#f87171',
-    borderColor: '#f87171',
-  },
-  nextMatchBadgeText: {
-    color: '#C9A26B',
+  statusChipText: {
+    color: colors.brand,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
   },
-  nextMatchTeams: {
-    color: colors.text,
-    fontSize: 19,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-    marginTop: 8,
+  statusChipWarn: {
+    borderColor: 'rgba(251,191,36,0.45)',
+    backgroundColor: 'rgba(251,191,36,0.14)',
   },
-  nextMatchWhen: {
-    color: colors.brand,
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 6,
-    letterSpacing: -0.2,
+  statusChipLive: {
+    borderColor: '#f87171',
+    backgroundColor: '#f87171',
   },
-  nextMatchWhere: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  chatBadge: {
+  teamBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: colors.brand,
+    borderWidth: 1,
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+    height: 44,
   },
-  chatBadgeText: { color: '#0E1812', fontSize: 11, fontWeight: '800' },
+  teamBadgePlaceholderAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teamBadgePlaceholderText: {
+    color: colors.brand,
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 18,
+  },
+  teamBadgeName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  teamBadgeRole: {
+    color: colors.brand,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+    letterSpacing: 0.4,
+  },
+  mvpChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.goldDim,
+    backgroundColor: colors.brandSoft,
+  },
+  mvpIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(224,185,124,0.14)',
+    borderWidth: 1,
+    borderColor: colors.goldDim,
+  },
+  mvpName: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  mvpMeta: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginTop: 1,
+    textTransform: 'uppercase',
+  },
+  statsHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 10,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 14,
+    justifyContent: 'center',
+  },
+  pendingChip: {
+    alignItems: 'center',
+    gap: 6,
+    width: 60,
+  },
+  pendingChipName: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  cityPulseLine: {
+    color: colors.textDim,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginTop: 4,
+  },
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.goldDim,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  emptyBody: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  emptyCta: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  feedRowWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 12,
+    borderLeftWidth: 3,
+    marginLeft: -4,
+    gap: 12,
+  },
+  feedDateCol: {
+    width: 86,
+    gap: 4,
+  },
+  feedDate: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: -0.1,
+  },
+  feedKindChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  feedKindChipText: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  feedTeamLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  feedTeamName: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  feedTeamNameDim: {
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  feedScore: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    minWidth: 20,
+    textAlign: 'right',
+  },
+  feedScoreDim: {
+    color: colors.textMuted,
+    fontWeight: '700',
+  },
+  feedMeta: {
+    color: colors.textDim,
+    fontSize: 11,
+    marginTop: 8,
+    letterSpacing: 0.4,
+  },
+  feedCardOuter: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: 'rgba(255,255,255,0.025)',
+    overflow: 'hidden',
+  },
+  friendChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginTop: 10,
+    marginLeft: 10,
+    marginBottom: -2,
+  },
+  friendChipName: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: -0.1,
+    maxWidth: 180,
+  },
   completeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1001,14 +1613,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   completeList: { marginTop: 12, gap: 6 },
-  guideList: { marginTop: 10, gap: 8 },
-  guideRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  guideLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-    flex: 1,
-    letterSpacing: -0.1,
-  },
   completeItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1024,6 +1628,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     textDecorationLine: 'line-through',
     textDecorationColor: colors.textDim,
+  },
+  completeArrow: {
+    color: colors.textDim,
+    fontSize: 18,
+    fontWeight: '300',
   },
   requestsIcon: {
     width: 36,

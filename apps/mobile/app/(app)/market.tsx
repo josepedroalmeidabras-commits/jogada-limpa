@@ -304,12 +304,14 @@ export default function MarketScreen() {
                         <View style={{ flex: 1 }}>
                           <Text style={styles.name}>{a.name}</Text>
                           <Text style={styles.meta}>
-                            {`${a.city} · ${a.matches_played} jogos`}
+                            {`${a.city} · ${a.matches} jogos`}
                           </Text>
                         </View>
                       </Pressable>
                       <View style={styles.right}>
-                        <Text style={styles.elo}>{Math.round(a.elo)}</Text>
+                        <Text style={styles.elo}>
+                          {a.matches > 0 ? `${Math.round(a.win_pct)}%` : '—'}
+                        </Text>
                         {isCaptain && (
                           <Button
                             label="Adicionar"

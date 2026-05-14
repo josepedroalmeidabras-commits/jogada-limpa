@@ -6,8 +6,8 @@ export type FreeAgent = {
   name: string;
   city: string;
   photo_url: string | null;
-  elo: number;
-  matches_played: number;
+  win_pct: number;
+  matches: number;
   open_until: string | null;
 };
 
@@ -18,7 +18,7 @@ export async function fetchFreeAgents(
   const { data, error } = await supabase
     .from('user_sports')
     .select(
-      `user_id, sport_id, elo, matches_played, open_to_team_until,
+      `user_id, sport_id, open_to_team_until,
        profile:profiles!inner(id, name, city, photo_url, deleted_at)`,
     )
     .eq('sport_id', sportId)
@@ -29,9 +29,24 @@ export async function fetchFreeAgents(
     return [];
   }
   const excluded = new Set(excludeUserIds);
-  return (data as any[])
+  const filtered = (data as any[])
     .filter((r) => !excluded.has(r.user_id))
-    .filter((r) => r.profile && !r.profile.deleted_at)
+    .filter((r) => r.profile && !r.profile.deleted_at);
+  if (filtered.length === 0) return [];
+
+  const { data: winRows } = await supabase
+    .from('user_win_stats')
+    .select('user_id, win_pct, matches')
+    .eq('sport_id', sportId)
+    .in('user_id', filtered.map((r) => r.user_id));
+  const winMap = new Map(
+    (winRows ?? []).map((w: any) => [
+      w.user_id as string,
+      { win_pct: Number(w.win_pct), matches: w.matches as number },
+    ]),
+  );
+
+  return filtered
     .map(
       (r): FreeAgent => ({
         user_id: r.user_id,
@@ -39,12 +54,15 @@ export async function fetchFreeAgents(
         name: r.profile.name,
         city: r.profile.city,
         photo_url: r.profile.photo_url,
-        elo: Number(r.elo),
-        matches_played: r.matches_played,
+        win_pct: winMap.get(r.user_id)?.win_pct ?? 0,
+        matches: winMap.get(r.user_id)?.matches ?? 0,
         open_until: r.open_to_team_until,
       }),
     )
-    .sort((a, b) => b.elo - a.elo);
+    .sort((a, b) => {
+      if (b.win_pct !== a.win_pct) return b.win_pct - a.win_pct;
+      return b.matches - a.matches;
+    });
 }
 
 export async function setOpenToTeam(

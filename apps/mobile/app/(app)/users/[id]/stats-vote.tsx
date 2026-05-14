@@ -12,9 +12,11 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import {
+  type AggregateStat,
   canVoteOnPlayer,
   categoriesForPosition,
   fetchMyVotesFor,
+  fetchPlayerStats,
   ratingColor,
   ratingLabel,
   setStatVote,
@@ -30,6 +32,15 @@ import { Card } from '@/components/Card';
 import { Eyebrow, Heading } from '@/components/Heading';
 import { Button } from '@/components/Button';
 import { colors } from '@/theme';
+
+// Quanto é que um voto "+" ou "-" desloca o teu voto vs o valor atual agregado.
+const DELTA = 5;
+const MIN_VAL = 1;
+const MAX_VAL = 99;
+
+function clamp(n: number): number {
+  return Math.max(MIN_VAL, Math.min(MAX_VAL, Math.round(n)));
+}
 
 const TIERS: { value: number; label: string }[] = [
   { value: 30, label: 'Casual' },
@@ -63,6 +74,10 @@ export default function StatsVoteScreen() {
   const [pending, setPending] = useState<Record<StatCategory, number>>(
     {} as Record<StatCategory, number>,
   );
+  // valores agregados atuais (média da equipa) — usado no modo teammate
+  const [aggregates, setAggregates] = useState<
+    Record<StatCategory, AggregateStat>
+  >({} as Record<StatCategory, AggregateStat>);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -92,6 +107,14 @@ export default function StatsVoteScreen() {
       }
       setPending(init as Record<StatCategory, number>);
       setEligible(can);
+
+      // Para modo teammate, carregar a média atual de cada atributo
+      const aggList = await fetchPlayerStats(id, pos);
+      if (cancelled) return;
+      const aggMap: Record<string, AggregateStat> = {};
+      for (const a of aggList) aggMap[a.category] = a;
+      setAggregates(aggMap as Record<StatCategory, AggregateStat>);
+
       setLoading(false);
     })();
     return () => {
@@ -101,6 +124,14 @@ export default function StatsVoteScreen() {
 
   function pick(cat: StatCategory, value: number) {
     setPending((prev) => ({ ...prev, [cat]: value }));
+  }
+
+  // Modo teammate: aplica um delta (−5 / 0 / +5) sobre o valor atual agregado
+  // (ou o teu voto anterior se já existir).
+  function suggest(cat: StatCategory, delta: number) {
+    const agg = aggregates[cat]?.value ?? 0;
+    const baseline = myVotes[cat] ?? (agg > 0 ? agg : 50);
+    setPending((prev) => ({ ...prev, [cat]: clamp(baseline + delta) }));
   }
 
   async function handleSave() {
@@ -190,57 +221,118 @@ export default function StatsVoteScreen() {
           <Text style={styles.heroHint}>
             {isSelf
               ? 'Sugere os teus próprios valores. Os colegas vão poder ajustar.'
-              : 'Avalia honestamente. A média dos votos é o que aparece no perfil.'}
+              : 'Sugere subir ou descer cada atributo. A média dos votos é o que aparece no perfil.'}
           </Text>
         </Animated.View>
 
         {categoriesForPosition(position).map((cat, i) => {
           const current = pending[cat];
+          const agg = aggregates[cat];
+          const aggValue = agg?.value ?? 0;
           return (
             <Animated.View
               key={cat}
               entering={FadeInDown.delay(80 + i * 30).springify()}
               style={styles.section}
             >
-              <Eyebrow>
-                {`${STAT_ICONS[cat]}  ${STAT_LABELS[cat]}`}
-              </Eyebrow>
+              <View style={styles.sectionHeader}>
+                <Eyebrow>
+                  {`${STAT_ICONS[cat]}  ${STAT_LABELS[cat]}`}
+                </Eyebrow>
+                {!isSelf && aggValue > 0 && (
+                  <Text style={styles.aggValue}>
+                    {`atual: `}
+                    <Text
+                      style={{
+                        color: ratingColor(aggValue),
+                        fontWeight: '800',
+                      }}
+                    >
+                      {aggValue}
+                    </Text>
+                  </Text>
+                )}
+              </View>
               <Card style={{ marginTop: 8 }}>
-                <View style={styles.tierRow}>
-                  {TIERS.map((tier) => {
-                    const active = current === tier.value;
-                    return (
-                      <Pressable
-                        key={tier.value}
-                        onPress={() => pick(cat, tier.value)}
-                        style={[
-                          styles.tier,
-                          active && {
-                            borderColor: ratingColor(tier.value),
-                            backgroundColor: 'rgba(255,255,255,0.03)',
-                          },
-                        ]}
-                      >
-                        <Text
+                {isSelf ? (
+                  // MODO SELF — tier picker
+                  <View style={styles.tierRow}>
+                    {TIERS.map((tier) => {
+                      const active = current === tier.value;
+                      return (
+                        <Pressable
+                          key={tier.value}
+                          onPress={() => pick(cat, tier.value)}
                           style={[
-                            styles.tierValue,
-                            active && { color: ratingColor(tier.value) },
+                            styles.tier,
+                            active && {
+                              borderColor: ratingColor(tier.value),
+                              backgroundColor: 'rgba(255,255,255,0.03)',
+                            },
                           ]}
                         >
-                          {tier.value}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tierLabel,
-                            active && { color: colors.text },
-                          ]}
-                        >
-                          {tier.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                          <Text
+                            style={[
+                              styles.tierValue,
+                              active && { color: ratingColor(tier.value) },
+                            ]}
+                          >
+                            {tier.value}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.tierLabel,
+                              active && { color: colors.text },
+                            ]}
+                          >
+                            {tier.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  // MODO TEAMMATE — sugerir subir / igual / descer
+                  <View style={styles.suggestRow}>
+                    <Pressable
+                      onPress={() => suggest(cat, -DELTA)}
+                      style={[
+                        styles.suggestBtn,
+                        current !== undefined &&
+                          current < (myVotes[cat] ?? aggValue) &&
+                          styles.suggestBtnDown,
+                      ]}
+                    >
+                      <Text style={styles.suggestIcon}>−</Text>
+                      <Text style={styles.suggestLabel}>Pior</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => suggest(cat, 0)}
+                      style={[
+                        styles.suggestBtn,
+                        current !== undefined &&
+                          current === (myVotes[cat] ?? aggValue) &&
+                          styles.suggestBtnEq,
+                      ]}
+                    >
+                      <Text style={styles.suggestIcon}>=</Text>
+                      <Text style={styles.suggestLabel}>Igual</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => suggest(cat, DELTA)}
+                      style={[
+                        styles.suggestBtn,
+                        current !== undefined &&
+                          current > (myVotes[cat] ?? aggValue) &&
+                          styles.suggestBtnUp,
+                      ]}
+                    >
+                      <Text style={styles.suggestIcon}>+</Text>
+                      <Text style={styles.suggestLabel}>Melhor</Text>
+                    </Pressable>
+                  </View>
+                )}
+
                 {current !== undefined && (
                   <Text style={styles.summary}>
                     <Text
@@ -326,5 +418,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  aggValue: {
+    color: colors.textDim,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  suggestRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  suggestBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+    alignItems: 'center',
+    gap: 4,
+  },
+  suggestBtnDown: {
+    borderColor: '#fb923c',
+    backgroundColor: 'rgba(251,146,60,0.08)',
+  },
+  suggestBtnEq: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
+  },
+  suggestBtnUp: {
+    borderColor: '#84cc16',
+    backgroundColor: 'rgba(132,204,22,0.08)',
+  },
+  suggestIcon: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  suggestLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
 });

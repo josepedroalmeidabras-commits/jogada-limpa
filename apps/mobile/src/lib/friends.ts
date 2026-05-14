@@ -215,12 +215,44 @@ export type FriendMatchEvent = {
   scheduled_at: string;
   side_a_name: string;
   side_b_name: string;
+  side_a_photo: string | null;
+  side_b_photo: string | null;
   final_score_a: number;
   final_score_b: number;
   friend_id: string;
   friend_name: string;
   friend_photo: string | null;
+  friend_side: 'A' | 'B';
+  friend_goals: number;
+  friend_assists: number;
+  is_internal: boolean;
 };
+
+export type FriendLeaderboardEntry = {
+  user_id: string;
+  name: string;
+  photo_url: string | null;
+  win_pct: number;
+  matches: number;
+  is_self: boolean;
+};
+
+export async function fetchFriendsLeaderboard(
+  sportId = 2,
+): Promise<FriendLeaderboardEntry[]> {
+  const { data, error } = await supabase.rpc('friends_leaderboard', {
+    p_sport_id: sportId,
+  });
+  if (error || !data) return [];
+  return (data as any[]).map((r) => ({
+    user_id: r.user_id,
+    name: r.name,
+    photo_url: r.photo_url ?? null,
+    win_pct: Number(r.win_pct ?? 0),
+    matches: r.matches ?? 0,
+    is_self: !!r.is_self,
+  }));
+}
 
 export async function fetchFriendsRecentMatches(
   limit = 8,
@@ -232,7 +264,23 @@ export async function fetchFriendsRecentMatches(
     console.error('fetchFriendsRecentMatches error', error);
     return [];
   }
-  return data as FriendMatchEvent[];
+  return (data as any[]).map((r) => ({
+    match_id: r.match_id,
+    scheduled_at: r.scheduled_at,
+    side_a_name: r.side_a_name,
+    side_b_name: r.side_b_name,
+    side_a_photo: r.side_a_photo,
+    side_b_photo: r.side_b_photo,
+    final_score_a: r.final_score_a,
+    final_score_b: r.final_score_b,
+    friend_id: r.friend_id,
+    friend_name: r.friend_name,
+    friend_photo: r.friend_photo,
+    friend_side: (r.friend_side === 'B' ? 'B' : 'A') as 'A' | 'B',
+    friend_goals: r.friend_goals ?? 0,
+    friend_assists: r.friend_assists ?? 0,
+    is_internal: Boolean(r.is_internal),
+  }));
 }
 
 export type MutualFriend = {

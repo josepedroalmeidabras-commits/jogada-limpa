@@ -10,7 +10,57 @@ export type MatchHistoryEntry = {
   final_score_b: number;
   my_side: 'A' | 'B';
   result: 'win' | 'loss' | 'draw';
+  is_internal: boolean;
+  side_a_label: string | null;
+  side_b_label: string | null;
 };
+
+export type DetailedMatchHistoryEntry = {
+  match_id: string;
+  scheduled_at: string;
+  is_internal: boolean;
+  side_a_name: string;
+  side_b_name: string;
+  side_a_photo: string | null;
+  side_b_photo: string | null;
+  final_score_a: number;
+  final_score_b: number;
+  my_side: 'A' | 'B';
+  my_goals: number;
+  my_assists: number;
+  result: 'W' | 'D' | 'L';
+  is_mvp: boolean;
+};
+
+export async function fetchDetailedMatchHistory(
+  userId: string,
+  limit = 30,
+): Promise<DetailedMatchHistoryEntry[]> {
+  const { data, error } = await supabase.rpc(
+    'fetch_user_match_history_detailed',
+    { p_user_id: userId, p_limit: limit },
+  );
+  if (error) {
+    console.error('fetchDetailedMatchHistory error', error);
+    return [];
+  }
+  return (data ?? []).map((r: any) => ({
+    match_id: r.match_id,
+    scheduled_at: r.scheduled_at,
+    is_internal: Boolean(r.is_internal),
+    side_a_name: r.side_a_name,
+    side_b_name: r.side_b_name,
+    side_a_photo: r.side_a_photo,
+    side_b_photo: r.side_b_photo,
+    final_score_a: r.final_score_a,
+    final_score_b: r.final_score_b,
+    my_side: r.my_side as 'A' | 'B',
+    my_goals: r.my_goals,
+    my_assists: r.my_assists,
+    result: r.result as 'W' | 'D' | 'L',
+    is_mvp: Boolean(r.is_mvp),
+  }));
+}
 
 type RawSide = {
   side: 'A' | 'B';
@@ -25,6 +75,9 @@ type RawHistoryRow = {
     final_score_a: number | null;
     final_score_b: number | null;
     status: string;
+    is_internal: boolean | null;
+    side_a_label: string | null;
+    side_b_label: string | null;
     sport: { name: string } | null;
     sides: RawSide[];
   } | null;
@@ -183,6 +236,7 @@ export async function fetchUserMatchHistory(
       `side,
        match:matches!inner(
          id, scheduled_at, final_score_a, final_score_b, status,
+         is_internal, side_a_label, side_b_label,
          sport:sports!inner(name),
          sides:match_sides!inner(
            side,
@@ -222,6 +276,9 @@ export async function fetchUserMatchHistory(
         final_score_b: m.final_score_b!,
         my_side: r.side,
         result,
+        is_internal: !!m.is_internal,
+        side_a_label: m.side_a_label,
+        side_b_label: m.side_b_label,
       } satisfies MatchHistoryEntry;
     })
     .filter((e): e is MatchHistoryEntry => e !== null);

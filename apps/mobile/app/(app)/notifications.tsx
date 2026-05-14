@@ -15,6 +15,10 @@ import {
   markNotificationRead,
   type AppNotification,
 } from '@/lib/notifications';
+import {
+  acceptFriendRequest,
+  declineFriendRequest,
+} from '@/lib/friends';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
@@ -83,6 +87,8 @@ export default function NotificationsScreen() {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [friendBusy, setFriendBusy] = useState<string | null>(null);
+  const [friendDone, setFriendDone] = useState<Record<string, 'accepted' | 'declined'>>({});
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -105,6 +111,31 @@ export default function NotificationsScreen() {
   }, [load, session]);
 
   const hasUnread = items.some((n) => !n.read_at);
+
+  async function handleFriend(
+    n: AppNotification,
+    requesterId: string,
+    action: 'accept' | 'decline',
+  ) {
+    setFriendBusy(n.id);
+    const r =
+      action === 'accept'
+        ? await acceptFriendRequest(requesterId)
+        : await declineFriendRequest(requesterId);
+    setFriendBusy(null);
+    if (!r.ok) return;
+    setFriendDone((prev) => ({ ...prev, [n.id]: action === 'accept' ? 'accepted' : 'declined' }));
+    if (!n.read_at) {
+      await markNotificationRead(n.id);
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === n.id
+            ? { ...it, read_at: new Date().toISOString() }
+            : it,
+        ),
+      );
+    }
+  }
 
   async function onTap(n: AppNotification) {
     if (!n.read_at) {
@@ -231,6 +262,48 @@ export default function NotificationsScreen() {
                         <Text style={styles.time}>{relTime(n.sent_at)}</Text>
                       </View>
                     </View>
+                    {n.type === 'friend_request' &&
+                      (() => {
+                        const requesterId = (n.payload as any)?.from_id as
+                          | string
+                          | undefined;
+                        if (!requesterId) return null;
+                        const done = friendDone[n.id];
+                        if (done) {
+                          return (
+                            <Text style={styles.inlineDone}>
+                              {done === 'accepted' ? '✓ Aceite' : '✗ Recusado'}
+                            </Text>
+                          );
+                        }
+                        return (
+                          <View style={styles.inlineActions}>
+                            <View style={{ flex: 1 }}>
+                              <Button
+                                label="Aceitar"
+                                size="sm"
+                                loading={friendBusy === n.id}
+                                onPress={() =>
+                                  handleFriend(n, requesterId, 'accept')
+                                }
+                                full
+                              />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Button
+                                label="Recusar"
+                                variant="ghost"
+                                size="sm"
+                                loading={friendBusy === n.id}
+                                onPress={() =>
+                                  handleFriend(n, requesterId, 'decline')
+                                }
+                                full
+                              />
+                            </View>
+                          </View>
+                        );
+                      })()}
                   </Card>
                 </Animated.View>
               ))}
@@ -271,4 +344,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   time: { color: colors.textDim, fontSize: 11, fontWeight: '600' },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
+  inlineDone: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+  },
 });

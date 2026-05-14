@@ -26,6 +26,86 @@ export async function fetchSeasonStats(
   };
 }
 
+export type YearStats = {
+  year: number;
+  matches_played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals: number;
+  assists: number;
+};
+
+export async function fetchPlayerYearStats(
+  userId: string,
+  sportId = 2,
+): Promise<YearStats[]> {
+  const { data, error } = await supabase
+    .from('player_year_stats')
+    .select('year, matches_played, wins, draws, losses, goals, assists')
+    .eq('user_id', userId)
+    .eq('sport_id', sportId)
+    .order('year', { ascending: false });
+  if (error || !data) {
+    console.error('fetchPlayerYearStats error', error);
+    return [];
+  }
+  return (data as any[]).map((r) => ({
+    year: r.year,
+    matches_played: r.matches_played ?? 0,
+    wins: r.wins ?? 0,
+    draws: r.draws ?? 0,
+    losses: r.losses ?? 0,
+    goals: r.goals ?? 0,
+    assists: r.assists ?? 0,
+  }));
+}
+
+export type MonthStats = {
+  matches_played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals: number;
+  assists: number;
+  mvps: number;
+};
+
+export async function fetchPlayerMonthStats(
+  userId: string,
+  year: number,
+  month: number,
+  sportId = 2,
+): Promise<MonthStats> {
+  const { data, error } = await supabase.rpc('player_month_stats', {
+    p_user_id: userId,
+    p_year: year,
+    p_month: month,
+    p_sport_id: sportId,
+  });
+  if (error || !data || (Array.isArray(data) && data.length === 0)) {
+    return {
+      matches_played: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goals: 0,
+      assists: 0,
+      mvps: 0,
+    };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    matches_played: row.matches_played ?? 0,
+    wins: row.wins ?? 0,
+    draws: row.draws ?? 0,
+    losses: row.losses ?? 0,
+    goals: row.goals ?? 0,
+    assists: row.assists ?? 0,
+    mvps: row.mvps ?? 0,
+  };
+}
+
 export type TopScorer = {
   user_id: string;
   name: string;

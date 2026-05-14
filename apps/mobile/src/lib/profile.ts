@@ -33,6 +33,7 @@ export type Profile = {
   jersey_number: number | null;
   nickname: string | null;
   preferred_foot: Foot | null;
+  is_private: boolean;
   deleted_at: string | null;
 };
 
@@ -40,7 +41,7 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
     .select(
-      'id, name, photo_url, city, birthdate, phone, bio, jersey_number, nickname, preferred_foot, deleted_at',
+      'id, name, photo_url, city, birthdate, phone, bio, jersey_number, nickname, preferred_foot, is_private, deleted_at',
     )
     .eq('id', userId)
     .maybeSingle();
@@ -90,7 +91,11 @@ export type ProfileSubmission = {
   name: string;
   birthdate: string; // ISO YYYY-MM-DD
   city: string;
-  sports: { sport_id: number; declared_level: number }[];
+  sports: {
+    sport_id: number;
+    declared_level: number;
+    preferred_position?: string | null;
+  }[];
 };
 
 export type ProfileUpdate = {
@@ -101,6 +106,7 @@ export type ProfileUpdate = {
   jersey_number?: number | null;
   nickname?: string | null;
   preferred_foot?: Foot | null;
+  is_private?: boolean;
 };
 
 export async function updateProfile(
@@ -115,6 +121,7 @@ export async function updateProfile(
   if (input.jersey_number !== undefined) patch.jersey_number = input.jersey_number;
   if (input.nickname !== undefined) patch.nickname = input.nickname;
   if (input.preferred_foot !== undefined) patch.preferred_foot = input.preferred_foot;
+  if (input.is_private !== undefined) patch.is_private = input.is_private;
   const { error } = await supabase
     .from('profiles')
     .update(patch)
@@ -151,6 +158,7 @@ export async function createProfile(
         user_id: userId,
         sport_id: s.sport_id,
         declared_level: s.declared_level,
+        preferred_position: s.preferred_position ?? null,
       })),
     );
     if (sportsError) {

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import {
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   Share,
   StyleSheet,
@@ -21,12 +22,17 @@ import {
   fetchCoach,
   fetchTeamById,
   fetchTeamMembers,
+  fetchTeamRecentForm,
+  fetchTeamStats,
   fetchTeamTopContributors,
+  isTeamLeader,
   leaveTeam,
   positionShort,
   type CoachProfile,
   type TeamContributor,
+  type TeamFormResult,
   type TeamMember,
+  type TeamStatRow,
   type TeamWithSport,
 } from '@/lib/teams';
 import { fetchFriends, type FriendProfile } from '@/lib/friends';
@@ -52,6 +58,18 @@ import {
   MatchListGroup,
 } from '@/components/MatchListItem';
 import { FormStrip, type FormResult } from '@/components/FormStrip';
+import { TeamHeroCard } from '@/components/TeamHeroCard';
+import { StarRating } from '@/components/StarRating';
+import { OUTFIELD_CATEGORIES, type StatCategory } from '@/lib/player-stats';
+import {
+  fetchTeamFaceoffLeaderboard,
+  type FaceoffLeaderboardEntry,
+} from '@/lib/faceoff';
+import {
+  fetchTeamReviewAggregate,
+  type TeamReviewAggregate,
+} from '@/lib/reviews';
+import { recentTeams } from '@/lib/recent';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme';
 
@@ -66,22 +84,35 @@ export default function TeamDetailScreen() {
   const [coach, setCoach] = useState<CoachProfile | null>(null);
   const [contributors, setContributors] = useState<TeamContributor[]>([]);
   const [friendMembers, setFriendMembers] = useState<FriendProfile[]>([]);
+  const [teamStats, setTeamStats] = useState<TeamStatRow[]>([]);
+  const [teamForm, setTeamForm] = useState<TeamFormResult[]>([]);
+  const [faceoffBoard, setFaceoffBoard] = useState<FaceoffLeaderboardEntry[]>([]);
+  const [reputation, setReputation] = useState<TeamReviewAggregate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [t, m, ms, contribs, friends] = await Promise.all([
+    const [t, m, ms, contribs, friends, ts, tf, fb, rep] = await Promise.all([
       fetchTeamById(id),
       fetchTeamMembers(id),
       fetchMatchesForTeam(id),
       fetchTeamTopContributors(id, 10),
       fetchFriends(),
+      fetchTeamStats(id),
+      fetchTeamRecentForm(id, 5),
+      fetchTeamFaceoffLeaderboard(id, 5),
+      fetchTeamReviewAggregate(id),
     ]);
+    setFaceoffBoard(fb);
+    setReputation(rep);
     setTeam(t);
     setMembers(m);
     setMatches(ms);
     setContributors(contribs);
+    setTeamStats(ts);
+    setTeamForm(tf);
     const memberIds = new Set(m.map((mm) => mm.user_id));
     setFriendMembers(friends.filter((f) => memberIds.has(f.id)));
     if (t?.coach_id) {
@@ -94,6 +125,14 @@ export default function TeamDetailScreen() {
       const sug = await fetchSuggestedOpponents(t.id, 5);
       setSuggested(sug);
     }
+    if (t) {
+      void recentTeams.add({
+        id: t.id,
+        name: t.name,
+        photo_url: t.photo_url,
+        meta: `${t.sport?.name ?? 'S7VN'} · ${t.city}`,
+      });
+    }
     setLoading(false);
   }, [id, session]);
 
@@ -102,6 +141,12 @@ export default function TeamDetailScreen() {
       load();
     }, [load]),
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   if (loading) {
     return (
@@ -139,6 +184,7 @@ export default function TeamDetailScreen() {
   }
 
   const isCaptain = team.captain_id === session?.user.id;
+  const isLeader = isTeamLeader(team, session?.user.id);
   const inviteMessage =
     `Junta-te à minha equipa "${team.name}" na S7VN ⚽\n\n` +
     `Código de entrada: ${team.invite_code.toUpperCase()}\n\n` +
@@ -185,6 +231,13 @@ export default function TeamDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
+        }
       >
         <Animated.View
           entering={FadeInDown.duration(300).springify()}
@@ -194,10 +247,23 @@ export default function TeamDetailScreen() {
           <View style={{ flex: 1 }}>
             <Heading level={2}>{team.name}</Heading>
             <Text style={styles.meta}>
-              {`${team.sport?.name ?? 'Futebol 7'} · ${team.city}${
-                isCaptain ? ' · capitão' : ''
+              {`${team.sport?.name ?? 'S7VN'} · ${team.city}${
+                isCaptain
+                  ? ' · capitão'
+                  : isLeader
+                    ? ' · sub-capitão'
+                    : ''
               }`}
             </Text>
+            {!isCaptain && (() => {
+              const captain = members.find((m) => m.role === 'captain');
+              if (!captain) return null;
+              return (
+                <Text style={styles.meta2} numberOfLines={1}>
+                  {`Capitão · ${captain.profile?.name ?? 'Sem nome'}`}
+                </Text>
+              );
+            })()}
           </View>
           {members.some((m) => m.user_id === session?.user.id) && (
             <Pressable
@@ -228,6 +294,87 @@ export default function TeamDetailScreen() {
                 )}
               </View>
               <Text style={styles.annBody}>{team.announcement}</Text>
+            </Card>
+          </Animated.View>
+        )}
+
+        <Animated.View
+          entering={FadeInDown.delay(55).springify()}
+          style={{ marginTop: 16 }}
+        >
+          {(() => {
+            const topGoal = contributors.find((c) => c.goals > 0);
+            const topAssist = [...contributors]
+              .sort((a, b) => b.assists - a.assists)
+              .find((c) => c.assists > 0);
+            return (
+              <TeamHeroCard
+                name={team.name}
+                city={team.city}
+                photoUrl={team.photo_url}
+                memberCount={members.length}
+                winPct={
+                  record.played > 0
+                    ? Math.round((record.wins / record.played) * 100)
+                    : null
+                }
+                wins={record.wins}
+                draws={record.draws}
+                losses={record.losses}
+                goalsFor={record.goals_for}
+                goalsAgainst={record.goals_against}
+                form={teamForm.map((f) => f.outcome as FormResult)}
+                topScorer={
+                  topGoal
+                    ? {
+                        user_id: topGoal.user_id,
+                        name: topGoal.name,
+                        photo_url: topGoal.photo_url,
+                        value: topGoal.goals,
+                      }
+                    : null
+                }
+                topAssist={
+                  topAssist
+                    ? {
+                        user_id: topAssist.user_id,
+                        name: topAssist.name,
+                        photo_url: topAssist.photo_url,
+                        value: topAssist.assists,
+                      }
+                    : null
+                }
+                onScorerPress={
+                  topGoal
+                    ? () => router.push(`/(app)/users/${topGoal.user_id}`)
+                    : undefined
+                }
+                onAssistPress={
+                  topAssist
+                    ? () => router.push(`/(app)/users/${topAssist.user_id}`)
+                    : undefined
+                }
+              />
+            );
+          })()}
+        </Animated.View>
+
+        {reputation && reputation.total_reviews > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(57).springify()}
+            style={{ marginTop: 12 }}
+          >
+            <Eyebrow>Reputação</Eyebrow>
+            <Card style={{ marginTop: 8 }}>
+              <View style={styles.repStarsHero}>
+                <StarRating value={reputation.avg_overall ?? 0} size={28} />
+                <Text style={styles.repStarsValue}>
+                  {(reputation.avg_overall ?? 0).toFixed(1)}
+                </Text>
+              </View>
+              <Text style={styles.repFoot}>
+                {`${reputation.total_reviews} avaliaç${reputation.total_reviews === 1 ? 'ão' : 'ões'} de adversários`}
+              </Text>
             </Card>
           </Animated.View>
         )}
@@ -349,99 +496,7 @@ export default function TeamDetailScreen() {
           );
         })()}
 
-        {contributors.length > 0 && (() => {
-          const topGoal = contributors.find((c) => c.goals > 0);
-          const topAssist = [...contributors]
-            .sort((a, b) => b.assists - a.assists)
-            .find((c) => c.assists > 0);
-          const goalsFor = matches
-            .filter((m) => m.status === 'validated' && m.final_score_a !== null && m.final_score_b !== null)
-            .reduce((acc, m) => {
-              const isA = m.side_a.id === team.id;
-              return acc + (isA ? m.final_score_a! : m.final_score_b!);
-            }, 0);
-          const goalsAgainst = matches
-            .filter((m) => m.status === 'validated' && m.final_score_a !== null && m.final_score_b !== null)
-            .reduce((acc, m) => {
-              const isA = m.side_a.id === team.id;
-              return acc + (isA ? m.final_score_b! : m.final_score_a!);
-            }, 0);
-          return (
-            <Animated.View
-              entering={FadeInDown.delay(130).springify()}
-              style={styles.section}
-            >
-              <Eyebrow>📊 Estatísticas</Eyebrow>
-              <Card style={{ marginTop: 8 }}>
-                <View style={styles.statsTopRow}>
-                  <View style={styles.statsCell}>
-                    <Text style={[styles.statsValue, { color: '#fbbf24' }]}>
-                      {goalsFor}
-                    </Text>
-                    <Text style={styles.statsLabel}>⚽ Marcados</Text>
-                  </View>
-                  <View style={styles.statsCell}>
-                    <Text style={[styles.statsValue, { color: '#f87171' }]}>
-                      {goalsAgainst}
-                    </Text>
-                    <Text style={styles.statsLabel}>🛡️ Sofridos</Text>
-                  </View>
-                </View>
-                <View style={styles.statsDivider} />
-                <View style={{ gap: 10 }}>
-                  {topGoal && (
-                    <Pressable
-                      onPress={() =>
-                        router.push(`/(app)/users/${topGoal.user_id}`)
-                      }
-                      style={styles.contribRow}
-                    >
-                      <Avatar
-                        url={topGoal.photo_url}
-                        name={topGoal.name}
-                        size={36}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.contribLabel}>⚽ Goleador</Text>
-                        <Text style={styles.contribName} numberOfLines={1}>
-                          {topGoal.name}
-                        </Text>
-                      </View>
-                      <Text style={[styles.contribValue, { color: '#fbbf24' }]}>
-                        {topGoal.goals}
-                      </Text>
-                    </Pressable>
-                  )}
-                  {topAssist && (
-                    <Pressable
-                      onPress={() =>
-                        router.push(`/(app)/users/${topAssist.user_id}`)
-                      }
-                      style={styles.contribRow}
-                    >
-                      <Avatar
-                        url={topAssist.photo_url}
-                        name={topAssist.name}
-                        size={36}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.contribLabel}>🎁 Assistente</Text>
-                        <Text style={styles.contribName} numberOfLines={1}>
-                          {topAssist.name}
-                        </Text>
-                      </View>
-                      <Text style={[styles.contribValue, { color: '#34d399' }]}>
-                        {topAssist.assists}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              </Card>
-            </Animated.View>
-          );
-        })()}
-
-        {isCaptain && (
+        {isLeader && (
           <Animated.View
             entering={FadeInDown.delay(140).springify()}
             style={styles.actions}
@@ -456,7 +511,7 @@ export default function TeamDetailScreen() {
               full
             />
             <Button
-              label="⚡ Peladinha interna"
+              label="Peladinha interna"
               variant="secondary"
               onPress={() =>
                 router.push(`/(app)/teams/${team.id}/internal/new`)
@@ -471,12 +526,14 @@ export default function TeamDetailScreen() {
               }
               full
             />
-            <Button
-              label="Editar equipa"
-              variant="ghost"
-              onPress={() => router.push(`/(app)/teams/${team.id}/edit`)}
-              full
-            />
+            {isCaptain && (
+              <Button
+                label="Editar equipa"
+                variant="ghost"
+                onPress={() => router.push(`/(app)/teams/${team.id}/edit`)}
+                full
+              />
+            )}
           </Animated.View>
         )}
 
@@ -581,11 +638,86 @@ export default function TeamDetailScreen() {
           </Animated.View>
         )}
 
+        {faceoffBoard.length > 0 && faceoffBoard[0]!.total_votes > 0 && (
+          <Animated.View
+            entering={FadeInDown.delay(270).springify()}
+            style={styles.section}
+          >
+            <Eyebrow>↔ Voto dos colegas</Eyebrow>
+            <Card style={{ marginTop: 8 }}>
+              {faceoffBoard.slice(0, 5).map((row, i) => (
+                <Pressable
+                  key={row.user_id}
+                  onPress={() => router.push(`/(app)/users/${row.user_id}`)}
+                  style={[styles.boardRow, i > 0 && styles.boardRowBorder]}
+                >
+                  <Text style={styles.boardRank}>
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                  </Text>
+                  <Avatar url={row.photo_url} name={row.name} size={32} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.boardName} numberOfLines={1}>
+                      {row.name}
+                    </Text>
+                    <Text style={styles.boardMeta}>
+                      {`${row.wins}V · ${row.losses}D${row.draws > 0 ? ` · ${row.draws}E` : ''}`}
+                    </Text>
+                  </View>
+                  <Text style={styles.boardScore}>
+                    {`${Math.round(row.win_score)}%`}
+                  </Text>
+                </Pressable>
+              ))}
+            </Card>
+          </Animated.View>
+        )}
+
         <Animated.View
           entering={FadeInDown.delay(280).springify()}
           style={styles.section}
         >
-          <Eyebrow>{`Plantel · ${members.length}`}</Eyebrow>
+          <View style={styles.plantelHeader}>
+            <Eyebrow>{`Plantel · ${members.length}`}</Eyebrow>
+            {members.length >= 2 && (
+              <Pressable
+                onPress={() => {
+                  // Step 1: pick player A
+                  const candidates = members.slice(0, 8);
+                  Alert.alert(
+                    'Faceoff — escolhe o primeiro',
+                    'Vais comparar dois jogadores e os colegas podem votar.',
+                    [
+                      ...candidates.map((m1) => ({
+                        text: m1.profile?.name ?? 'Jogador',
+                        onPress: () => {
+                          const others = members.filter(
+                            (mm) => mm.user_id !== m1.user_id,
+                          ).slice(0, 8);
+                          Alert.alert(
+                            `Faceoff — ${m1.profile?.name ?? 'Jogador'} vs…`,
+                            'Escolhe o segundo jogador',
+                            [
+                              ...others.map((m2) => ({
+                                text: m2.profile?.name ?? 'Jogador',
+                                onPress: () =>
+                                  router.push(
+                                    `/(app)/users/compare?a=${m1.user_id}&b=${m2.user_id}&team=${team.id}`,
+                                  ),
+                              })),
+                              { text: 'Cancelar', style: 'cancel' as const },
+                            ],
+                          );
+                        },
+                      })),
+                      { text: 'Cancelar', style: 'cancel' as const },
+                    ],
+                  );
+                }}
+              >
+                <Text style={styles.plantelAction}>↔ Faceoff</Text>
+              </Pressable>
+            )}
+          </View>
           {members.map((m, i) => (
             <Animated.View
               key={m.user_id}
@@ -607,8 +739,11 @@ export default function TeamDetailScreen() {
                       {m.profile?.name ?? 'Jogador'}
                     </Text>
                     <Text style={styles.itemMeta}>
-                      {m.role === 'captain' ? 'Capitão' : 'Membro'}
-                      {m.elo !== null ? ` · ${Math.round(m.elo)}` : ''}
+                      {m.role === 'captain'
+                        ? 'Capitão'
+                        : team.sub_captain_ids.includes(m.user_id)
+                          ? 'Sub-capitão'
+                          : 'Membro'}
                     </Text>
                   </View>
                   {m.preferred_position && (
@@ -630,13 +765,17 @@ export default function TeamDetailScreen() {
             <Text style={styles.inviteLabel}>Código</Text>
             <Text style={styles.inviteCode}>{team.invite_code}</Text>
             <View style={styles.inviteRow}>
-              <Button
-                label={copied ? '✓ Copiado' : 'Copiar'}
-                variant="secondary"
-                full
-                onPress={copyCode}
-              />
-              <Button label="Partilhar" full onPress={shareInvite} />
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={copied ? '✓ Copiado' : 'Copiar'}
+                  variant="secondary"
+                  full
+                  onPress={copyCode}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button label="Partilhar" full onPress={shareInvite} />
+              </View>
             </View>
             <Text style={styles.inviteHint}>
               Quem tiver o código pode entrar em "Entrar com código".
@@ -727,6 +866,21 @@ function Stat({
   );
 }
 
+function ReputationCell({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <View style={styles.repCell}>
+      <Text style={styles.repValue}>{value.toFixed(1)}</Text>
+      <Text style={styles.repLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
   header: {
@@ -740,6 +894,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     letterSpacing: -0.1,
+  },
+  meta2: {
+    color: '#737373',
+    fontSize: 12,
+    marginTop: 2,
+    letterSpacing: -0.1,
+  },
+  repRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  repCell: { flex: 1, alignItems: 'center' },
+  repValue: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  repLabel: {
+    color: '#a3a3a3',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  repDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  repFoot: {
+    color: '#737373',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 12,
+    letterSpacing: 0.3,
+  },
+  repStarsHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    paddingVertical: 6,
+  },
+  repStarsValue: {
+    color: colors.goldDeep,
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
   description: {
     color: '#d4d4d4',
@@ -793,6 +998,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flex: 1,
     letterSpacing: -0.1,
+  },
+  plantelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  plantelAction: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  boardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+  },
+  boardRowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  boardRank: {
+    width: 26,
+    textAlign: 'center',
+    fontSize: 18,
+  },
+  boardName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  boardMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+    letterSpacing: 0.2,
+  },
+  boardScore: {
+    color: colors.brand,
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    minWidth: 44,
+    textAlign: 'right',
   },
   annHeader: {
     flexDirection: 'row',

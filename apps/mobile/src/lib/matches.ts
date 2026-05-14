@@ -14,6 +14,7 @@ export type TeamLite = {
   name: string;
   city: string;
   captain_id: string;
+  photo_url: string | null;
 };
 
 export type MatchSummary = {
@@ -34,6 +35,12 @@ export type MatchSummary = {
   referee_id: string | null;
   side_a: TeamLite;
   side_b: TeamLite;
+  /** Side the user participated on (set by fetchMatchesForPlayer/User) */
+  my_side?: 'A' | 'B' | null;
+  /** Goals scored by the user in this match */
+  my_goals?: number;
+  /** Assists by the user in this match */
+  my_assists?: number;
 };
 
 type SideRow = {
@@ -57,7 +64,7 @@ const MATCH_SELECT = `
   is_internal, side_a_label, side_b_label, referee_id,
   sides:match_sides!inner(
     side,
-    team:teams!inner(id, name, city, captain_id)
+    team:teams!inner(id, name, city, captain_id, photo_url)
   )
 `;
 
@@ -66,8 +73,11 @@ export type CityActivity = {
   scheduled_at: string;
   side_a_name: string;
   side_b_name: string;
+  side_a_photo: string | null;
+  side_b_photo: string | null;
   final_score_a: number;
   final_score_b: number;
+  is_internal: boolean;
 };
 
 export async function fetchCityActivity(
@@ -77,10 +87,11 @@ export async function fetchCityActivity(
   const { data, error } = await supabase
     .from('matches')
     .select(
-      `id, scheduled_at, final_score_a, final_score_b,
+      `id, scheduled_at, final_score_a, final_score_b, is_internal,
+       side_a_label, side_b_label,
        sides:match_sides!inner(
          side,
-         team:teams!inner(name, city)
+         team:teams!inner(name, city, photo_url)
        )`,
     )
     .eq('status', 'validated')
@@ -95,38 +106,46 @@ export async function fetchCityActivity(
       const b = (m.sides as any[]).find((s) => s.side === 'B')?.team;
       if (!a || !b) return null;
       if (a.city !== city && b.city !== city) return null;
+      const isInternal = Boolean(m.is_internal);
       return {
         match_id: m.id,
         scheduled_at: m.scheduled_at,
-        side_a_name: a.name,
-        side_b_name: b.name,
+        side_a_name: isInternal && m.side_a_label ? m.side_a_label : a.name,
+        side_b_name: isInternal && m.side_b_label ? m.side_b_label : b.name,
+        side_a_photo: a.photo_url ?? null,
+        side_b_photo: b.photo_url ?? null,
         final_score_a: m.final_score_a,
         final_score_b: m.final_score_b,
+        is_internal: isInternal,
       };
     })
     .filter((x): x is CityActivity => x !== null)
     .slice(0, limit);
 }
 
-export async function fetchMatchesForUser(
+/**
+ * Matches where the user is a participant (was invited/attended).
+ * Includes pending invites — covers all matches actually involving the player.
+ */
+export async function fetchMatchesForPlayer(
   userId: string,
 ): Promise<MatchSummary[]> {
-  // teams I belong to
-  const { data: memberships, error: memErr } = await supabase
-    .from('team_members')
-    .select('team_id')
+  const { data: parts, error: partErr } = await supabase
+    .from('match_participants')
+    .select('match_id, side, goals, assists')
     .eq('user_id', userId);
-  if (memErr || !memberships || memberships.length === 0) return [];
+  if (partErr || !parts || parts.length === 0) return [];
 
-  const teamIds = memberships.map((m) => m.team_id);
-
-  const { data: sideRows, error: sideErr } = await supabase
-    .from('match_sides')
-    .select('match_id')
-    .in('team_id', teamIds);
-  if (sideErr || !sideRows || sideRows.length === 0) return [];
-
-  const matchIds = Array.from(new Set(sideRows.map((r) => r.match_id)));
+  type PartRow = { match_id: string; side: 'A' | 'B'; goals: number | null; assists: number | null };
+  const myByMatch = new Map<string, { side: 'A' | 'B'; goals: number; assists: number }>();
+  for (const p of parts as PartRow[]) {
+    myByMatch.set(p.match_id, {
+      side: p.side,
+      goals: p.goals ?? 0,
+      assists: p.assists ?? 0,
+    });
+  }
+  const matchIds = Array.from(myByMatch.keys());
 
   const { data, error } = await supabase
     .from('matches')
@@ -134,7 +153,6 @@ export async function fetchMatchesForUser(
     .in('id', matchIds)
     .in('status', ['proposed', 'confirmed', 'result_pending', 'disputed', 'validated'])
     .order('scheduled_at', { ascending: true });
-
   if (error || !data) return [];
 
   return data
@@ -159,6 +177,85 @@ export async function fetchMatchesForUser(
         final_score_b: m.final_score_b,
         side_a: a,
         side_b: b,
+        my_side: myByMatch.get(m.id)?.side ?? null,
+        my_goals: myByMatch.get(m.id)?.goals ?? 0,
+        my_assists: myByMatch.get(m.id)?.assists ?? 0,
+      };
+    })
+    .filter((m): m is MatchSummary => !!m);
+}
+
+export async function fetchMatchesForUser(
+  userId: string,
+): Promise<MatchSummary[]> {
+  // teams I belong to
+  const { data: memberships, error: memErr } = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId);
+  if (memErr || !memberships || memberships.length === 0) return [];
+
+  const teamIds = memberships.map((m) => m.team_id);
+
+  const { data: sideRows, error: sideErr } = await supabase
+    .from('match_sides')
+    .select('match_id')
+    .in('team_id', teamIds);
+  if (sideErr || !sideRows || sideRows.length === 0) return [];
+
+  const matchIds = Array.from(new Set(sideRows.map((r) => r.match_id)));
+
+  // Fetch user's own participation per match (if any) so we can show V/D/E + stats
+  const { data: myParts } = await supabase
+    .from('match_participants')
+    .select('match_id, side, goals, assists')
+    .eq('user_id', userId)
+    .in('match_id', matchIds);
+  type PartRow = { match_id: string; side: 'A' | 'B'; goals: number | null; assists: number | null };
+  const myByMatch = new Map<string, { side: 'A' | 'B'; goals: number; assists: number }>();
+  for (const p of (myParts ?? []) as PartRow[]) {
+    myByMatch.set(p.match_id, {
+      side: p.side,
+      goals: p.goals ?? 0,
+      assists: p.assists ?? 0,
+    });
+  }
+
+  const { data, error } = await supabase
+    .from('matches')
+    .select(MATCH_SELECT)
+    .in('id', matchIds)
+    .in('status', ['proposed', 'confirmed', 'result_pending', 'disputed', 'validated'])
+    .order('scheduled_at', { ascending: true });
+
+  if (error || !data) return [];
+
+  return data
+    .map((m: any): MatchSummary | null => {
+      const { a, b } = unwrapSides(m.sides ?? []);
+      if (!a || !b) return null;
+      const mine = myByMatch.get(m.id);
+      return {
+        id: m.id,
+        sport_id: m.sport_id,
+        scheduled_at: m.scheduled_at,
+        status: m.status,
+        location_name: m.location_name,
+        location_tbd: m.location_tbd,
+        message: m.message,
+        notes: m.notes ?? null,
+        is_internal: Boolean(m.is_internal),
+        side_a_label: m.side_a_label ?? null,
+        side_b_label: m.side_b_label ?? null,
+        referee_id: m.referee_id ?? null,
+        proposed_by: m.proposed_by,
+        final_score_a: m.final_score_a,
+        final_score_b: m.final_score_b,
+        side_a: a,
+        side_b: b,
+        my_side: mine?.side ?? null,
+        my_goals: mine?.goals ?? 0,
+        my_assists: mine?.assists ?? 0,
       };
     })
     .filter((m): m is MatchSummary => !!m);
@@ -261,7 +358,7 @@ export async function fetchOpponentCandidates(
 ): Promise<TeamLite[]> {
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, city, captain_id, is_active, sport_id')
+    .select('id, name, city, captain_id, photo_url, is_active, sport_id')
     .eq('sport_id', sportId)
     .eq('is_active', true)
     .neq('id', excludeTeamId)
@@ -276,6 +373,7 @@ export async function fetchOpponentCandidates(
     name: t.name,
     city: t.city,
     captain_id: t.captain_id,
+    photo_url: t.photo_url ?? null,
   }));
 }
 
@@ -569,7 +667,7 @@ export async function fetchPendingChallengesForUser(
       `side, captain_id,
        match:matches!inner(
          id, scheduled_at, status, location_name, location_tbd,
-         sides:match_sides!inner(side, team:teams!inner(id, name, city, captain_id))
+         sides:match_sides!inner(side, team:teams!inner(id, name, city, captain_id, photo_url))
        )`,
     )
     .eq('captain_id', userId);

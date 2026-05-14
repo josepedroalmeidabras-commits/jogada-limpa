@@ -85,7 +85,7 @@ export default function PlayerCardScreen() {
   const overall = overallRating(stats);
   const position = sport?.preferred_position ?? null;
   const isGk = position === 'gr';
-  const elo = sport ? Math.round(sport.elo) : null;
+  const winPct = sport && sport.win_matches > 0 ? Math.round(sport.win_pct) : null;
   const cats = categoriesForPosition(position);
   const overallColor = overall > 0 ? ratingColor(overall) : colors.textDim;
 
@@ -95,7 +95,7 @@ export default function PlayerCardScreen() {
       `🟢 ${formatDisplayName(profile)}`,
       position ? `${isGk ? '🧤 ' : ''}${POSITION_LABEL[position] ?? ''}` : '',
       overall > 0 ? `Overall ${overall}/99` : '',
-      elo !== null ? `ELO ${elo}` : '',
+      winPct !== null ? `${winPct}% vitórias` : '',
       season ? `${season.matches_played} jogos · ${season.goals}G · ${season.assists}A` : '',
       '',
       'S7VN — jogadalimpa.app',
@@ -157,7 +157,7 @@ export default function PlayerCardScreen() {
             </Text>
             {profile.preferred_foot && (
               <Text style={styles.foot}>
-                {`⚽ ${FOOT_LABEL[profile.preferred_foot]}`}
+                {FOOT_LABEL[profile.preferred_foot]}
               </Text>
             )}
           </View>
@@ -183,10 +183,10 @@ export default function PlayerCardScreen() {
 
           {/* Footer */}
           <View style={styles.footer}>
-            {elo !== null && (
+            {winPct !== null && (
               <View style={styles.footCell}>
-                <Text style={styles.footValue}>{elo}</Text>
-                <Text style={styles.footLabel}>ELO</Text>
+                <Text style={styles.footValue}>{`${winPct}%`}</Text>
+                <Text style={styles.footLabel}>Vitórias</Text>
               </View>
             )}
             <View style={styles.footCell}>

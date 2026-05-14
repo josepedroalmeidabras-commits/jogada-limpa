@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import { joinTeamByCode } from '@/lib/teams';
 import { Screen } from '@/components/Screen';
@@ -19,9 +19,14 @@ import { colors } from '@/theme';
 export default function JoinTeamScreen() {
   const { session } = useAuth();
   const router = useRouter();
-  const [code, setCode] = useState('');
+  const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
+  const [code, setCode] = useState(codeParam?.toUpperCase() ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (codeParam) setCode(codeParam.toUpperCase());
+  }, [codeParam]);
 
   async function handleSubmit() {
     setError(null);

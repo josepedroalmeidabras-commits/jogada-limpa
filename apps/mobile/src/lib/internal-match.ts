@@ -54,6 +54,7 @@ export type AnnounceInput = {
   notes?: string;
   side_a_label?: string;
   side_b_label?: string;
+  invite_user_ids?: string[] | null;
 };
 
 export async function announceInternalMatch(
@@ -67,6 +68,7 @@ export async function announceInternalMatch(
     p_notes: input.notes ?? null,
     p_side_a_label: input.side_a_label ?? null,
     p_side_b_label: input.side_b_label ?? null,
+    p_invite_user_ids: input.invite_user_ids ?? null,
   });
   if (error || !data) {
     return {
@@ -92,9 +94,13 @@ export async function announceInternalMatch(
       hour: '2-digit',
       minute: '2-digit',
     });
+    const inviteSet = input.invite_user_ids
+      ? new Set(input.invite_user_ids)
+      : null;
     await Promise.all(
       members
         .filter((m) => m.user_id !== me)
+        .filter((m) => inviteSet === null || inviteSet.has(m.user_id))
         .map((m) =>
           sendPushToUser(m.user_id, {
             title: `Peladinha · ${teamName}`,
@@ -196,6 +202,20 @@ export async function respondToMatchInvite(
     .eq('match_id', matchId)
     .eq('user_id', me);
   if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
+
+export async function markParticipantPaid(
+  matchId: string,
+  userId: string,
+  paid: boolean,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('mark_participant_paid', {
+    p_match_id: matchId,
+    p_user_id: userId,
+    p_paid: paid,
+  });
+  if (error) return { ok: false, message: error.message ?? 'Falhou.' };
   return { ok: true };
 }
 

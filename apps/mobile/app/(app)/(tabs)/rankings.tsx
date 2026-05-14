@@ -28,8 +28,8 @@ import { Skeleton } from '@/components/Skeleton';
 import { colors } from '@/theme';
 
 type Tab = 'players' | 'teams' | 'mvps' | 'scorers';
-type PlayerSort = 'elo' | 'matches';
-type TeamSort = 'elo' | 'members';
+type PlayerSort = 'win_pct' | 'matches';
+type TeamSort = 'win_pct' | 'members';
 
 export default function RankingsScreen() {
   const { session } = useAuth();
@@ -41,17 +41,20 @@ export default function RankingsScreen() {
   const [teams, setTeams] = useState<RankedTeam[]>([]);
   const [mvps, setMvps] = useState<RankedMvp[]>([]);
   const [scorers, setScorers] = useState<TopScorer[]>([]);
-  const [playerSort, setPlayerSort] = useState<PlayerSort>('elo');
-  const [teamSort, setTeamSort] = useState<TeamSort>('elo');
+  const [playerSort, setPlayerSort] = useState<PlayerSort>('win_pct');
+  const [teamSort, setTeamSort] = useState<TeamSort>('win_pct');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const sortedPlayers = useMemo(() => {
     const arr = [...players];
     if (playerSort === 'matches') {
-      arr.sort((a, b) => b.matches_played - a.matches_played);
+      arr.sort((a, b) => b.matches - a.matches);
     } else {
-      arr.sort((a, b) => b.elo - a.elo);
+      arr.sort((a, b) => {
+        if (b.win_pct !== a.win_pct) return b.win_pct - a.win_pct;
+        return b.matches - a.matches;
+      });
     }
     return arr;
   }, [players, playerSort]);
@@ -61,7 +64,10 @@ export default function RankingsScreen() {
     if (teamSort === 'members') {
       arr.sort((a, b) => b.member_count - a.member_count);
     } else {
-      arr.sort((a, b) => b.elo_avg - a.elo_avg);
+      arr.sort((a, b) => {
+        if (b.win_pct !== a.win_pct) return b.win_pct - a.win_pct;
+        return b.matches - a.matches;
+      });
     }
     return arr;
   }, [teams, teamSort]);
@@ -194,7 +200,7 @@ export default function RankingsScreen() {
                     tab === 'mvps' && styles.tabTextActive,
                   ]}
                 >
-                  👑 MVPs
+                  MVPs
                 </Text>
               </Pressable>
               <Pressable
@@ -207,7 +213,7 @@ export default function RankingsScreen() {
                     tab === 'scorers' && styles.tabTextActive,
                   ]}
                 >
-                  ⚽ Goleadores
+                  Goleadores
                 </Text>
               </Pressable>
             </Animated.View>
@@ -218,9 +224,9 @@ export default function RankingsScreen() {
                 {tab === 'players' ? (
                   <>
                     <SortChip
-                      label="ELO"
-                      active={playerSort === 'elo'}
-                      onPress={() => setPlayerSort('elo')}
+                      label="% Vitórias"
+                      active={playerSort === 'win_pct'}
+                      onPress={() => setPlayerSort('win_pct')}
                     />
                     <SortChip
                       label="Jogos"
@@ -231,9 +237,9 @@ export default function RankingsScreen() {
                 ) : (
                   <>
                     <SortChip
-                      label="ELO médio"
-                      active={teamSort === 'elo'}
-                      onPress={() => setTeamSort('elo')}
+                      label="% Vitórias"
+                      active={teamSort === 'win_pct'}
+                      onPress={() => setTeamSort('win_pct')}
                     />
                     <SortChip
                       label="Membros"
@@ -262,9 +268,13 @@ export default function RankingsScreen() {
                     <RankRow
                       rank={i + 1}
                       title={p.name}
-                      subtitle={`${p.matches_played} jogos`}
+                      subtitle={`${p.matches} jogos`}
                       photoUrl={p.photo_url}
-                      elo={Math.round(p.elo)}
+                      value={
+                        playerSort === 'matches'
+                          ? String(p.matches)
+                          : `${Math.round(p.win_pct)}%`
+                      }
                       onPress={() => router.push(`/(app)/users/${p.user_id}`)}
                     />
                   </Animated.View>
@@ -286,9 +296,13 @@ export default function RankingsScreen() {
                     <RankRow
                       rank={i + 1}
                       title={t.name}
-                      subtitle={`${t.member_count} membros`}
+                      subtitle={`${t.member_count} membros · ${t.matches} jogos`}
                       photoUrl={t.photo_url}
-                      elo={Math.round(t.elo_avg)}
+                      value={
+                        teamSort === 'members'
+                          ? String(t.member_count)
+                          : `${Math.round(t.win_pct)}%`
+                      }
                       onPress={() => router.push(`/(app)/teams/${t.team_id}`)}
                     />
                   </Animated.View>
@@ -313,7 +327,7 @@ export default function RankingsScreen() {
                       title={m.name}
                       subtitle={`${m.mvp_votes} voto${m.mvp_votes === 1 ? '' : 's'}`}
                       photoUrl={m.photo_url}
-                      elo={m.mvp_votes}
+                      value={String(m.mvp_votes)}
                       onPress={() => router.push(`/(app)/users/${m.user_id}`)}
                     />
                   </Animated.View>
@@ -336,7 +350,7 @@ export default function RankingsScreen() {
                     title={s.name}
                     subtitle={`${s.goals} golo${s.goals === 1 ? '' : 's'} · ${s.assists} ass.`}
                     photoUrl={s.photo_url}
-                    elo={s.goals}
+                    value={String(s.goals)}
                     onPress={() => router.push(`/(app)/users/${s.user_id}`)}
                   />
                 </Animated.View>
@@ -377,46 +391,67 @@ function RankRow({
   title,
   subtitle,
   photoUrl,
-  elo,
+  value,
   onPress,
 }: {
   rank: number;
   title: string;
   subtitle: string;
   photoUrl: string | null;
-  elo: number;
+  value: string;
   onPress: () => void;
 }) {
-  const podium = rank <= 3;
+  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
+  const tierBorder =
+    rank === 1
+      ? '#C9A26B'
+      : rank === 2
+        ? '#9aa3a0'
+        : rank === 3
+          ? '#a86a3d'
+          : 'transparent';
   return (
-    <Card onPress={onPress} style={{ marginTop: 8 }}>
+    <Card
+      onPress={onPress}
+      style={[
+        { marginTop: 8 },
+        rank <= 3 && { borderColor: tierBorder, borderWidth: 1 },
+      ]}
+    >
       <View style={styles.row}>
-        <Text
-          style={[
-            styles.rank,
-            podium && styles.rankPodium,
-            rank === 1 && { color: colors.brand },
-          ]}
-        >
-          {rank}
-        </Text>
+        {medal ? (
+          <Text style={styles.medal}>{medal}</Text>
+        ) : (
+          <Text style={styles.rank}>{rank}</Text>
+        )}
         <Avatar url={photoUrl} name={title} size={40} />
         <View style={{ flex: 1 }}>
           <Text style={styles.rowName}>{title}</Text>
           <Text style={styles.rowMeta}>{subtitle}</Text>
         </View>
-        <Text style={styles.rowElo}>{elo}</Text>
+        <Text
+          style={[
+            styles.rowElo,
+            rank === 1 && { color: '#C9A26B' },
+            rank === 2 && { color: '#c4cbc8' },
+            rank === 3 && { color: '#cd854f' },
+          ]}
+        >
+          {value}
+        </Text>
       </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { padding: 24, paddingBottom: 120 },
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: colors.bgElevated,
-    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
     padding: 4,
     marginTop: 20,
     marginBottom: 8,
@@ -454,9 +489,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sortChipTextActive: { color: colors.brand },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 999 },
-  tabActive: { backgroundColor: colors.brand },
-  tabText: { color: colors.textMuted, fontWeight: '700', letterSpacing: 0.2 },
+  tab: {
+    flex: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  tabActive: {
+    backgroundColor: colors.brand,
+    shadowColor: '#C9A26B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  tabText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   tabTextActive: { color: '#0E1812' },
   muted: { color: colors.textDim, fontSize: 13 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -467,6 +520,11 @@ const styles = StyleSheet.create({
     width: 28,
     textAlign: 'center',
     letterSpacing: -0.3,
+  },
+  medal: {
+    fontSize: 22,
+    width: 28,
+    textAlign: 'center',
   },
   rankPodium: { color: colors.text },
   rowName: {

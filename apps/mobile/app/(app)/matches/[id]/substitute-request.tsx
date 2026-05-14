@@ -63,32 +63,27 @@ export default function SubstituteRequestScreen() {
       </Screen>
     );
   }
-  if (match.is_internal) {
-    return (
-      <Screen>
-        <View style={styles.center}>
-          <Text style={styles.muted}>
-            Para peladinhas, usa o flow de convocatória interno.
-          </Text>
-        </View>
-      </Screen>
-    );
-  }
-
   const isCaptainA = match.side_a.captain_id === session?.user.id;
   const isCaptainB = match.side_b.captain_id === session?.user.id;
   if (!isCaptainA && !isCaptainB) {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text style={styles.muted}>Só o capitão do teu lado pode pedir substituto.</Text>
+          <Text style={styles.muted}>Só o capitão pode pedir substituto.</Text>
         </View>
       </Screen>
     );
   }
+  // Para peladinhas, mostra o nome do lado (Coletes / Sem Coletes); para os
+  // restantes, mostra o nome da equipa.
   const mySide: 'A' | 'B' = isCaptainA ? 'A' : 'B';
-  const sideName =
-    mySide === 'A' ? match.side_a.name : match.side_b.name;
+  const sideName = match.is_internal
+    ? (mySide === 'A'
+        ? match.side_a_label ?? 'Coletes'
+        : match.side_b_label ?? 'Sem Coletes')
+    : mySide === 'A'
+      ? match.side_a.name
+      : match.side_b.name;
 
   async function handleSubmit() {
     if (!id) return;

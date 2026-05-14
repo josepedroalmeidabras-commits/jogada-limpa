@@ -29,20 +29,23 @@ import {
 import { addMatchToCalendar } from '@/lib/calendar';
 import { fetchMatchUnreadCount } from '@/lib/match-chat';
 import { fetchHeadToHead, type HeadToHead } from '@/lib/h2h';
+import { supabase } from '@/lib/supabase';
 import { fetchReferee, type RefereeProfile } from '@/lib/referee';
 import { Avatar } from '@/components/Avatar';
 import {
   fetchMatchParticipants,
   type MatchParticipant,
 } from '@/lib/result';
-import { respondToMatchInvite } from '@/lib/internal-match';
+import { markParticipantPaid, respondToMatchInvite } from '@/lib/internal-match';
 import { fetchMatchMvpWinner, type MvpWinner } from '@/lib/mvp';
 import { Screen } from '@/components/Screen';
-import { Heading } from '@/components/Heading';
+import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 import { MatchPhotoStrip } from '@/components/MatchPhotoStrip';
+import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@/theme';
 
 export default function MatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,6 +55,10 @@ export default function MatchDetailScreen() {
   const [isParticipant, setIsParticipant] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
   const [h2h, setH2h] = useState<HeadToHead | null>(null);
+  const [preview, setPreview] = useState<{
+    a: { win_pct: number; matches: number; wins: number; draws: number; losses: number };
+    b: { win_pct: number; matches: number; wins: number; draws: number; losses: number };
+  } | null>(null);
   const [referee, setReferee] = useState<RefereeProfile | null>(null);
   const [participants, setParticipants] = useState<MatchParticipant[]>([]);
   const [mvp, setMvp] = useState<MvpWinner | null>(null);
@@ -89,6 +96,39 @@ export default function MatchDetailScreen() {
       setReferee(ref);
       setParticipants(parts);
       setMvp(mvpWin);
+
+      // Pre-game preview: fetch team_win_stats for both sides when not internal
+      if (!m.is_internal && m.status !== 'validated') {
+        const { data: rows } = await supabase
+          .from('team_win_stats')
+          .select('team_id, win_pct, wins, draws, losses, matches')
+          .in('team_id', [m.side_a.id, m.side_b.id])
+          .eq('sport_id', m.sport_id);
+        const ra = (rows ?? []).find((r: any) => r.team_id === m.side_a.id) as
+          | any
+          | undefined;
+        const rb = (rows ?? []).find((r: any) => r.team_id === m.side_b.id) as
+          | any
+          | undefined;
+        setPreview({
+          a: {
+            win_pct: Number(ra?.win_pct ?? 0),
+            matches: ra?.matches ?? 0,
+            wins: ra?.wins ?? 0,
+            draws: ra?.draws ?? 0,
+            losses: ra?.losses ?? 0,
+          },
+          b: {
+            win_pct: Number(rb?.win_pct ?? 0),
+            matches: rb?.matches ?? 0,
+            wins: rb?.wins ?? 0,
+            draws: rb?.draws ?? 0,
+            losses: rb?.losses ?? 0,
+          },
+        });
+      } else {
+        setPreview(null);
+      }
     }
     setLoading(false);
   }, [id, session]);
@@ -158,7 +198,7 @@ export default function MatchDetailScreen() {
     (match.status === 'confirmed' ||
       match.status === 'result_pending' ||
       match.status === 'disputed');
-  const canReview = match.status === 'validated';
+  const canReview = match.status === 'validated' && isParticipant;
 
   return (
     <Screen>
@@ -175,32 +215,67 @@ export default function MatchDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.duration(300).springify()}>
-          <Card variant="subtle">
+          {(() => {
+            const diff =
+              new Date(match.scheduled_at).getTime() - Date.now();
+            const isLive =
+              match.status === 'confirmed' &&
+              diff <= 0 &&
+              diff > -4 * 60 * 60 * 1000;
+            if (!isLive) return null;
+            const elapsedMin = Math.max(1, Math.floor(-diff / 60_000));
+            return (
+              <View style={styles.liveBanner}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>
+                  AO VIVO · {elapsedMin}MIN
+                </Text>
+              </View>
+            );
+          })()}
+          <Card variant="hero">
             {match.is_internal && (
               <View style={styles.internalBanner}>
+                <Ionicons name="flame" size={12} color={colors.goldDeep} />
                 <Text style={styles.internalBannerText}>
-                  ⚡ Peladinha · {match.side_a.name}
+                  {`Peladinha · ${match.side_a.name}`}
                 </Text>
               </View>
             )}
-            <View style={styles.scoreboard}>
-              <Side
+            <View style={styles.scoreSplit}>
+              <SidePillar
                 name={match.is_internal && match.side_a_label
                   ? match.side_a_label
                   : match.side_a.name}
+                photoUrl={match.side_a.photo_url}
                 score={match.final_score_a}
+                winner={
+                  match.final_score_a !== null &&
+                  match.final_score_b !== null &&
+                  match.final_score_a > match.final_score_b
+                }
                 onPress={() => router.push(`/(app)/teams/${match.side_a.id}`)}
               />
-              <Text style={styles.vs}>vs</Text>
-              <Side
+              <Text style={styles.scoreSeparator}>
+                {match.final_score_a !== null && match.final_score_b !== null
+                  ? '·'
+                  : 'vs'}
+              </Text>
+              <SidePillar
                 name={match.is_internal && match.side_b_label
                   ? match.side_b_label
                   : match.side_b.name}
+                photoUrl={match.side_b.photo_url}
                 score={match.final_score_b}
+                winner={
+                  match.final_score_a !== null &&
+                  match.final_score_b !== null &&
+                  match.final_score_b > match.final_score_a
+                }
                 onPress={() => router.push(`/(app)/teams/${match.side_b.id}`)}
               />
             </View>
-            <View style={{ alignItems: 'center', marginTop: 14 }}>
+            <View style={{ alignItems: 'center', marginTop: 16 }}>
               <StatusBadge status={match.status} />
             </View>
           </Card>
@@ -219,7 +294,7 @@ export default function MatchDetailScreen() {
               entering={FadeInDown.delay(70).springify()}
               style={styles.section}
             >
-              <Text style={styles.recapLabel}>🏆 Recap</Text>
+              <Text style={styles.recapLabel}>Recap</Text>
               <View style={styles.recapRow}>
                 {mvp && (
                   <Pressable
@@ -231,7 +306,7 @@ export default function MatchDetailScreen() {
                       name={mvp.name}
                       size={44}
                     />
-                    <Text style={styles.recapCellLabel}>👑 MVP</Text>
+                    <Text style={styles.recapCellLabel}>MVP</Text>
                     <Text style={styles.recapCellName} numberOfLines={1}>
                       {mvp.name.split(' ')[0]}
                     </Text>
@@ -252,7 +327,7 @@ export default function MatchDetailScreen() {
                       name={topGoal.profile?.name ?? '?'}
                       size={44}
                     />
-                    <Text style={styles.recapCellLabel}>⚽ Goleador</Text>
+                    <Text style={styles.recapCellLabel}>Goleador</Text>
                     <Text style={styles.recapCellName} numberOfLines={1}>
                       {(topGoal.profile?.name ?? 'Jogador').split(' ')[0]}
                     </Text>
@@ -273,7 +348,7 @@ export default function MatchDetailScreen() {
                       name={topAssist.profile?.name ?? '?'}
                       size={44}
                     />
-                    <Text style={styles.recapCellLabel}>🎁 Assistente</Text>
+                    <Text style={styles.recapCellLabel}>Assistente</Text>
                     <Text style={styles.recapCellName} numberOfLines={1}>
                       {(topAssist.profile?.name ?? 'Jogador').split(' ')[0]}
                     </Text>
@@ -286,6 +361,54 @@ export default function MatchDetailScreen() {
             </Animated.View>
           );
         })()}
+
+        {preview && (preview.a.matches > 0 || preview.b.matches > 0) && (
+          <Animated.View
+            entering={FadeInDown.delay(75).springify()}
+            style={styles.section}
+          >
+            <Eyebrow>Pré-jogo</Eyebrow>
+            <Card variant="subtle" style={{ marginTop: 8 }}>
+              <View style={styles.previewRow}>
+                <View style={styles.previewCell}>
+                  <Text
+                    style={[
+                      styles.previewPct,
+                      preview.a.win_pct > preview.b.win_pct && {
+                        color: '#C9A26B',
+                      },
+                    ]}
+                  >
+                    {preview.a.matches > 0
+                      ? `${Math.round(preview.a.win_pct)}%`
+                      : '—'}
+                  </Text>
+                  <Text style={styles.previewRecord}>
+                    {`${preview.a.wins}V · ${preview.a.draws}E · ${preview.a.losses}D`}
+                  </Text>
+                </View>
+                <Text style={styles.previewSep}>VS</Text>
+                <View style={styles.previewCell}>
+                  <Text
+                    style={[
+                      styles.previewPct,
+                      preview.b.win_pct > preview.a.win_pct && {
+                        color: '#C9A26B',
+                      },
+                    ]}
+                  >
+                    {preview.b.matches > 0
+                      ? `${Math.round(preview.b.win_pct)}%`
+                      : '—'}
+                  </Text>
+                  <Text style={styles.previewRecord}>
+                    {`${preview.b.wins}V · ${preview.b.draws}E · ${preview.b.losses}D`}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(80).springify()} style={styles.section}>
           <Card>
@@ -301,6 +424,55 @@ export default function MatchDetailScreen() {
             {match.message && <InfoRow label="Mensagem" value={match.message} last />}
           </Card>
         </Animated.View>
+
+        {(() => {
+          const attended = participants.filter(
+            (p) =>
+              p.attendance === 'attended' || p.attendance === 'substitute_in',
+          );
+          if (attended.length === 0) return null;
+          const sideA = attended.filter((p) => p.side === 'A');
+          const sideB = attended.filter((p) => p.side === 'B');
+          return (
+            <Animated.View
+              entering={FadeInDown.delay(90).springify()}
+              style={styles.section}
+            >
+              <Eyebrow>{`Plantel · ${attended.length}`}</Eyebrow>
+              <Text style={styles.plantelHint}>
+                Toca para ver perfil · prime para reportar
+              </Text>
+              <View style={styles.plantelGrid}>
+                <PlantelColumn
+                  title={
+                    match.is_internal && match.side_a_label
+                      ? match.side_a_label
+                      : match.side_a.name
+                  }
+                  players={sideA}
+                  meId={session?.user.id ?? null}
+                  onPress={(uid) => router.push(`/(app)/users/${uid}`)}
+                  onReport={(uid, name) =>
+                    openReportSheet(router, match.id, uid, name)
+                  }
+                />
+                <PlantelColumn
+                  title={
+                    match.is_internal && match.side_b_label
+                      ? match.side_b_label
+                      : match.side_b.name
+                  }
+                  players={sideB}
+                  meId={session?.user.id ?? null}
+                  onPress={(uid) => router.push(`/(app)/users/${uid}`)}
+                  onReport={(uid, name) =>
+                    openReportSheet(router, match.id, uid, name)
+                  }
+                />
+              </View>
+            </Animated.View>
+          );
+        })()}
 
         {(referee || (isCaptain && match.status !== 'cancelled')) && (
           <Animated.View
@@ -354,7 +526,7 @@ export default function MatchDetailScreen() {
             style={styles.section}
           >
             <Card variant="subtle">
-              <Text style={styles.h2hLabel}>📊 Head-to-head</Text>
+              <Text style={styles.h2hLabel}>Head-to-head</Text>
               <View style={styles.h2hRow}>
                 <View style={styles.h2hCell}>
                   <Text style={styles.h2hValue}>{h2h.a_wins}</Text>
@@ -495,6 +667,45 @@ export default function MatchDetailScreen() {
           );
         })()}
 
+        {isParticipant &&
+          (match.status === 'confirmed' || match.status === 'result_pending') &&
+          (() => {
+            const myPart = participants.find(
+              (p) => p.user_id === session?.user.id,
+            );
+            const reported = myPart?.self_reported_at !== null && myPart?.self_reported_at !== undefined;
+            return (
+              <Animated.View
+                entering={FadeInDown.delay(127).springify()}
+                style={styles.section}
+              >
+                <Card
+                  variant="subtle"
+                  onPress={() =>
+                    router.push(`/(app)/matches/${match.id}/self-report`)
+                  }
+                >
+                  <View style={styles.selfReportRow}>
+                    <View style={styles.selfReportIcon}>
+                      <Ionicons name="football-outline" size={20} color={colors.goldDeep} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.selfReportTitle}>
+                        {reported ? 'Já reportaste' : 'Marcaste algum golo?'}
+                      </Text>
+                      <Text style={styles.selfReportBody}>
+                        {reported
+                          ? `${myPart?.self_reported_goals ?? 0} golos · ${myPart?.self_reported_assists ?? 0} assistências — podes atualizar`
+                          : 'Reporta golos e assistências para o capitão validar.'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+                  </View>
+                </Card>
+              </Animated.View>
+            );
+          })()}
+
         {match.is_internal && (() => {
           const myPart = participants.find((p) => p.user_id === session?.user.id);
           const accepted = participants.filter((p) => p.invitation_status === 'accepted').length;
@@ -583,20 +794,123 @@ export default function MatchDetailScreen() {
                   match.status !== 'cancelled' && (
                     <View style={{ marginTop: 12 }}>
                       <Button
-                        label="Distribuir lados"
+                        label="🎲 Sortear lados"
                         variant="secondary"
                         size="sm"
                         onPress={() =>
-                          router.push(`/(app)/matches/${match.id}/split`)
+                          router.push(`/(app)/matches/${match.id}/draw`)
                         }
                         full
                       />
                     </View>
                   )}
               </Card>
+
+              {isCaptain && match.status !== 'cancelled' && (
+                <Card variant="subtle" style={{ marginTop: 12 }}>
+                  {(() => {
+                    const goingOrPending = participants.filter(
+                      (p) => p.invitation_status !== 'declined',
+                    );
+                    const paid = goingOrPending.filter((p) => p.has_paid).length;
+                    return (
+                      <>
+                        <View style={styles.confirmRow}>
+                          <Text style={styles.confirmTitle}>
+                            💸 Pagamentos
+                          </Text>
+                          <Text style={styles.payCount}>
+                            {`${paid}/${goingOrPending.length}`}
+                          </Text>
+                        </View>
+                        <Text style={styles.payHint}>
+                          Pagamento fora da app. Toca para marcar quem já pagou.
+                        </Text>
+                        <View style={{ marginTop: 10, gap: 6 }}>
+                          {goingOrPending.length === 0 ? (
+                            <Text style={styles.payHint}>
+                              Ainda ninguém confirmou.
+                            </Text>
+                          ) : (
+                            goingOrPending.map((p) => (
+                              <Pressable
+                                key={p.user_id}
+                                style={[
+                                  styles.payRow,
+                                  p.has_paid && styles.payRowOn,
+                                ]}
+                                onPress={async () => {
+                                  const r = await markParticipantPaid(
+                                    match.id,
+                                    p.user_id,
+                                    !p.has_paid,
+                                  );
+                                  if (!r.ok) {
+                                    Alert.alert('Erro', r.message);
+                                    return;
+                                  }
+                                  await load();
+                                }}
+                              >
+                                <Text style={styles.payName} numberOfLines={1}>
+                                  {p.profile?.name ?? 'Jogador'}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.payStatus,
+                                    p.has_paid && styles.payStatusOn,
+                                  ]}
+                                >
+                                  {p.has_paid ? '✓ Pago' : 'Por pagar'}
+                                </Text>
+                              </Pressable>
+                            ))
+                          )}
+                        </View>
+                      </>
+                    );
+                  })()}
+                </Card>
+              )}
             </Animated.View>
           );
         })()}
+
+        {match.status === 'confirmed' &&
+          new Date(match.scheduled_at).getTime() > Date.now() &&
+          isCaptain &&
+          (() => {
+            const declined = participants.filter(
+              (p) => p.invitation_status === 'declined',
+            ).length;
+            if (declined === 0) return null;
+            return (
+              <Animated.View
+                entering={FadeInDown.delay(135).springify()}
+                style={{ marginTop: 16 }}
+              >
+                <Card
+                  variant="warning"
+                  onPress={() =>
+                    router.push(`/(app)/matches/${match.id}/substitutes`)
+                  }
+                >
+                  <View style={styles.subAlertRow}>
+                    <Text style={styles.subAlertIcon}>🆘</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.subAlertTitle}>
+                        {`${declined} ${declined === 1 ? 'jogador não vai' : 'jogadores não vão'}`}
+                      </Text>
+                      <Text style={styles.subAlertBody}>
+                        Toca para procurar substituto agora.
+                      </Text>
+                    </View>
+                    <Text style={styles.subAlertArrow}>›</Text>
+                  </View>
+                </Card>
+              </Animated.View>
+            );
+          })()}
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.actions}>
           {isParticipant && match.status !== 'cancelled' && (
@@ -652,7 +966,7 @@ export default function MatchDetailScreen() {
             />
           )}
 
-          {match.status === 'confirmed' && isCaptain && !match.is_internal && (
+          {match.status === 'confirmed' && isCaptain && (
             <>
               <Button
                 label="Convidar substituto"
@@ -707,46 +1021,22 @@ export default function MatchDetailScreen() {
           )}
 
           {canReview && (
-            <Button
-              label="Avaliar jogadores"
-              size="lg"
-              haptic="medium"
-              full
-              onPress={() => router.push(`/(app)/matches/${match.id}/review`)}
-            />
+            <Pressable
+              onPress={() => router.push(`/(app)/matches/${match.id}/post`)}
+              style={styles.postBanner}
+            >
+              <View style={styles.postBannerIcon}>
+                <Text style={styles.postBannerIconText}>⭐</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.postBannerTitle}>Avaliar atributos dos colegas</Text>
+                <Text style={styles.postBannerBody}>
+                  Sugere subir ou descer + MVP + reviews. Vai à página pós-jogo.
+                </Text>
+              </View>
+              <Text style={styles.postBannerArrow}>›</Text>
+            </Pressable>
           )}
-
-          {canReview && (
-            <Button
-              label="👑 Votar MVP"
-              variant="secondary"
-              full
-              onPress={() => router.push(`/(app)/matches/${match.id}/mvp`)}
-            />
-          )}
-
-          {canReview && isParticipant && (
-            <Button
-              label="🪞 Auto-avaliar"
-              variant="secondary"
-              full
-              onPress={() => router.push(`/(app)/matches/${match.id}/self-rating`)}
-            />
-          )}
-
-          {canReview &&
-            isParticipant &&
-            referee &&
-            referee.id !== session?.user.id && (
-              <Button
-                label="🥏 Avaliar árbitro"
-                variant="secondary"
-                full
-                onPress={() =>
-                  router.push(`/(app)/matches/${match.id}/referee-review`)
-                }
-              />
-            )}
 
           {match.status === 'validated' &&
             match.final_score_a !== null &&
@@ -777,24 +1067,34 @@ export default function MatchDetailScreen() {
   );
 }
 
-function Side({
+function SidePillar({
   name,
+  photoUrl,
   score,
+  winner,
   onPress,
 }: {
   name: string;
+  photoUrl: string | null;
   score: number | null;
+  winner: boolean;
   onPress: () => void;
 }) {
+  const hasScore = score !== null && score !== undefined;
+  const dim = hasScore && !winner;
   return (
-    <Card onPress={onPress} variant="subtle" style={styles.sideBox}>
-      <Text style={styles.sideName} numberOfLines={2}>
+    <Pressable onPress={onPress} style={styles.sidePillar}>
+      <Avatar url={photoUrl} name={name} size={56} />
+      <Text
+        style={[styles.sidePillarName, dim && styles.sidePillarDim]}
+        numberOfLines={2}
+      >
         {name}
       </Text>
-      {score !== null && score !== undefined && (
-        <Text style={styles.sideScore}>{score}</Text>
-      )}
-    </Card>
+      <Text style={[styles.sidePillarScore, dim && styles.sidePillarScoreDim]}>
+        {hasScore ? String(score) : '—'}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -827,6 +1127,95 @@ function StatusBadge({ status }: { status: MatchSummary['status'] }) {
   );
 }
 
+function PlantelColumn({
+  title,
+  players,
+  meId,
+  onPress,
+  onReport,
+}: {
+  title: string;
+  players: MatchParticipant[];
+  meId: string | null;
+  onPress: (userId: string) => void;
+  onReport: (userId: string, name: string) => void;
+}) {
+  return (
+    <View style={styles.plantelCol}>
+      <Text style={styles.plantelColTitle} numberOfLines={1}>
+        {title}
+      </Text>
+      {players.length === 0 ? (
+        <Text style={styles.plantelEmpty}>—</Text>
+      ) : (
+        players.map((p) => {
+          const name = p.profile?.name ?? 'Jogador';
+          const isSelf = meId === p.user_id;
+          return (
+            <Pressable
+              key={p.user_id}
+              onPress={() => onPress(p.user_id)}
+              onLongPress={isSelf ? undefined : () => onReport(p.user_id, name)}
+              delayLongPress={350}
+              style={styles.plantelRow}
+            >
+              <Avatar
+                url={p.profile?.photo_url ?? null}
+                name={name}
+                size={28}
+              />
+              <Text style={styles.plantelName} numberOfLines={1}>
+                {name.split(' ')[0]}
+              </Text>
+              {(p.goals > 0 || p.assists > 0) && (
+                <View style={styles.plantelStats}>
+                  {p.goals > 0 && (
+                    <View style={styles.plantelStatBadge}>
+                      <Ionicons name="football" size={9} color={colors.warning} />
+                      <Text style={styles.plantelStatText}>{p.goals}</Text>
+                    </View>
+                  )}
+                  {p.assists > 0 && (
+                    <View style={styles.plantelStatBadge}>
+                      <Ionicons name="hand-right" size={9} color={colors.success} />
+                      <Text style={styles.plantelStatText}>{p.assists}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </Pressable>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+function openReportSheet(
+  router: ReturnType<typeof useRouter>,
+  matchId: string,
+  userId: string,
+  name: string,
+) {
+  Alert.alert(
+    name,
+    'Reportar este jogador no contexto deste jogo? A denúncia é anónima e revista pela equipa S7VN.',
+    [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Ver perfil', onPress: () => router.push(`/(app)/users/${userId}`) },
+      {
+        text: 'Reportar',
+        style: 'destructive',
+        onPress: () =>
+          router.push({
+            pathname: '/(app)/users/[id]/report',
+            params: { id: userId, name, matchId },
+          }),
+      },
+    ],
+  );
+}
+
 function InfoRow({
   label,
   value,
@@ -846,31 +1235,54 @@ function InfoRow({
 
 const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
-  scoreboard: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sideBox: { flex: 1, alignItems: 'center', minHeight: 100, justifyContent: 'center' },
-  sideName: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    textAlign: 'center',
+  scoreSplit: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingTop: 4,
   },
-  sideScore: {
-    color: '#ffffff',
+  scoreSeparator: {
+    color: 'rgba(255,255,255,0.18)',
     fontSize: 36,
+    fontWeight: '900',
+    alignSelf: 'center',
+    marginTop: 60,
+  },
+  sidePillar: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  sidePillarName: {
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '800',
-    letterSpacing: -1,
+    letterSpacing: -0.2,
+    textAlign: 'center',
+    marginTop: 2,
+    minHeight: 32,
+  },
+  sidePillarDim: {
+    color: 'rgba(255,255,255,0.55)',
+    fontWeight: '700',
+  },
+  sidePillarScore: {
+    color: '#ffffff',
+    fontSize: 52,
+    fontWeight: '900',
+    letterSpacing: -2,
+    lineHeight: 56,
     marginTop: 4,
   },
-  vs: {
-    color: '#5a5a5a',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  sidePillarScoreDim: {
+    color: 'rgba(255,255,255,0.4)',
   },
   internalBanner: {
     alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 999,
@@ -951,6 +1363,226 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  payCount: {
+    color: '#34d399',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    marginLeft: 'auto',
+  },
+  payHint: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  payRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  payRowOn: {
+    borderColor: 'rgba(52,211,153,0.4)',
+    backgroundColor: 'rgba(52,211,153,0.10)',
+  },
+  payName: { color: '#ffffff', fontSize: 14, fontWeight: '600', flex: 1, marginRight: 8 },
+  payStatus: { color: '#737373', fontSize: 12, fontWeight: '700' },
+  payStatusOn: { color: '#34d399' },
+  subAlertRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  subAlertIcon: { fontSize: 22 },
+  subAlertTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  subAlertBody: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  subAlertArrow: { color: '#737373', fontSize: 22 },
+  postBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(201,162,107,0.35)',
+    backgroundColor: 'rgba(201,162,107,0.08)',
+  },
+  postBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(201,162,107,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postBannerIconText: { fontSize: 20 },
+  postBannerTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  postBannerBody: {
+    color: '#a3a3a3',
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 17,
+  },
+  postBannerArrow: { color: '#737373', fontSize: 22 },
+  liveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#f87171',
+    marginBottom: 8,
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
+  },
+  liveText: {
+    color: '#0E1812',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  plantelHint: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 11,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  selfReportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selfReportIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.goldDim,
+  },
+  selfReportTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  selfReportBody: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  plantelGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  plantelCol: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  plantelColTitle: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  plantelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  plantelName: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  plantelStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  plantelStatBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  plantelStatText: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  plantelEmpty: {
+    color: '#737373',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  previewCell: { flex: 1, alignItems: 'center' },
+  previewPct: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -1,
+  },
+  previewRecord: {
+    color: '#a3a3a3',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginTop: 4,
+  },
+  previewSep: {
+    color: '#737373',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.4,
   },
   recapLabel: {
     color: '#a3a3a3',

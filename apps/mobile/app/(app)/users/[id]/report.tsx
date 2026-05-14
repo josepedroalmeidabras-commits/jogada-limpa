@@ -24,7 +24,11 @@ import { Button } from '@/components/Button';
 import { colors } from '@/theme';
 
 export default function ReportUserScreen() {
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id, name, matchId } = useLocalSearchParams<{
+    id: string;
+    name: string;
+    matchId?: string;
+  }>();
   const router = useRouter();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState('');
@@ -32,6 +36,7 @@ export default function ReportUserScreen() {
   const reasons = Object.entries(REPORT_REASON_LABELS) as Array<
     [ReportReason, string]
   >;
+  const inMatchContext = !!matchId;
 
   async function handleSubmit() {
     if (!id || !reason) return;
@@ -40,6 +45,7 @@ export default function ReportUserScreen() {
       reportedId: id,
       reason,
       details: details.trim() || undefined,
+      matchId: matchId || undefined,
     });
     setSubmitting(false);
     if (!r.ok) {
@@ -48,7 +54,9 @@ export default function ReportUserScreen() {
     }
     Alert.alert(
       'Recebido',
-      'Obrigado. Vamos rever e tomar acção se necessário.',
+      inMatchContext
+        ? 'Denúncia registada. Após 2 jogos com denúncias a conta é suspensa automaticamente.'
+        : 'Obrigado. Vamos rever e tomar acção se necessário.',
       [{ text: 'OK', onPress: () => router.back() }],
     );
   }
@@ -75,6 +83,13 @@ export default function ReportUserScreen() {
           <Heading level={2} style={{ marginTop: 4 }}>
             {name ?? 'Jogador'}
           </Heading>
+          {inMatchContext && (
+            <Text style={styles.matchContext}>
+              No contexto deste jogo. Cada jogador pode ser reportado uma
+              vez por jogo. Após 2 jogos distintos com denúncias, a conta
+              é suspensa.
+            </Text>
+          )}
 
           <Eyebrow style={{ marginTop: 24 }}>Motivo</Eyebrow>
           <View style={{ marginTop: 8, gap: 8 }}>
@@ -176,6 +191,12 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 16,
+    lineHeight: 18,
+  },
+  matchContext: {
+    color: colors.brand,
+    fontSize: 13,
+    marginTop: 8,
     lineHeight: 18,
   },
 });

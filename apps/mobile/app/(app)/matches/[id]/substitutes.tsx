@@ -104,6 +104,13 @@ export default function SubstitutesScreen() {
   const isCaptainA = match.side_a.captain_id === session?.user.id;
   const isCaptainB = match.side_b.captain_id === session?.user.id;
   const mySide: 'A' | 'B' | null = isCaptainA ? 'A' : isCaptainB ? 'B' : null;
+  const sideAName = match.is_internal
+    ? (match.side_a_label ?? 'Coletes')
+    : match.side_a.name;
+  const sideBName = match.is_internal
+    ? (match.side_b_label ?? 'Sem Coletes')
+    : match.side_b.name;
+  const mySideName = mySide === 'A' ? sideAName : sideBName;
 
   if (!mySide) {
     return (
@@ -129,10 +136,10 @@ export default function SubstitutesScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.heading}>
-          {match.side_a.name} vs {match.side_b.name}
+          {sideAName} vs {sideBName}
         </Text>
         <Text style={styles.sub}>
-          Adiciona ao lado {mySide} ({mySide === 'A' ? match.side_a.name : match.side_b.name}).
+          Adiciona ao lado {mySide} ({mySideName}).
         </Text>
 
         {subs.length === 0 ? (
@@ -153,7 +160,10 @@ export default function SubstitutesScreen() {
               >
                 <Text style={styles.name}>{s.name}</Text>
                 <Text style={styles.meta}>
-                  {s.city} · ELO {Math.round(s.elo)} · {s.matches_played} jogos
+                  {s.city}
+                  {s.matches > 0
+                    ? ` · ${Math.round(s.win_pct)}% vit. · ${s.matches} jogos`
+                    : ' · sem jogos ainda'}
                 </Text>
               </Pressable>
               <Pressable

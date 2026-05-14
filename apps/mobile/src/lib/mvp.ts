@@ -79,6 +79,22 @@ export async function fetchMatchMvpWinner(
   };
 }
 
+export async function fetchMvpOfWeek(
+  city: string,
+): Promise<{ user_id: string; name: string; photo_url: string | null; votes: number } | null> {
+  const { data, error } = await supabase
+    .rpc('mvp_of_week', { p_city: city })
+    .maybeSingle();
+  if (error || !data) return null;
+  const r = data as any;
+  return {
+    user_id: r.user_id,
+    name: r.name,
+    photo_url: r.photo_url ?? null,
+    votes: r.votes ?? 0,
+  };
+}
+
 export async function fetchMvpCount(userId: string): Promise<number> {
   const { data, error } = await supabase
     .from('mvp_totals')

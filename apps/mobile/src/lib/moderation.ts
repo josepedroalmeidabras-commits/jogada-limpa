@@ -87,12 +87,64 @@ export async function reportUser(args: {
   reportedId: string;
   reason: ReportReason;
   details?: string;
+  matchId?: string;
 }): Promise<{ ok: boolean; message?: string }> {
+  if (args.matchId) {
+    const { error } = await supabase.rpc('report_player_in_match', {
+      p_match_id: args.matchId,
+      p_reported_id: args.reportedId,
+      p_reason: args.reason,
+      p_details: args.details ?? null,
+    });
+    if (error) return { ok: false, message: error.message };
+    return { ok: true };
+  }
   const { error } = await supabase.from('user_reports').insert({
     reported_id: args.reportedId,
     reason: args.reason,
     details: args.details ?? null,
   });
+  if (error) return { ok: false, message: error.message };
+  return { ok: true };
+}
+
+export type ModerationFlags = {
+  isSuspended: boolean;
+  suspendedAt: string | null;
+  warningPending: boolean;
+  reportedMatchCount: number;
+};
+
+export async function fetchModerationFlags(
+  userId: string,
+): Promise<ModerationFlags | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(
+      'is_suspended, suspended_at, warning_pending, reported_match_count',
+    )
+    .eq('id', userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as {
+    is_suspended: boolean | null;
+    suspended_at: string | null;
+    warning_pending: boolean | null;
+    reported_match_count: number | null;
+  };
+  return {
+    isSuspended: !!row.is_suspended,
+    suspendedAt: row.suspended_at,
+    warningPending: !!row.warning_pending,
+    reportedMatchCount: row.reported_match_count ?? 0,
+  };
+}
+
+export async function acknowledgeWarning(): Promise<{
+  ok: boolean;
+  message?: string;
+}> {
+  const { error } = await supabase.rpc('acknowledge_warning');
   if (error) return { ok: false, message: error.message };
   return { ok: true };
 }

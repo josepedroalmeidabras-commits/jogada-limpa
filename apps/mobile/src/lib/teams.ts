@@ -27,6 +27,7 @@ export type Team = {
   sport_id: number;
   city: string;
   captain_id: string;
+  sub_captain_ids: string[];
   invite_code: string;
   is_active: boolean;
   description: string | null;
@@ -35,6 +36,38 @@ export type Team = {
   announcement_at: string | null;
   created_at: string;
 };
+
+export function isTeamLeader(team: Team | null | undefined, userId: string | null | undefined): boolean {
+  if (!team || !userId) return false;
+  return (
+    team.captain_id === userId ||
+    team.sub_captain_ids.includes(userId)
+  );
+}
+
+export async function addTeamSubCaptain(
+  teamId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('add_team_sub_captain', {
+    p_team_id: teamId,
+    p_user_id: userId,
+  });
+  if (error) return { ok: false, message: error.message ?? 'Falhou.' };
+  return { ok: true };
+}
+
+export async function removeTeamSubCaptain(
+  teamId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { error } = await supabase.rpc('remove_team_sub_captain', {
+    p_team_id: teamId,
+    p_user_id: userId,
+  });
+  if (error) return { ok: false, message: error.message ?? 'Falhou.' };
+  return { ok: true };
+}
 
 export async function setTeamAnnouncement(
   teamId: string,
@@ -66,6 +99,31 @@ export type CoachProfile = {
   photo_url: string | null;
   city: string;
 };
+
+export type TeamStatRow = { category: string; value: number; members_with_votes: number };
+
+export async function fetchTeamStats(teamId: string): Promise<TeamStatRow[]> {
+  const { data, error } = await supabase
+    .from('team_stats_aggregate')
+    .select('category, value, members_with_votes')
+    .eq('team_id', teamId);
+  if (error || !data) return [];
+  return data as TeamStatRow[];
+}
+
+export type TeamFormResult = { outcome: 'win' | 'draw' | 'loss'; scheduled_at: string };
+
+export async function fetchTeamRecentForm(
+  teamId: string,
+  limit = 5,
+): Promise<TeamFormResult[]> {
+  const { data, error } = await supabase.rpc('team_recent_form', {
+    p_team_id: teamId,
+    p_limit: limit,
+  });
+  if (error || !data) return [];
+  return data as TeamFormResult[];
+}
 
 export type TeamContributor = {
   user_id: string;
@@ -126,6 +184,25 @@ export type TeamMember = {
   profile: { id: string; name: string; photo_url: string | null } | null;
 };
 
+async function attachSubCaptains(
+  teams: TeamWithSport[],
+): Promise<TeamWithSport[]> {
+  if (teams.length === 0) return teams;
+  const { data } = await supabase
+    .from('team_sub_captains')
+    .select('team_id, user_id')
+    .in('team_id', teams.map((t) => t.id));
+  const byTeam = new Map<string, string[]>();
+  for (const row of (data ?? []) as Array<{ team_id: string; user_id: string }>) {
+    if (!byTeam.has(row.team_id)) byTeam.set(row.team_id, []);
+    byTeam.get(row.team_id)!.push(row.user_id);
+  }
+  return teams.map((t) => ({
+    ...t,
+    sub_captain_ids: byTeam.get(t.id) ?? [],
+  }));
+}
+
 export async function fetchMyTeams(
   userId: string,
 ): Promise<TeamWithSport[]> {
@@ -147,9 +224,10 @@ export async function fetchMyTeams(
   }
 
   // unwrap nested shape, hide deactivated teams
-  return (data ?? [])
-    .map((row: any) => row.team)
+  const teams = (data ?? [])
+    .map((row: any) => ({ ...row.team, sub_captain_ids: [] as string[] }))
     .filter((t: any): t is TeamWithSport => !!t && t.is_active !== false);
+  return attachSubCaptains(teams);
 }
 
 export async function fetchTeamById(
@@ -159,17 +237,20 @@ export async function fetchTeamById(
     .from('teams')
     .select(
       `id, name, photo_url, sport_id, city, captain_id,
-       invite_code, is_active, created_at,
+       invite_code, is_active, description, coach_id,
+       announcement, announcement_at, created_at,
        sport:sports!inner(id, code, name)`,
     )
     .eq('id', teamId)
     .maybeSingle();
 
-  if (error) {
-    console.error('fetchTeamById error', error);
+  if (error || !data) {
+    if (error) console.error('fetchTeamById error', error);
     return null;
   }
-  return data as TeamWithSport | null;
+  const teamRow = { ...data, sub_captain_ids: [] as string[] } as unknown as TeamWithSport;
+  const attached = await attachSubCaptains([teamRow]);
+  return attached[0] ?? null;
 }
 
 export async function fetchTeamMembers(
@@ -249,7 +330,7 @@ export async function createTeam(
     };
   }
   // trg_team_created inserts the captain in team_members automatically
-  return { ok: true, team: data };
+  return { ok: true, team: { ...data, sub_captain_ids: [] } as Team };
 }
 
 export async function transferCaptaincy(
@@ -357,7 +438,7 @@ export async function joinTeamByCode(
     return { ok: false, message: 'Código inválido.' };
   }
 
-  const { data: team, error: findError } = await supabase
+  const { data: rawTeam, error: findError } = await supabase
     .from('teams')
     .select(
       'id, name, photo_url, sport_id, city, captain_id, invite_code, is_active, description, coach_id, announcement, announcement_at, created_at',
@@ -366,9 +447,10 @@ export async function joinTeamByCode(
     .eq('is_active', true)
     .maybeSingle();
 
-  if (findError || !team) {
+  if (findError || !rawTeam) {
     return { ok: false, message: 'Equipa não encontrada com esse código.' };
   }
+  const team: Team = { ...rawTeam, sub_captain_ids: [] };
 
   const { error: joinError } = await supabase
     .from('team_members')

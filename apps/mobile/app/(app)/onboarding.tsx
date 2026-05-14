@@ -18,12 +18,41 @@ import {
   fetchActiveSports,
   type ActiveSport,
 } from '@/lib/profile';
+import {
+  categoriesForPosition,
+  ratingColor,
+  ratingLabel,
+  setStatVote,
+  STAT_ICONS,
+  STAT_LABELS,
+  type StatCategory,
+} from '@/lib/player-stats';
 import { Screen } from '@/components/Screen';
 import { Heading, Eyebrow } from '@/components/Heading';
 import { Button } from '@/components/Button';
+import { Card } from '@/components/Card';
 import { colors } from '@/theme';
 
-type SportPick = { sport_id: number; declared_level: number };
+const STAT_TIERS: { value: number; label: string }[] = [
+  { value: 30, label: 'Casual' },
+  { value: 50, label: 'Médio' },
+  { value: 65, label: 'Bom' },
+  { value: 80, label: 'Muito bom' },
+  { value: 95, label: 'Elite' },
+];
+
+type SportPick = {
+  sport_id: number;
+  declared_level: number;
+  preferred_position: string | null;
+};
+
+const POSITIONS: { value: string; label: string }[] = [
+  { value: 'gr', label: '🧤 GR' },
+  { value: 'def', label: 'Defesa' },
+  { value: 'med', label: 'Médio' },
+  { value: 'ata', label: 'Avançado' },
+];
 
 function levelLabel(n: number) {
   if (n <= 3) return 'Casual';
@@ -59,6 +88,7 @@ export default function OnboardingScreen() {
   const { session } = useAuth();
   const router = useRouter();
 
+  const [step, setStep] = useState<'profile' | 'stats' | 'team'>('profile');
   const [sports, setSports] = useState<ActiveSport[]>([]);
   const [loadingSports, setLoadingSports] = useState(true);
   const [name, setName] = useState('');
@@ -66,8 +96,19 @@ export default function OnboardingScreen() {
   const [city, setCity] = useState('Coimbra');
   const [acceptedTos, setAcceptedTos] = useState(false);
   const [picks, setPicks] = useState<SportPick[]>([]);
+  const [statValues, setStatValues] = useState<
+    Record<StatCategory, number>
+  >({} as Record<StatCategory, number>);
+  const [savingStats, setSavingStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // posição da primeira modalidade escolhida (ou null → outfield)
+  const primaryPosition = picks[0]?.preferred_position ?? null;
+  const statCategories = useMemo(
+    () => categoriesForPosition(primaryPosition),
+    [primaryPosition],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -92,7 +133,10 @@ export default function OnboardingScreen() {
     setPicks((prev) =>
       prev.some((p) => p.sport_id === sportId)
         ? prev.filter((p) => p.sport_id !== sportId)
-        : [...prev, { sport_id: sportId, declared_level: 5 }],
+        : [
+            ...prev,
+            { sport_id: sportId, declared_level: 5, preferred_position: null },
+          ],
     );
   }
 
@@ -100,6 +144,14 @@ export default function OnboardingScreen() {
     setPicks((prev) =>
       prev.map((p) =>
         p.sport_id === sportId ? { ...p, declared_level: level } : p,
+      ),
+    );
+  }
+
+  function setSportPosition(sportId: number, position: string | null) {
+    setPicks((prev) =>
+      prev.map((p) =>
+        p.sport_id === sportId ? { ...p, preferred_position: position } : p,
       ),
     );
   }
@@ -149,7 +201,175 @@ export default function OnboardingScreen() {
       setError(result.message);
       return;
     }
-    router.replace('/(app)');
+    // Pré-popular self-rating com 50 para todas as categorias
+    const init: Record<string, number> = {};
+    for (const c of categoriesForPosition(picks[0]?.preferred_position ?? null)) {
+      init[c] = 50;
+    }
+    setStatValues(init as Record<StatCategory, number>);
+    setStep('stats');
+  }
+
+  function pickStat(cat: StatCategory, value: number) {
+    setStatValues((prev) => ({ ...prev, [cat]: value }));
+  }
+
+  async function handleStatsSubmit() {
+    if (!session) return;
+    setSavingStats(true);
+    // Guarda um voto self por cada atributo
+    for (const cat of statCategories) {
+      const v = statValues[cat] ?? 50;
+      await setStatVote(session.user.id, cat, v);
+    }
+    setSavingStats(false);
+    setStep('team');
+  }
+
+  if (step === 'stats') {
+    return (
+      <Screen>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View entering={FadeInDown.duration(400).springify()}>
+            <Eyebrow>Penúltimo passo</Eyebrow>
+            <Heading level={1} style={{ marginTop: 6 }}>
+              Como te avalias?
+            </Heading>
+            <Text style={styles.sub}>
+              Sugere os teus próprios atributos. À medida que jogares, os
+              colegas vão poder sugerir aumentar ou diminuir — a média dos
+              votos é o que aparece no teu cartão.
+            </Text>
+          </Animated.View>
+
+          {statCategories.map((cat, i) => {
+            const current = statValues[cat] ?? 50;
+            return (
+              <Animated.View
+                key={cat}
+                entering={FadeInDown.delay(80 + i * 30).springify()}
+                style={styles.statSection}
+              >
+                <Eyebrow>{`${STAT_ICONS[cat]}  ${STAT_LABELS[cat]}`}</Eyebrow>
+                <Card style={{ marginTop: 8 }}>
+                  <View style={styles.tierRow}>
+                    {STAT_TIERS.map((tier) => {
+                      const active = current === tier.value;
+                      return (
+                        <Pressable
+                          key={tier.value}
+                          onPress={() => pickStat(cat, tier.value)}
+                          disabled={savingStats}
+                          style={[
+                            styles.statTier,
+                            active && {
+                              borderColor: ratingColor(tier.value),
+                              backgroundColor: 'rgba(255,255,255,0.03)',
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.statTierValue,
+                              active && { color: ratingColor(tier.value) },
+                            ]}
+                          >
+                            {tier.value}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.statTierLabel,
+                              active && { color: colors.text },
+                            ]}
+                          >
+                            {tier.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.statSummary}>
+                    <Text
+                      style={{
+                        color: ratingColor(current),
+                        fontWeight: '800',
+                      }}
+                    >
+                      {current}
+                    </Text>
+                    {`  · ${ratingLabel(current)}`}
+                  </Text>
+                </Card>
+              </Animated.View>
+            );
+          })}
+
+          <View style={{ marginTop: 24 }}>
+            <Button
+              label="Continuar"
+              size="lg"
+              haptic="medium"
+              loading={savingStats}
+              onPress={handleStatsSubmit}
+              full
+            />
+            <View style={{ height: 8 }} />
+            <Button
+              label="Saltar"
+              variant="ghost"
+              full
+              onPress={() => setStep('team')}
+            />
+          </View>
+        </ScrollView>
+      </Screen>
+    );
+  }
+
+  if (step === 'team') {
+    return (
+      <Screen>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View entering={FadeInDown.duration(400).springify()}>
+            <Eyebrow>Último passo</Eyebrow>
+            <Heading level={1} style={{ marginTop: 6 }}>
+              Tens código de equipa?
+            </Heading>
+            <Text style={styles.sub}>
+              Se um capitão te convidou, ele deu-te um código. Cola-o agora.
+              Caso contrário podes explorar a app e criar ou juntar-te a uma
+              equipa quando quiseres.
+            </Text>
+          </Animated.View>
+
+          <Animated.View
+            entering={FadeInDown.delay(120).springify()}
+            style={{ marginTop: 16, gap: 12 }}
+          >
+            <Button
+              label="Tenho código — juntar a equipa"
+              size="lg"
+              haptic="medium"
+              full
+              onPress={() => router.replace('/(app)/teams/join')}
+            />
+            <Button
+              label="Ainda não — explorar a app"
+              size="lg"
+              variant="ghost"
+              full
+              onPress={() => router.replace('/(app)')}
+            />
+          </Animated.View>
+        </ScrollView>
+      </Screen>
+    );
   }
 
   return (
@@ -286,6 +506,36 @@ export default function OnboardingScreen() {
                     );
                   })}
                 </View>
+                <Text style={[styles.levelLabel, { marginTop: 14 }]}>
+                  Posição preferida
+                </Text>
+                <View style={styles.posRow}>
+                  {POSITIONS.map((p) => {
+                    const active = pick.preferred_position === p.value;
+                    return (
+                      <Pressable
+                        key={p.value}
+                        onPress={() =>
+                          setSportPosition(
+                            pick.sport_id,
+                            active ? null : p.value,
+                          )
+                        }
+                        disabled={submitting}
+                        style={[styles.posChip, active && styles.posChipActive]}
+                      >
+                        <Text
+                          style={[
+                            styles.posChipText,
+                            active && styles.posChipTextActive,
+                          ]}
+                        >
+                          {p.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </Animated.View>
             );
           })}
@@ -411,6 +661,30 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: colors.brand },
   dotText: { color: colors.textMuted, fontSize: 12 },
   dotTextActive: { color: '#0E1812', fontWeight: '700' },
+  posRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  posChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+  },
+  posChipActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
+  },
+  posChipText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  posChipTextActive: { color: colors.brand },
   tosRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -437,5 +711,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontSize: 13,
+  },
+  // Stats step
+  statSection: { marginTop: 18 },
+  tierRow: { flexDirection: 'row', gap: 6 },
+  statTier: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+    alignItems: 'center',
+  },
+  statTierValue: {
+    color: colors.textMuted,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  statTierLabel: {
+    color: colors.textDim,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
+  statSummary: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 12,
   },
 });

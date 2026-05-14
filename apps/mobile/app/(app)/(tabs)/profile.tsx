@@ -1,8 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableWithoutFeedback,
@@ -27,24 +29,33 @@ import {
   computePersonalRecords,
   computeWinStreak,
   fetchUserMatchHistory,
+  fetchDetailedMatchHistory,
   type MatchHistoryEntry,
+  type DetailedMatchHistoryEntry,
 } from '@/lib/history';
 import { formatMatchDate } from '@/lib/matches';
 import { fetchMvpCount } from '@/lib/mvp';
 import { fetchMyTeams } from '@/lib/teams';
 import { computeAchievements, type Achievement } from '@/lib/achievements';
 import {
-  fetchEloHistory,
-  summariseEloHistory,
-  type EloHistoryPoint,
-} from '@/lib/elo-history';
-import { EloChart } from '@/components/EloChart';
-import { fetchSeasonStats, type SeasonStats } from '@/lib/season-stats';
+  fetchSeasonStats,
+  fetchPlayerYearStats,
+  type SeasonStats,
+  type YearStats,
+} from '@/lib/season-stats';
 import {
   fetchMySelfRatingSummary,
   type SelfRatingSummary,
 } from '@/lib/self-rating';
+import { fetchPlayerStats, type AggregateStat } from '@/lib/player-stats';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FormStrip, type FormResult } from '@/components/FormStrip';
+import { PlayerFUTCard } from '@/components/PlayerFUTCard';
+import { fetchInFormStatus, type InFormStatus } from '@/lib/in-form';
+import { MatchHistoryRow } from '@/components/MatchHistoryRow';
+import { StarRating } from '@/components/StarRating';
+import { Ionicons } from '@expo/vector-icons';
+import { AchievementUnlockModal } from '@/components/AchievementUnlockModal';
 import { colors } from '@/theme';
 import { Avatar } from '@/components/Avatar';
 import { ADMIN_EMAIL } from '@/lib/admin';
@@ -54,11 +65,13 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 
-function levelLabel(elo: number): string {
-  if (elo < 1100) return 'Casual';
-  if (elo < 1300) return 'Intermédio';
-  if (elo < 1500) return 'Avançado';
-  return 'Competitivo';
+function tasteLabel(winPct: number, matches: number): string {
+  if (matches < 3) return 'Sem dados ainda';
+  if (winPct >= 70) return 'Em fogo';
+  if (winPct >= 55) return 'A subir';
+  if (winPct >= 40) return 'Equilibrado';
+  if (winPct >= 25) return 'Em construção';
+  return 'A reerguer-se';
 }
 
 export default function ProfileScreen() {
@@ -69,35 +82,55 @@ export default function ProfileScreen() {
   const [aggregate, setAggregate] = useState<ReviewAggregate | null>(null);
   const [history, setHistory] = useState<MatchHistoryEntry[]>([]);
   const [mvpCount, setMvpCount] = useState(0);
+  const [inForm, setInForm] = useState<InFormStatus | null>(null);
+  const [detailedHistory, setDetailedHistory] = useState<DetailedMatchHistoryEntry[]>([]);
   const [isCaptain, setIsCaptain] = useState(false);
-  const [eloHistory, setEloHistory] = useState<EloHistoryPoint[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
+  const [yearStats, setYearStats] = useState<YearStats[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [selfSummary, setSelfSummary] = useState<SelfRatingSummary | null>(null);
   const [selectedAch, setSelectedAch] = useState<Achievement | null>(null);
+  const [unlockedToast, setUnlockedToast] = useState<Achievement | null>(null);
+  const [playerStats, setPlayerStats] = useState<AggregateStat[]>([]);
+  const [primaryTeamName, setPrimaryTeamName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
 
   const load = useCallback(async () => {
     if (!session) return;
-    const [p, s, a, h, mvp, myTeams, eh, ss, srs] = await Promise.all([
+    const [p, s, a, h, mvp, myTeams, ss, srs, ifs, dh, ys] = await Promise.all([
       fetchProfile(session.user.id),
       fetchUserSports(session.user.id),
       fetchReviewAggregate(session.user.id),
       fetchUserMatchHistory(session.user.id, 100),
       fetchMvpCount(session.user.id),
       fetchMyTeams(session.user.id),
-      fetchEloHistory(session.user.id, undefined, 30),
       fetchSeasonStats(session.user.id),
       fetchMySelfRatingSummary(),
+      fetchInFormStatus(session.user.id),
+      fetchDetailedMatchHistory(session.user.id, 5),
+      fetchPlayerYearStats(session.user.id),
     ]);
+    const sportF7 = s.find((x) => x.sport_id === 2) ?? s[0] ?? null;
+    const position = sportF7?.preferred_position ?? null;
+    const ps = await fetchPlayerStats(session.user.id, position);
     setProfile(p);
     setSports(s);
     setAggregate(a);
     setHistory(h);
     setMvpCount(mvp);
     setIsCaptain(myTeams.some((t) => t.captain_id === session.user.id));
-    setEloHistory(eh);
     setSeasonStats(ss);
     setSelfSummary(srs);
+    setPlayerStats(ps);
+    setPrimaryTeamName(myTeams[0]?.name ?? null);
+    setInForm(ifs);
+    setDetailedHistory(dh);
+    setYearStats(ys);
+    if (ys.length > 0 && selectedYear === null) {
+      setSelectedYear(ys[0]!.year);
+    }
     setLoading(false);
   }, [session]);
 
@@ -107,11 +140,58 @@ export default function ProfileScreen() {
     }, [load]),
   );
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
+  // Detect newly unlocked achievements since last seen, show celebration once.
+  useEffect(() => {
+    if (loading) return;
+    let cancelled = false;
+    (async () => {
+      const streak = computeWinStreak(history);
+      const all = computeAchievements({
+        history,
+        mvpCount,
+        isCaptain,
+        currentStreak: streak.current,
+        bestStreak: streak.best,
+      });
+      const unlockedIds = all.filter((a) => a.unlocked).map((a) => a.id);
+      if (unlockedIds.length === 0) return;
+      const raw = await AsyncStorage.getItem('s7vn:seen_achievements');
+      const seen: string[] = raw ? JSON.parse(raw) : [];
+      const fresh = unlockedIds.filter((id) => !seen.includes(id));
+      if (fresh.length === 0) return;
+      const ach = all.find((a) => a.id === fresh[0]);
+      if (cancelled || !ach) return;
+      setUnlockedToast(ach);
+      // Mark ALL currently unlocked as seen, so we don't re-fire later for
+      // others in the queue; the celebration shows the first only.
+      await AsyncStorage.setItem(
+        's7vn:seen_achievements',
+        JSON.stringify(unlockedIds),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, history, mvpCount, isCaptain]);
+
   return (
     <Screen>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#ffffff"
+          />
+        }
       >
         {loading ? (
           <ProfileSkeleton />
@@ -121,64 +201,62 @@ export default function ProfileScreen() {
               entering={FadeInDown.duration(300).springify()}
               style={styles.headerBlock}
             >
-              <View style={styles.avatarRow}>
-                <Avatar
-                  url={profile?.photo_url}
-                  name={profile?.name}
-                  size={96}
+              {profile && (
+                <PlayerFUTCard
+                  profile={profile}
+                  stats={playerStats}
+                  position={sports[0]?.preferred_position ?? null}
+                  winPct={
+                    sports[0]?.win_matches && sports[0].win_matches > 0
+                      ? Math.round(sports[0].win_pct)
+                      : null
+                  }
+                  matches={seasonStats?.matches_played ?? 0}
+                  goals={seasonStats?.goals ?? 0}
+                  assists={seasonStats?.assists ?? 0}
+                  teamName={primaryTeamName}
+                  form={history.slice(0, 5).map((h) => h.result).reverse()}
+                  inForm={!!inForm}
+                  onPress={() => router.push('/(app)/profile/card')}
                 />
-                {profile?.jersey_number !== null && profile?.jersey_number !== undefined && (
-                  <View style={styles.jerseyBadge}>
-                    <Text style={styles.jerseyText}>{profile.jersey_number}</Text>
-                  </View>
-                )}
-              </View>
-              <Heading level={1} style={{ marginTop: 16, textAlign: 'center' }}>
-                {profile ? formatDisplayName(profile) : ''}
-              </Heading>
-              <Text style={styles.city}>
-                {profile?.city}
-                {profile?.preferred_foot ? ` · ${FOOT_LABEL[profile.preferred_foot]}` : ''}
-              </Text>
-              <Text style={styles.email}>{session?.user.email}</Text>
-
+              )}
               {(() => {
-                const streak = computeWinStreak(history);
-                const lastFive: FormResult[] = history
-                  .slice(0, 5)
-                  .map((h) => h.result as FormResult)
-                  .reverse();
-                const showBadges = streak.current >= 2 || mvpCount > 0;
+                const s = sports[0];
+                if (!s) return null;
+                const hasComp = s.comp_matches > 0;
+                const hasPel = s.pel_matches > 0;
+                if (!hasComp && !hasPel) return null;
                 return (
-                  <>
-                    {lastFive.length > 0 && (
-                      <View style={styles.formRow}>
-                        <FormStrip results={lastFive} size="sm" />
-                      </View>
-                    )}
-                    {showBadges && (
-                      <View style={styles.badgeRow}>
-                        {streak.current >= 2 && (
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>
-                              {`🔥 ${streak.current} vitórias seguidas`}
-                            </Text>
-                          </View>
-                        )}
-                        {mvpCount > 0 && (
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>
-                              {`👑 ${mvpCount} MVP${mvpCount === 1 ? '' : 's'}`}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                  </>
+                  <View style={styles.splitRow}>
+                    <View style={[styles.splitCell, !hasComp && styles.splitCellDim]}>
+                      <Text style={styles.splitLabel}>Amigáveis</Text>
+                      <Text style={styles.splitValue}>
+                        {hasComp ? `${Math.round(s.comp_win_pct)}%` : '—'}
+                      </Text>
+                      <Text style={styles.splitMeta}>
+                        {`${s.comp_matches} jogo${s.comp_matches === 1 ? '' : 's'}`}
+                      </Text>
+                    </View>
+                    <View style={[styles.splitCell, !hasPel && styles.splitCellDim]}>
+                      <Text style={[styles.splitLabel, styles.splitLabelGold]}>
+                        Peladinha
+                      </Text>
+                      <Text style={[styles.splitValue, styles.splitValueGold]}>
+                        {hasPel ? `${Math.round(s.pel_win_pct)}%` : '—'}
+                      </Text>
+                      <Text style={styles.splitMeta}>
+                        {`${s.pel_matches} jogo${s.pel_matches === 1 ? '' : 's'}`}
+                      </Text>
+                    </View>
+                  </View>
                 );
               })()}
 
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+              {profile?.bio && (
+                <Text style={styles.bioText}>{profile.bio}</Text>
+              )}
+
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
                 <Button
                   label="Editar perfil"
                   variant="secondary"
@@ -186,70 +264,126 @@ export default function ProfileScreen() {
                   onPress={() => router.push('/(app)/profile/edit')}
                 />
                 <Button
-                  label="🎴 Player Card"
+                  label="↗ Partilhar card"
                   variant="secondary"
                   size="sm"
                   onPress={() => router.push('/(app)/profile/card')}
                 />
               </View>
+              <View style={{ marginTop: 8 }}>
+                <Button
+                  label="🤝 Convidar amigos para a S7VN"
+                  variant="ghost"
+                  size="sm"
+                  full
+                  onPress={async () => {
+                    const firstName = (profile?.name ?? '').split(' ')[0];
+                    const { fetchMyTeams } = await import('@/lib/teams');
+                    const myTeams = session
+                      ? await fetchMyTeams(session.user.id)
+                      : [];
+                    const myCapTeam = myTeams.find(
+                      (t) =>
+                        t.captain_id === session?.user.id ||
+                        (session?.user.id &&
+                          t.sub_captain_ids.includes(session.user.id)),
+                    );
+                    const code = myCapTeam?.invite_code?.toUpperCase();
+                    const teamName = myCapTeam?.name;
+                    const lines = [
+                      firstName
+                        ? `${firstName} chamou-te para a S7VN`
+                        : 'Junta-te à S7VN',
+                      '',
+                      teamName && code
+                        ? `Entra na equipa "${teamName}" com o código ${code}.`
+                        : 'Marca jogos de S7VN com a tua equipa, avalia colegas e sobe no ranking de Coimbra.',
+                      '',
+                      'Instala em jogadalimpa.app',
+                      ...(code
+                        ? [
+                            '',
+                            `Já tens a app? Abre: jogadalimpa://teams/join?code=${code}`,
+                          ]
+                        : []),
+                    ];
+                    try {
+                      await Share.share({ message: lines.join('\n') });
+                    } catch {}
+                  }}
+                />
+              </View>
             </Animated.View>
 
-            <Animated.View
-              entering={FadeInDown.delay(80).springify()}
-              style={styles.section}
-            >
-              <Eyebrow>ELO por desporto</Eyebrow>
-              {sports.length === 0 ? (
-                <Card style={{ marginTop: 8 }}>
-                  <Text style={styles.muted}>Sem desportos no perfil.</Text>
-                </Card>
-              ) : (
-                sports.map((s) => (
-                  <Card key={s.sport_id} style={{ marginTop: 8 }}>
-                    <View style={styles.row}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.rowName}>{s.sport?.name}</Text>
-                        <Text style={styles.rowMeta}>
-                          {`${levelLabel(s.elo)} · ${s.matches_played} jogos`}
-                        </Text>
-                      </View>
-                      <Text style={styles.elo}>{Math.round(s.elo)}</Text>
-                    </View>
-                  </Card>
-                ))
-              )}
-            </Animated.View>
-
-            {seasonStats && seasonStats.matches_played > 0 && (
+            {yearStats.length > 0 && (
               <Animated.View
                 entering={FadeInDown.delay(100).springify()}
                 style={styles.section}
               >
-                <Eyebrow>Esta época</Eyebrow>
-                <Card style={{ marginTop: 8 }}>
-                  <View style={styles.seasonRow}>
-                    <View style={styles.seasonCell}>
-                      <Text style={styles.seasonValue}>
-                        {seasonStats.matches_played}
-                      </Text>
-                      <Text style={styles.seasonLabel}>
-                        {seasonStats.matches_played === 1 ? 'jogo' : 'jogos'}
-                      </Text>
-                    </View>
-                    <View style={styles.seasonCell}>
-                      <Text style={[styles.seasonValue, { color: '#fbbf24' }]}>
-                        {seasonStats.goals}
-                      </Text>
-                      <Text style={styles.seasonLabel}>⚽ golos</Text>
-                    </View>
-                    <View style={styles.seasonCell}>
-                      <Text style={[styles.seasonValue, { color: '#34d399' }]}>
-                        {seasonStats.assists}
-                      </Text>
-                      <Text style={styles.seasonLabel}>🎁 assist.</Text>
-                    </View>
-                  </View>
-                </Card>
+                <Eyebrow>Estatísticas por época</Eyebrow>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.yearChipsRow}
+                >
+                  {yearStats.map((y) => {
+                    const active = selectedYear === y.year;
+                    return (
+                      <Pressable
+                        key={y.year}
+                        onPress={() => setSelectedYear(y.year)}
+                        style={[
+                          styles.yearChip,
+                          active && styles.yearChipActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.yearChipText,
+                            active && styles.yearChipTextActive,
+                          ]}
+                        >
+                          {y.year}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                {(() => {
+                  const y = yearStats.find((x) => x.year === selectedYear) ?? yearStats[0];
+                  if (!y) return null;
+                  return (
+                    <Card style={{ marginTop: 12 }}>
+                      <View style={styles.seasonRow}>
+                        <View style={styles.seasonCell}>
+                          <Text style={styles.seasonValue}>
+                            {y.matches_played}
+                          </Text>
+                          <Text style={styles.seasonLabel}>
+                            {y.matches_played === 1 ? 'jogo' : 'jogos'}
+                          </Text>
+                        </View>
+                        <View style={styles.seasonCell}>
+                          <Text style={[styles.seasonValue, { color: '#fbbf24' }]}>
+                            {y.goals}
+                          </Text>
+                          <Text style={styles.seasonLabel}>Golos</Text>
+                        </View>
+                        <View style={styles.seasonCell}>
+                          <Text style={[styles.seasonValue, { color: '#34d399' }]}>
+                            {y.assists}
+                          </Text>
+                          <Text style={styles.seasonLabel}>Assistências</Text>
+                        </View>
+                      </View>
+                      <View style={styles.yearRecord}>
+                        <Text style={styles.yearRecordText}>
+                          {`${y.wins}V · ${y.draws}E · ${y.losses}D`}
+                        </Text>
+                      </View>
+                    </Card>
+                  );
+                })()}
               </Animated.View>
             )}
 
@@ -258,7 +392,7 @@ export default function ProfileScreen() {
                 entering={FadeInDown.delay(120).springify()}
                 style={styles.section}
               >
-                <Eyebrow>🪞 Auto-avaliação</Eyebrow>
+                <Eyebrow>Auto-avaliação</Eyebrow>
                 <Card style={{ marginTop: 8 }}>
                   <View style={styles.selfRow}>
                     <View style={styles.selfCell}>
@@ -302,79 +436,41 @@ export default function ProfileScreen() {
               </Animated.View>
             )}
 
-            {eloHistory.length >= 2 && (() => {
-              const summary = summariseEloHistory(eloHistory);
-              const deltaSign =
-                summary.delta_30d > 0
-                  ? '+'
-                  : summary.delta_30d < 0
-                    ? ''
-                    : '±';
-              const deltaColor =
-                summary.delta_30d > 0
-                  ? '#34d399'
-                  : summary.delta_30d < 0
-                    ? '#f87171'
-                    : colors.textDim;
-              return (
-                <Animated.View
-                  entering={FadeInDown.delay(110).springify()}
-                  style={styles.section}
-                >
-                  <Eyebrow>Evolução do ELO</Eyebrow>
-                  <Card style={{ marginTop: 8 }}>
-                    <View style={styles.eloSummaryRow}>
-                      <View>
-                        <Text style={styles.eloCurrent}>{summary.current}</Text>
-                        <Text style={styles.eloHint}>Atual</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={[styles.eloDelta, { color: deltaColor }]}>
-                          {`${deltaSign}${summary.delta_30d}`}
-                        </Text>
-                        <Text style={styles.eloHint}>30 dias</Text>
-                      </View>
-                    </View>
-                    <View style={{ marginTop: 16 }}>
-                      <EloChart points={eloHistory} />
-                    </View>
-                    <View style={styles.eloFooter}>
-                      <Text style={styles.eloFooterText}>
-                        {`Pico ${summary.peak} · Melhor +${summary.best_win} · Pior ${summary.worst_loss}`}
-                      </Text>
-                    </View>
-                  </Card>
-                </Animated.View>
-              );
-            })()}
 
             <Animated.View
-              entering={FadeInDown.delay(140).springify()}
+              entering={FadeInDown.delay(130).springify()}
               style={styles.section}
             >
-              <Eyebrow>Reputação</Eyebrow>
-              {aggregate ? (
+              <View style={styles.sectionHeader}>
+                <Eyebrow>Histórico</Eyebrow>
+                {session && detailedHistory.length > 0 && (
+                  <Pressable
+                    onPress={() =>
+                      router.push(`/(app)/users/${session.user.id}/matches`)
+                    }
+                    style={styles.seeAllBtn}
+                  >
+                    <Text style={styles.seeAllText}>Ver todos</Text>
+                    <Ionicons name="arrow-forward" size={12} color={colors.brand} />
+                  </Pressable>
+                )}
+              </View>
+              {detailedHistory.length === 0 ? (
                 <Card style={{ marginTop: 8 }}>
-                  <AggBar label="Fair play" value={aggregate.avg_fair_play} />
-                  <AggBar
-                    label="Pontualidade"
-                    value={aggregate.avg_punctuality}
-                  />
-                  <AggBar
-                    label="Nível técnico"
-                    value={aggregate.avg_technical_level}
-                  />
-                  <AggBar label="Atitude" value={aggregate.avg_attitude} />
-                  <Text style={styles.aggFoot}>
-                    {`${aggregate.total_reviews} avaliação(ões) recebidas`}
-                  </Text>
+                  <Text style={styles.muted}>Sem jogos validados ainda.</Text>
                 </Card>
               ) : (
-                <Card style={{ marginTop: 8 }}>
-                  <Text style={styles.muted}>
-                    Em construção — joga mais jogos para ver a tua reputação.
-                  </Text>
-                </Card>
+                <View style={{ marginTop: 8 }}>
+                  {detailedHistory.map((m) => (
+                    <MatchHistoryRow
+                      key={m.match_id}
+                      m={m}
+                      onPress={() =>
+                        router.push(`/(app)/matches/${m.match_id}`)
+                      }
+                    />
+                  ))}
+                </View>
               )}
             </Animated.View>
 
@@ -390,7 +486,7 @@ export default function ProfileScreen() {
                   entering={FadeInDown.delay(180).springify()}
                   style={styles.section}
                 >
-                  <Eyebrow>🏅 Recordes pessoais</Eyebrow>
+                  <Eyebrow>Recordes pessoais</Eyebrow>
                   <Card style={{ marginTop: 8 }}>
                     {records.biggest_win && (
                       <View style={styles.recordRow}>
@@ -457,89 +553,80 @@ export default function ProfileScreen() {
                 });
                 return (
                   <View style={styles.achGrid}>
-                    {achievements.map((a) => (
-                      <Pressable
-                        key={a.id}
-                        onPress={() => setSelectedAch(a)}
-                        style={[
-                          styles.ach,
-                          !a.unlocked && styles.achLocked,
-                        ]}
-                      >
-                        <Text
+                    {achievements.map((a) => {
+                      const pct =
+                        a.progress && a.progress.target > 0
+                          ? Math.min(
+                              100,
+                              Math.round(
+                                (a.progress.current / a.progress.target) *
+                                  100,
+                              ),
+                            )
+                          : null;
+                      return (
+                        <Pressable
+                          key={a.id}
+                          onPress={() => setSelectedAch(a)}
                           style={[
-                            styles.achEmoji,
-                            !a.unlocked && styles.achEmojiLocked,
+                            styles.ach,
+                            !a.unlocked && styles.achLocked,
                           ]}
                         >
-                          {a.emoji}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.achTitle,
-                            !a.unlocked && styles.achTitleLocked,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {a.title}
-                        </Text>
-                      </Pressable>
-                    ))}
+                          <Text
+                            style={[
+                              styles.achEmoji,
+                              !a.unlocked && styles.achEmojiLocked,
+                            ]}
+                          >
+                            {a.emoji}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.achTitle,
+                              !a.unlocked && styles.achTitleLocked,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {a.title}
+                          </Text>
+                          {!a.unlocked && pct !== null && pct > 0 && (
+                            <View style={styles.achProgressTrack}>
+                              <View
+                                style={[
+                                  styles.achProgressFill,
+                                  { width: `${pct}%` },
+                                ]}
+                              />
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 );
               })()}
             </Animated.View>
 
-            <Animated.View
-              entering={FadeInDown.delay(220).springify()}
-              style={styles.section}
-            >
-              <Eyebrow>Histórico</Eyebrow>
-              {history.length === 0 ? (
+            {aggregate && (
+              <Animated.View
+                entering={FadeInDown.delay(210).springify()}
+                style={styles.section}
+              >
+                <Eyebrow>Reputação</Eyebrow>
                 <Card style={{ marginTop: 8 }}>
-                  <Text style={styles.muted}>Sem jogos validados ainda.</Text>
+                  <View style={styles.starsHero}>
+                    <StarRating value={aggregate.avg_overall ?? 0} size={28} />
+                    <Text style={styles.starsHeroValue}>
+                      {(aggregate.avg_overall ?? 0).toFixed(1)}
+                    </Text>
+                  </View>
+                  <Text style={styles.aggFoot}>
+                    {`${aggregate.total_reviews} avaliação(ões) recebidas`}
+                  </Text>
                 </Card>
-              ) : (
-                history.map((h) => (
-                  <Card
-                    key={h.match_id}
-                    onPress={() => router.push(`/(app)/matches/${h.match_id}`)}
-                    style={{ marginTop: 8 }}
-                  >
-                    <View style={styles.row}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.rowName}>
-                          {`${h.my_team_name} vs ${h.opponent_team_name}`}
-                        </Text>
-                        <Text style={styles.rowMeta}>
-                          {`${h.sport_name} · ${formatMatchDate(h.scheduled_at)}`}
-                        </Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text
-                          style={[
-                            styles.score,
-                            h.result === 'win' && styles.win,
-                            h.result === 'loss' && styles.loss,
-                          ]}
-                        >
-                          {h.my_side === 'A'
-                            ? `${h.final_score_a}–${h.final_score_b}`
-                            : `${h.final_score_b}–${h.final_score_a}`}
-                        </Text>
-                        <Text style={styles.resultLabel}>
-                          {h.result === 'win'
-                            ? 'V'
-                            : h.result === 'loss'
-                              ? 'D'
-                              : 'E'}
-                        </Text>
-                      </View>
-                    </View>
-                  </Card>
-                ))
-              )}
-            </Animated.View>
+              </Animated.View>
+            )}
 
             {session?.user.email === ADMIN_EMAIL && (
               <Animated.View
@@ -573,6 +660,11 @@ export default function ProfileScreen() {
           </>
         )}
       </ScrollView>
+
+      <AchievementUnlockModal
+        achievement={unlockedToast}
+        onClose={() => setUnlockedToast(null)}
+      />
 
       <Modal
         visible={selectedAch !== null}
@@ -695,7 +787,7 @@ function ProfileSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { padding: 24, paddingBottom: 120 },
   headerBlock: {
     alignItems: 'center',
     gap: 6,
@@ -725,6 +817,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   email: { color: '#5a5a5a', fontSize: 12, marginBottom: 12 },
+  bioText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
   badgeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -835,6 +935,65 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.1,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  seeAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  seeAllText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  splitRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+    width: '100%',
+  },
+  splitCell: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    alignItems: 'flex-start',
+  },
+  splitCellDim: { opacity: 0.5 },
+  splitLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  splitLabelGold: { color: colors.goldDeep },
+  splitValue: {
+    color: colors.text,
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1.2,
+    marginTop: 6,
+    lineHeight: 34,
+  },
+  splitValueGold: { color: colors.goldDeep },
+  splitMeta: {
+    color: colors.textDim,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+    letterSpacing: 0.2,
+  },
   achGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -909,6 +1068,45 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.1,
   },
+  yearChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  yearChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  yearChipActive: {
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+  },
+  yearChipText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  yearChipTextActive: {
+    color: colors.brand,
+  },
+  yearRecord: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+  },
+  yearRecordText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+  },
   seasonRow: { flexDirection: 'row' },
   seasonCell: { flex: 1, alignItems: 'center' },
   seasonValue: {
@@ -969,6 +1167,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     marginTop: 8,
+  },
+  starsHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    paddingVertical: 6,
+  },
+  starsHeroValue: {
+    color: colors.goldDeep,
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
   score: {
     color: '#ffffff',

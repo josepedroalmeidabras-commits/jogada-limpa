@@ -13,13 +13,15 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import {
   fetchMatchesForUser,
+  fetchMatchesForPlayer,
   formatMatchDate,
   formatRelativeMatchDate,
   statusLabel,
   type MatchSummary,
 } from '@/lib/matches';
-import { fetchMyTeams, type TeamWithSport } from '@/lib/teams';
+import { fetchMyTeams, isTeamLeader, type TeamWithSport } from '@/lib/teams';
 import { Screen } from '@/components/Screen';
+import { MatchKindSheet } from '@/components/MatchKindSheet';
 import { Heading, Eyebrow } from '@/components/Heading';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
@@ -34,19 +36,23 @@ import { colors } from '@/theme';
 export default function AgendaScreen() {
   const { session } = useAuth();
   const router = useRouter();
-  const [matches, setMatches] = useState<MatchSummary[]>([]);
+  // null = "Meus jogos" (player participant). Otherwise = team id.
+  const [scope, setScope] = useState<string | null>(null);
+  const [playerMatches, setPlayerMatches] = useState<MatchSummary[]>([]);
+  const [teamMatches, setTeamMatches] = useState<MatchSummary[]>([]);
   const [teams, setTeams] = useState<TeamWithSport[]>([]);
-  const [teamFilter, setTeamFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const [data, t] = await Promise.all([
+    const [pm, tm, t] = await Promise.all([
+      fetchMatchesForPlayer(session.user.id),
       fetchMatchesForUser(session.user.id),
       fetchMyTeams(session.user.id),
     ]);
-    setMatches(data);
+    setPlayerMatches(pm);
+    setTeamMatches(tm);
     setTeams(t);
     setLoading(false);
   }, [session]);
@@ -54,8 +60,12 @@ export default function AgendaScreen() {
   const onRefresh = useCallback(async () => {
     if (!session) return;
     setRefreshing(true);
-    const data = await fetchMatchesForUser(session.user.id);
-    setMatches(data);
+    const [pm, tm] = await Promise.all([
+      fetchMatchesForPlayer(session.user.id),
+      fetchMatchesForUser(session.user.id),
+    ]);
+    setPlayerMatches(pm);
+    setTeamMatches(tm);
     setRefreshing(false);
   }, [session]);
 
@@ -88,11 +98,11 @@ export default function AgendaScreen() {
   );
 
   const filteredMatches = useMemo(() => {
-    if (!teamFilter) return matches;
-    return matches.filter(
-      (m) => m.side_a.id === teamFilter || m.side_b.id === teamFilter,
+    if (scope === null) return playerMatches;
+    return teamMatches.filter(
+      (m) => m.side_a.id === scope || m.side_b.id === scope,
     );
-  }, [matches, teamFilter]);
+  }, [scope, playerMatches, teamMatches]);
 
   const grouped = useMemo(() => {
     const now = Date.now();
@@ -114,8 +124,45 @@ export default function AgendaScreen() {
     };
   }, [filteredMatches]);
 
+  const myLeaderTeams = teams.filter((t) => isTeamLeader(t, session?.user.id));
+  const isLeader = myLeaderTeams.length > 0;
+
+  const [matchKindOpen, setMatchKindOpen] = useState(false);
+
+  function handleMarcarJogo() {
+    if (myLeaderTeams.length === 0) return;
+    setMatchKindOpen(true);
+  }
+
+  function handleMatchKindPick(kind: 'match' | 'internal' | 'open') {
+    setMatchKindOpen(false);
+    const go = (teamId: string) => {
+      if (kind === 'match')
+        router.push(`/(app)/teams/${teamId}/match/new`);
+      else if (kind === 'internal')
+        router.push(`/(app)/teams/${teamId}/internal/new`);
+      else router.push(`/(app)/teams/${teamId}/open-request`);
+    };
+    if (myLeaderTeams.length === 1) {
+      go(myLeaderTeams[0]!.id);
+      return;
+    }
+    Alert.alert('Para que equipa?', 'Escolhe a equipa', [
+      ...myLeaderTeams.map((t) => ({
+        text: t.name,
+        onPress: () => go(t.id),
+      })),
+      { text: 'Cancelar', style: 'cancel' as const },
+    ]);
+  }
+
   return (
-    <Screen edges={['top']}>
+    <Screen>
+      <MatchKindSheet
+        visible={matchKindOpen}
+        onClose={() => setMatchKindOpen(false)}
+        onSelect={handleMatchKindPick}
+      />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -136,20 +183,7 @@ export default function AgendaScreen() {
           </View>
         ) : (
           <>
-            <Animated.View
-              entering={FadeInDown.duration(300).springify()}
-              style={styles.titleRow}
-            >
-              <Heading level={1}>Jogos</Heading>
-              <Button
-                label="Ranking"
-                variant="secondary"
-                size="sm"
-                onPress={() => router.push('/(app)/rankings')}
-              />
-            </Animated.View>
-
-            {teams.length > 1 && (
+            {teams.length > 0 && (
               <Animated.View entering={FadeInDown.delay(50).springify()}>
                 <ScrollView
                   horizontal
@@ -157,27 +191,27 @@ export default function AgendaScreen() {
                   contentContainerStyle={styles.filterRow}
                 >
                   <Pressable
-                    onPress={() => setTeamFilter(null)}
+                    onPress={() => setScope(null)}
                     style={[
                       styles.filterChip,
-                      teamFilter === null && styles.filterChipActive,
+                      scope === null && styles.filterChipActive,
                     ]}
                   >
                     <Text
                       style={[
                         styles.filterChipText,
-                        teamFilter === null && styles.filterChipTextActive,
+                        scope === null && styles.filterChipTextActive,
                       ]}
                     >
-                      Todas
+                      Meus jogos
                     </Text>
                   </Pressable>
                   {teams.map((t) => {
-                    const active = teamFilter === t.id;
+                    const active = scope === t.id;
                     return (
                       <Pressable
                         key={t.id}
-                        onPress={() => setTeamFilter(t.id)}
+                        onPress={() => setScope(t.id)}
                         style={[
                           styles.filterChip,
                           active && styles.filterChipActive,
@@ -203,23 +237,14 @@ export default function AgendaScreen() {
               entering={FadeInDown.delay(80).springify()}
               style={styles.section}
             >
-              <View style={styles.sectionHeader}>
-                <Eyebrow>{`Próximos · ${grouped.upcoming.length}`}</Eyebrow>
-                {grouped.upcoming.length > 0 && (
-                  <Pressable
-                    onPress={() => handleSyncCalendar(grouped.upcoming)}
-                    disabled={syncing}
-                    style={[styles.syncBtn, syncing && { opacity: 0.5 }]}
-                  >
-                    <Text style={styles.syncBtnText}>
-                      {syncing ? '...' : '📅 Sincronizar'}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
+              <Eyebrow>{`Próximos · ${grouped.upcoming.length}`}</Eyebrow>
               {grouped.upcoming.length === 0 ? (
                 <Card style={{ marginTop: 8 }}>
-                  <Text style={styles.muted}>Sem jogos agendados.</Text>
+                  <Text style={styles.muted}>
+                    {isLeader
+                      ? 'Sem jogos agendados. Toca em "+" em baixo para marcar.'
+                      : 'Sem jogos agendados. Quando o teu capitão marcar um jogo, aparece aqui.'}
+                  </Text>
                 </Card>
               ) : (
                 <Animated.View
@@ -291,6 +316,12 @@ export default function AgendaScreen() {
           </>
         )}
       </ScrollView>
+      {isLeader && !loading && (
+        <Pressable style={styles.fab} onPress={handleMarcarJogo}>
+          <Text style={styles.fabIcon}>+</Text>
+          <Text style={styles.fabText}>Marcar jogo</Text>
+        </Pressable>
+      )}
     </Screen>
   );
 }
@@ -361,7 +392,7 @@ function StatusPill({ status }: { status: MatchSummary['status'] }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { padding: 24, paddingBottom: 120 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -418,4 +449,33 @@ const styles = StyleSheet.create({
     borderColor: colors.brandSoftBorder,
   },
   syncBtnText: { color: colors.brand, fontSize: 11, fontWeight: '700' },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 102,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 999,
+    backgroundColor: colors.brand,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  fabIcon: {
+    color: '#0E1812',
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  fabText: {
+    color: '#0E1812',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
 });

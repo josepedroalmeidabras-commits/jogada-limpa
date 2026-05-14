@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
-import { fetchTeamById, type TeamWithSport } from '@/lib/teams';
+import { fetchTeamById, isTeamLeader, type TeamWithSport } from '@/lib/teams';
 import { postOpenRequest } from '@/lib/open-requests';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
@@ -80,7 +80,7 @@ export default function NewOpenRequestScreen() {
     };
   }, [id]);
 
-  const isCaptain = team?.captain_id === session?.user.id;
+  const isCaptain = isTeamLeader(team, session?.user.id);
   const parsed = parseDateTime(date, time);
 
   function applyPreset(day: number, hour: number, minute = 0) {
@@ -129,7 +129,7 @@ export default function NewOpenRequestScreen() {
       <Screen>
         <View style={styles.center}>
           <Text style={styles.muted}>
-            Só o capitão da equipa pode publicar desafios abertos.
+            Só o capitão ou sub-capitão pode publicar desafios abertos.
           </Text>
         </View>
       </Screen>

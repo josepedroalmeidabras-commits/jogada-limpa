@@ -13,10 +13,12 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
   fetchFriends,
+  fetchFriendsLeaderboard,
   fetchIncomingRequests,
   fetchOutgoingRequests,
   removeFriend,
   cancelFriendRequest,
+  type FriendLeaderboardEntry,
   type FriendProfile,
   type PendingRequest,
 } from '@/lib/friends';
@@ -32,18 +34,21 @@ export default function FriendsScreen() {
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [incoming, setIncoming] = useState<PendingRequest[]>([]);
   const [outgoing, setOutgoing] = useState<PendingRequest[]>([]);
+  const [board, setBoard] = useState<FriendLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [f, i, o] = await Promise.all([
+    const [f, i, o, b] = await Promise.all([
       fetchFriends(),
       fetchIncomingRequests(),
       fetchOutgoingRequests(),
+      fetchFriendsLeaderboard(),
     ]);
     setFriends(f);
     setIncoming(i);
     setOutgoing(o);
+    setBoard(b);
     setLoading(false);
   }, []);
 
@@ -134,6 +139,66 @@ export default function FriendsScreen() {
           </View>
         ) : (
           <>
+            {board.length >= 2 && (
+              <Animated.View
+                entering={FadeInDown.duration(300).springify()}
+                style={{ marginBottom: 24 }}
+              >
+                <Eyebrow>Ranking entre amigos</Eyebrow>
+                <Card style={{ marginTop: 8 }}>
+                  {board.slice(0, 8).map((b, i) => {
+                    const medal =
+                      i === 0
+                        ? '🥇'
+                        : i === 1
+                          ? '🥈'
+                          : i === 2
+                            ? '🥉'
+                            : null;
+                    return (
+                      <View
+                        key={b.user_id}
+                        style={[
+                          styles.boardRow,
+                          i > 0 && styles.boardRowBorder,
+                          b.is_self && styles.boardRowSelf,
+                        ]}
+                      >
+                        {medal ? (
+                          <Text style={styles.boardMedal}>{medal}</Text>
+                        ) : (
+                          <Text style={styles.boardRank}>{i + 1}</Text>
+                        )}
+                        <Avatar
+                          url={b.photo_url}
+                          name={b.name}
+                          size={32}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.boardName,
+                              b.is_self && { color: colors.brand },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {b.name}
+                            {b.is_self && '  · tu'}
+                          </Text>
+                          <Text style={styles.boardMeta}>
+                            {`${b.matches} jogo${b.matches === 1 ? '' : 's'}`}
+                          </Text>
+                        </View>
+                        <Text style={styles.boardPct}>
+                          {b.matches > 0 ? `${Math.round(b.win_pct)}%` : '—'}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </Card>
+              </Animated.View>
+            )}
+
             {incoming.length > 0 && (
               <Animated.View entering={FadeInDown.duration(300).springify()}>
                 <Eyebrow>{`Pedidos recebidos · ${incoming.length}`}</Eyebrow>
@@ -284,5 +349,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     marginTop: 16,
+  },
+  boardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+  },
+  boardRowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  boardRowSelf: {
+    backgroundColor: colors.brandSoft,
+  },
+  boardMedal: { fontSize: 18, width: 26, textAlign: 'center' },
+  boardRank: {
+    width: 26,
+    textAlign: 'center',
+    color: colors.textDim,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  boardName: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  boardMeta: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  boardPct: {
+    color: colors.brand,
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+    minWidth: 44,
+    textAlign: 'right',
   },
 });

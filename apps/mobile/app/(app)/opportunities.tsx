@@ -250,7 +250,7 @@ export default function OpportunitiesScreen() {
                     tab === 'challenges' && styles.tabTextActive,
                   ]}
                 >
-                  {`🔔 Desafios · ${challenges.length}`}
+                  {`Desafios · ${challenges.length}`}
                 </Text>
               </Pressable>
               <Pressable
@@ -303,11 +303,11 @@ export default function OpportunitiesScreen() {
                                 {formatRelativeMatchDate(req.scheduled_at)}
                               </Text>
                             </View>
-                            {req.team_elo_avg !== null && (
+                            {req.team_matches && req.team_matches > 0 ? (
                               <Text style={styles.elo}>
-                                {Math.round(req.team_elo_avg ?? 0)}
+                                {`${Math.round(req.team_win_pct ?? 0)}%`}
                               </Text>
-                            )}
+                            ) : null}
                           </View>
                           <View style={styles.detailsRow}>
                             <Text style={styles.detailsText}>
@@ -378,6 +378,9 @@ export default function OpportunitiesScreen() {
                               )}
                             </Text>
                             <Text style={styles.meta}>
+                              {sub.match?.is_internal
+                                ? 'Peladinha · '
+                                : ''}
                               {sub.match
                                 ? formatRelativeMatchDate(sub.match.scheduled_at)
                                 : ''}

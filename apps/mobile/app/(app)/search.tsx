@@ -11,6 +11,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { searchAll, type UniversalSearchResult } from '@/lib/user-search';
+import { recentTeams, recentUsers, type RecentEntry } from '@/lib/recent';
 import { Avatar } from '@/components/Avatar';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
@@ -22,6 +23,24 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UniversalSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [recentU, setRecentU] = useState<RecentEntry[]>([]);
+  const [recentT, setRecentT] = useState<RecentEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [u, t] = await Promise.all([
+        recentUsers.list(),
+        recentTeams.list(),
+      ]);
+      if (cancelled) return;
+      setRecentU(u);
+      setRecentT(t);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const q = query.trim();
@@ -94,11 +113,82 @@ export default function SearchScreen() {
           showsVerticalScrollIndicator={false}
         >
           {query.trim().length < 2 ? (
-            <View style={styles.center}>
-              <Text style={styles.muted}>
-                Procura por nome ou cidade. Mínimo 2 letras.
-              </Text>
-            </View>
+            recentU.length === 0 && recentT.length === 0 ? (
+              <View style={styles.center}>
+                <Text style={styles.muted}>
+                  Procura por nome ou cidade. Mínimo 2 letras.
+                </Text>
+              </View>
+            ) : (
+              <>
+                {recentU.length > 0 && (
+                  <View style={{ marginTop: 16 }}>
+                    <Eyebrow>Jogadores recentes</Eyebrow>
+                    {recentU.map((r, i) => (
+                      <Animated.View
+                        key={`ru-${r.id}`}
+                        entering={FadeInDown.delay(20 + i * 20).springify()}
+                      >
+                        <Card
+                          onPress={() => router.push(`/(app)/users/${r.id}`)}
+                          style={{ marginTop: 8 }}
+                        >
+                          <View style={styles.row}>
+                            <Avatar
+                              url={r.photo_url}
+                              name={r.name}
+                              size={40}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.name}>{r.name}</Text>
+                              {r.meta && (
+                                <Text style={styles.meta} numberOfLines={1}>
+                                  {r.meta}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.arrow}>›</Text>
+                          </View>
+                        </Card>
+                      </Animated.View>
+                    ))}
+                  </View>
+                )}
+                {recentT.length > 0 && (
+                  <View style={{ marginTop: 24 }}>
+                    <Eyebrow>Equipas recentes</Eyebrow>
+                    {recentT.map((r, i) => (
+                      <Animated.View
+                        key={`rt-${r.id}`}
+                        entering={FadeInDown.delay(20 + i * 20).springify()}
+                      >
+                        <Card
+                          onPress={() => router.push(`/(app)/teams/${r.id}`)}
+                          style={{ marginTop: 8 }}
+                        >
+                          <View style={styles.row}>
+                            <Avatar
+                              url={r.photo_url}
+                              name={r.name}
+                              size={40}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.name}>{r.name}</Text>
+                              {r.meta && (
+                                <Text style={styles.meta} numberOfLines={1}>
+                                  {r.meta}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.arrow}>›</Text>
+                          </View>
+                        </Card>
+                      </Animated.View>
+                    ))}
+                  </View>
+                )}
+              </>
+            )
           ) : searching ? null : results.length === 0 ? (
             <View style={styles.center}>
               <Heading level={3}>Sem resultados</Heading>

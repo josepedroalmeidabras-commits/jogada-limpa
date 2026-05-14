@@ -15,6 +15,7 @@ import { Screen } from '@/components/Screen';
 import { Heading } from '@/components/Heading';
 import { Button } from '@/components/Button';
 import { Avatar } from '@/components/Avatar';
+import { StarRating } from '@/components/StarRating';
 import { colors } from '@/theme';
 import {
   Stack,
@@ -30,23 +31,19 @@ import {
 } from '@/lib/result';
 import {
   fetchMyReviewsForMatch,
+  hasReviewedTeam,
   submitReview,
+  submitTeamReview,
 } from '@/lib/reviews';
 
 type Scores = {
-  fair_play: number;
-  punctuality: number;
-  technical_level: number;
-  attitude: number;
+  overall: number;
   comment: string;
 };
 
 function defaultScores(): Scores {
   return {
-    fair_play: 3,
-    punctuality: 3,
-    technical_level: 3,
-    attitude: 3,
+    overall: 5,
     comment: '',
   };
 }
@@ -60,6 +57,8 @@ export default function ReviewScreen() {
   const [participants, setParticipants] = useState<MatchParticipant[]>([]);
   const [alreadyReviewed, setAlreadyReviewed] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<Record<string, Scores>>({});
+  const [teamDraft, setTeamDraft] = useState<Scores>(defaultScores());
+  const [teamDone, setTeamDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,12 +74,26 @@ export default function ReviewScreen() {
     setParticipants(p);
     setAlreadyReviewed(done);
     const next: Record<string, Scores> = {};
+    const myParticipant = p.find((x) => x.user_id === session.user.id);
+    const mySide = myParticipant?.side;
+    // Only teammates get individual review drafts
     for (const part of p) {
-      if (part.user_id !== session.user.id && !done.has(part.user_id)) {
+      if (
+        part.user_id !== session.user.id &&
+        part.side === mySide &&
+        !done.has(part.user_id)
+      ) {
         next[part.user_id] = defaultScores();
       }
     }
     setDrafts(next);
+    // Check if team review already submitted
+    if (m && mySide) {
+      const opponentTeamId =
+        mySide === 'A' ? m.side_b.id : m.side_a.id;
+      const t = await hasReviewedTeam(id, opponentTeamId);
+      setTeamDone(t);
+    }
     setLoading(false);
   }, [id, session]);
 
@@ -111,13 +124,39 @@ export default function ReviewScreen() {
   }
 
   const mySide = participants.find((p) => p.user_id === session.user.id)?.side;
-  const others = participants.filter((p) => p.user_id !== session.user.id);
+  const teammates = participants.filter(
+    (p) => p.user_id !== session.user.id && p.side === mySide,
+  );
+  const opponentTeam =
+    mySide === 'A' ? match.side_b : mySide === 'B' ? match.side_a : null;
 
   function updateScore(uid: string, key: keyof Scores, value: number | string) {
     setDrafts((prev) => ({
       ...prev,
       [uid]: { ...(prev[uid] ?? defaultScores()), [key]: value as never },
     }));
+  }
+
+  function updateTeamScore(key: keyof Scores, value: number | string) {
+    setTeamDraft((prev) => ({ ...prev, [key]: value as never }));
+  }
+
+  async function handleTeamSubmit() {
+    if (!opponentTeam || !match) return;
+    setError(null);
+    setSubmitting('__team__');
+    const r = await submitTeamReview({
+      match_id: match.id,
+      team_id: opponentTeam.id,
+      overall: teamDraft.overall,
+      comment: teamDraft.comment.trim() || undefined,
+    });
+    setSubmitting(null);
+    if (!r.ok) {
+      setError(r.message);
+      return;
+    }
+    setTeamDone(true);
   }
 
   async function handleSubmit(p: MatchParticipant) {
@@ -131,10 +170,7 @@ export default function ReviewScreen() {
       match_id: match!.id,
       reviewed_id: p.user_id,
       role,
-      fair_play: draft.fair_play,
-      punctuality: draft.punctuality,
-      technical_level: draft.technical_level,
-      attitude: draft.attitude,
+      overall: draft.overall,
       comment: draft.comment.trim() || undefined,
     });
     setSubmitting(null);
@@ -145,7 +181,8 @@ export default function ReviewScreen() {
     setAlreadyReviewed((prev) => new Set([...prev, p.user_id]));
   }
 
-  const pending = others.filter((p) => !alreadyReviewed.has(p.user_id));
+  const pending = teammates.filter((p) => !alreadyReviewed.has(p.user_id));
+  const allDone = pending.length === 0 && (teamDone || !opponentTeam);
 
   return (
     <Screen>
@@ -171,15 +208,64 @@ export default function ReviewScreen() {
               {`${match.side_a.name} vs ${match.side_b.name}`}
             </Heading>
             <Text style={styles.sub}>
-              Avalia os outros jogadores. Visível só depois de bilateral ou 72h.
+              Avalia os teus colegas individualmente e a equipa adversária
+              como um todo.
             </Text>
           </Animated.View>
 
-          {pending.length === 0 ? (
+          {opponentTeam && !teamDone && (
+            <Animated.View
+              entering={FadeInDown.delay(60).springify()}
+              style={styles.card}
+            >
+              <View style={styles.cardHeader}>
+                <Avatar
+                  url={opponentTeam.photo_url}
+                  name={opponentTeam.name}
+                  size={40}
+                />
+                <View style={styles.cardHeaderText}>
+                  <Text style={styles.cardName}>{opponentTeam.name}</Text>
+                  <Text style={styles.cardRole}>Equipa adversária</Text>
+                </View>
+              </View>
+              <View style={styles.starsBlock}>
+                <Text style={styles.starsLabel}>Avaliação geral</Text>
+                <StarRating
+                  value={teamDraft.overall}
+                  onChange={(v) => updateTeamScore('overall', v)}
+                  size={32}
+                />
+              </View>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Comentário opcional (200 chars)"
+                placeholderTextColor="#666"
+                value={teamDraft.comment}
+                onChangeText={(t) =>
+                  updateTeamScore('comment', t.slice(0, 200))
+                }
+                multiline
+                maxLength={200}
+                editable={submitting !== '__team__'}
+              />
+              <View style={{ marginTop: 12 }}>
+                <Button
+                  label="Submeter avaliação à equipa"
+                  loading={submitting === '__team__'}
+                  onPress={handleTeamSubmit}
+                  disabled={submitting !== null && submitting !== '__team__'}
+                  full
+                />
+              </View>
+            </Animated.View>
+          )}
+
+          {allDone ? (
             <View style={styles.doneBox}>
               <Text style={styles.doneTitle}>Tudo avaliado 👍</Text>
               <Text style={styles.doneBody}>
-                Já submeteste avaliações para todos os jogadores deste jogo.
+                Já submeteste todas as avaliações deste jogo.
               </Text>
               <View style={{ marginTop: 12 }}>
                 <Button
@@ -208,28 +294,14 @@ export default function ReviewScreen() {
                     </View>
                   </View>
 
-                  <CategoryRow
-                    label="Fair play"
-                    value={draft.fair_play}
-                    onChange={(v) => updateScore(p.user_id, 'fair_play', v)}
-                  />
-                  <CategoryRow
-                    label="Pontualidade"
-                    value={draft.punctuality}
-                    onChange={(v) => updateScore(p.user_id, 'punctuality', v)}
-                  />
-                  <CategoryRow
-                    label="Nível técnico"
-                    value={draft.technical_level}
-                    onChange={(v) =>
-                      updateScore(p.user_id, 'technical_level', v)
-                    }
-                  />
-                  <CategoryRow
-                    label="Atitude"
-                    value={draft.attitude}
-                    onChange={(v) => updateScore(p.user_id, 'attitude', v)}
-                  />
+                  <View style={styles.starsBlock}>
+                    <Text style={styles.starsLabel}>Avaliação geral</Text>
+                    <StarRating
+                      value={draft.overall}
+                      onChange={(v) => updateScore(p.user_id, 'overall', v)}
+                      size={32}
+                    />
+                  </View>
 
                   <TextInput
                     style={styles.commentInput}
@@ -327,6 +399,23 @@ const styles = StyleSheet.create({
   starHit: { padding: 2 },
   star: { color: 'rgba(255,255,255,0.15)', fontSize: 22 },
   starOn: { color: colors.brand },
+  starsBlock: {
+    marginTop: 14,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.goldDim,
+    backgroundColor: colors.brandSoft,
+    gap: 8,
+  },
+  starsLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
   commentInput: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderColor: 'rgba(255,255,255,0.15)',

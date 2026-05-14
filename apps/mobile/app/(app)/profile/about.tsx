@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Linking,
   Pressable,
@@ -14,6 +15,7 @@ import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
 import { LogoMark } from '@/components/Logo';
 import { Heading, Eyebrow } from '@/components/Heading';
+import { WelcomeTutorial } from '@/components/WelcomeTutorial';
 import { colors } from '@/theme';
 
 const version =
@@ -53,8 +55,13 @@ const LINKS: Array<{
 ];
 
 export default function AboutScreen() {
+  const [showTutorial, setShowTutorial] = useState(false);
   return (
     <Screen>
+      <WelcomeTutorial
+        visible={showTutorial}
+        onClose={() => setShowTutorial(false)}
+      />
       <Stack.Screen
         options={{
           headerShown: true,
@@ -87,6 +94,22 @@ export default function AboutScreen() {
         >
           <Eyebrow>Recursos</Eyebrow>
           <Card style={{ marginTop: 12, padding: 0 }}>
+            <Pressable
+              onPress={() => setShowTutorial(true)}
+              style={[styles.linkRow, styles.linkRowDivider]}
+            >
+              <Ionicons
+                name="play-circle-outline"
+                size={20}
+                color={colors.text}
+              />
+              <Text style={styles.linkLabel}>Rever tutorial</Text>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.textDim}
+              />
+            </Pressable>
             {LINKS.map((link, i) => (
               <Pressable
                 key={link.label}

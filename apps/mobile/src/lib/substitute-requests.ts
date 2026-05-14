@@ -23,6 +23,7 @@ export type SubstituteRequest = {
     scheduled_at: string;
     location_name: string | null;
     location_tbd: boolean;
+    is_internal?: boolean;
     side_a_name?: string;
     side_b_name?: string;
   } | null;
@@ -52,7 +53,7 @@ export async function fetchOpenSubstituteRequests(
   // exclude requests whose match has already started
   const now = Date.now();
   const fresh = rows.filter(
-    (r) => r.match && new Date(r.match.scheduled_at).getTime() > now && !r.match.is_internal,
+    (r) => r.match && new Date(r.match.scheduled_at).getTime() > now,
   );
   return fresh as SubstituteRequest[];
 }
