@@ -270,7 +270,13 @@ function StatRow({
 }
 
 const styles = StyleSheet.create({
-  outer: { flex: 1, padding: 20, gap: 16 },
+  outer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 20,
+    gap: 16,
+  },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   card: {
     padding: 22,
