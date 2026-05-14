@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
   },
-  author: { color: '#a3a3a3', fontSize: 12, marginTop: 8 },
+  author: { color: colors.textMuted, fontSize: 12, marginTop: 8 },
   closeBtn: {
     position: 'absolute',
     top: 56,

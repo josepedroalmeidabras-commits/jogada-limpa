@@ -115,7 +115,7 @@ export function PlayerFUTCard({
   const overall = overallRating(displayStats);
   const cats = categoriesForPosition(position);
   const isGk = position === 'gr';
-  const overallColor = inForm ? '#FFC489' : overall > 0 ? ratingColor(overall) : '#737373';
+  const overallColor = inForm ? '#FFC489' : overall > 0 ? ratingColor(overall) : colors.textDim;
   const positionShort = isGk
     ? 'GR'
     : position === 'def'
@@ -188,7 +188,7 @@ export function PlayerFUTCard({
             const stat = displayStats.find((s) => s.category === cat);
             const value = stat?.value ?? 0;
             const hasVotes = (stat?.votes ?? 0) > 0;
-            const color = hasVotes ? ratingColor(value) : '#737373';
+            const color = hasVotes ? ratingColor(value) : colors.textDim;
             return (
               <View key={cat} style={styles.statCell}>
                 <Text style={[styles.statValue, { color }]}>

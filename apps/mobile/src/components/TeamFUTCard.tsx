@@ -96,7 +96,7 @@ export function TeamFUTCard({
     rated.length === 0
       ? 0
       : Math.round(rated.reduce((acc, s) => acc + s.value, 0) / rated.length);
-  const overallColor = overall > 0 ? ratingColor(overall) : '#737373';
+  const overallColor = overall > 0 ? ratingColor(overall) : colors.textDim;
   const tier = tierFor(overall);
 
   return (
@@ -144,7 +144,7 @@ export function TeamFUTCard({
             const stat = stats.find((s) => s.category === cat);
             const value = stat?.value ?? 0;
             const hasVotes = stat?.hasVotes ?? false;
-            const color = hasVotes ? ratingColor(value) : '#737373';
+            const color = hasVotes ? ratingColor(value) : colors.textDim;
             return (
               <View key={cat} style={styles.statCell}>
                 <Text style={[styles.statValue, { color }]}>

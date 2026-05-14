@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   scroll: { padding: 24, paddingBottom: 48 },
   label: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 16,
     marginBottom: 6,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.5 },
   submitText: { color: '#000000', fontSize: 16, fontWeight: '600' },
   hint: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     marginTop: 16,
     textAlign: 'center',
@@ -553,12 +553,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   charCount: {
-    color: '#5a5a5a',
+    color: colors.textFaint,
     fontSize: 11,
     textAlign: 'right',
     marginTop: 4,
   },
-  deny: { color: '#a3a3a3', textAlign: 'center' },
+  deny: { color: colors.textMuted, textAlign: 'center' },
   avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
   changePhotoBtn: {
     paddingHorizontal: 16,
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   addRow: {
     borderStyle: 'dashed',
   },
-  memberRowArrow: { color: '#737373', fontSize: 20 },
+  memberRowArrow: { color: colors.textDim, fontSize: 20 },
   dangerBlock: {
     marginTop: 40,
     padding: 16,

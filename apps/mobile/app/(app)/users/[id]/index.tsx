@@ -234,7 +234,7 @@ export default function PublicProfileScreen() {
     return (
       <Screen>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: '#a3a3a3' }}>Jogador não encontrado.</Text>
+          <Text style={{ color: colors.textMuted }}>Jogador não encontrado.</Text>
         </View>
       </Screen>
     );
@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 16,
   },
-  city: { color: '#a3a3a3', fontSize: 14, letterSpacing: -0.1 },
+  city: { color: colors.textMuted, fontSize: 14, letterSpacing: -0.1 },
   avatarRow: { position: 'relative' },
   jerseyBadge: {
     position: 'absolute',
@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
   },
   seasonLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 4,
     textTransform: 'uppercase',
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
     borderColor: '#0E1812',
   },
   mutualText: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     flex: 1,
     letterSpacing: -0.1,
@@ -1031,13 +1031,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   rowMeta: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
     letterSpacing: -0.1,
   },
   elo: { color: '#ffffff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
-  muted: { color: '#737373', fontSize: 13 },
+  muted: { color: colors.textDim, fontSize: 13 },
   aggRow: { marginBottom: 12 },
   aggHeader: {
     flexDirection: 'row',
@@ -1045,7 +1045,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   aggLabel: { color: '#d4d4d4', fontSize: 13 },
-  aggValue: { color: '#a3a3a3', fontSize: 12 },
+  aggValue: { color: colors.textMuted, fontSize: 12 },
   aggTrack: {
     height: 6,
     borderRadius: 3,
@@ -1054,7 +1054,7 @@ const styles = StyleSheet.create({
   },
   aggFill: { height: '100%', backgroundColor: '#fbbf24' },
   aggFoot: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 8,
@@ -1081,7 +1081,7 @@ const styles = StyleSheet.create({
   win: { color: '#34d399' },
   loss: { color: '#f87171' },
   resultLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,

@@ -181,7 +181,7 @@ export default function MatchDetailScreen() {
     return (
       <Screen>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <Text style={{ color: '#a3a3a3' }}>Jogo não encontrado.</Text>
+          <Text style={{ color: colors.textMuted }}>Jogo não encontrado.</Text>
           <Button label="Voltar" variant="secondary" onPress={() => router.replace('/(app)')} />
         </View>
       </Screen>
@@ -1300,7 +1300,7 @@ const styles = StyleSheet.create({
   refRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   refWhistle: { fontSize: 22 },
   refLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1329,12 +1329,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   refAddText: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     fontWeight: '600',
   },
   confirmTitle: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1350,7 +1350,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   confirmLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 11,
     marginTop: 4,
     textTransform: 'uppercase',
@@ -1372,7 +1372,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   payHint: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
@@ -1393,7 +1393,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(52,211,153,0.10)',
   },
   payName: { color: '#ffffff', fontSize: 14, fontWeight: '600', flex: 1, marginRight: 8 },
-  payStatus: { color: '#737373', fontSize: 12, fontWeight: '700' },
+  payStatus: { color: colors.textDim, fontSize: 12, fontWeight: '700' },
   payStatusOn: { color: '#34d399' },
   subAlertRow: {
     flexDirection: 'row',
@@ -1408,11 +1408,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   subAlertBody: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
   },
-  subAlertArrow: { color: '#737373', fontSize: 22 },
+  subAlertArrow: { color: colors.textDim, fontSize: 22 },
   postBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1439,12 +1439,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   postBannerBody: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
     lineHeight: 17,
   },
-  postBannerArrow: { color: '#737373', fontSize: 22 },
+  postBannerArrow: { color: colors.textDim, fontSize: 22 },
   liveBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1555,7 +1555,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   plantelEmpty: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     fontStyle: 'italic',
   },
@@ -1572,20 +1572,20 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   previewRecord: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.6,
     marginTop: 4,
   },
   previewSep: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1.4,
   },
   recapLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
@@ -1603,7 +1603,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recapCellLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.6,
@@ -1618,7 +1618,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   recapCellMeta: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 10,
     marginTop: 2,
     fontWeight: '600',
@@ -1632,7 +1632,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   notesLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1650,12 +1650,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   notesEmpty: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 13,
     fontStyle: 'italic',
   },
   h2hLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1670,16 +1670,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.7,
   },
-  h2hDraws: { color: '#a3a3a3' },
+  h2hDraws: { color: colors.textMuted },
   h2hMeta: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 11,
     marginTop: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   h2hFoot: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 11,
     textAlign: 'center',
     marginTop: 12,
@@ -1690,7 +1690,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   infoLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',

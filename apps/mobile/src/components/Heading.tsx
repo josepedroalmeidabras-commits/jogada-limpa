@@ -1,4 +1,5 @@
 import { StyleSheet, Text, type TextStyle } from 'react-native';
+import { colors } from '../theme';
 
 type Props = {
   children: string;
@@ -63,7 +64,7 @@ const levelStyles = StyleSheet.create({
 });
 
 const eyebrowStyle: TextStyle = {
-  color: '#737373',
+  color: colors.textMuted,
   fontSize: 11,
   fontWeight: '700',
   letterSpacing: 1.5,

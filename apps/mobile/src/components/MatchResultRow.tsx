@@ -87,7 +87,7 @@ export function MatchResultRow({
     if (status === 'validated' && hasScore) {
       badge = { label: 'FT', color: '#0E1812', bg: '#C9A26B' };
     } else if (status === 'cancelled') {
-      badge = { label: 'CANC.', color: '#737373', bg: 'rgba(115,115,115,0.18)' };
+      badge = { label: 'CANC.', color: colors.textMuted, bg: 'rgba(168,179,173,0.18)' };
     } else if (status === 'disputed') {
       badge = { label: 'DISP.', color: '#f87171', bg: 'rgba(248,113,113,0.14)' };
     } else if (status === 'result_pending') {

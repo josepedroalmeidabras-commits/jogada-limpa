@@ -13,8 +13,10 @@ export const colors = {
 
   text: '#ffffff',
   textMuted: '#a8b3ad',
-  textDim: '#737d77',
-  textFaint: '#5a635d',
+  // textDim e textFaint: subidos para passar WCAG AA sobre bg #0E1812.
+  // Anteriores #737d77 (~3.5:1) e #5a635d (~2.3:1) falhavam o threshold de 4.5:1.
+  textDim: '#9aa49e',
+  textFaint: '#7d877f',
 
   // Brand — warm bronze/gold from the S7VN crest
   // Two tiers to avoid "everything is gold" fatigue:

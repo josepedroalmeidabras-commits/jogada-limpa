@@ -20,10 +20,10 @@ function letter(r: FormResult) {
 
 function bg(r: FormResult) {
   return r === 'win'
-    ? '#C9A26B'
+    ? colors.brand
     : r === 'loss'
-      ? '#f87171'
-      : '#a3a3a3';
+      ? colors.danger
+      : colors.textMuted;
 }
 
 export function FormStrip({ results, reverse = false, size = 'md' }: Props) {

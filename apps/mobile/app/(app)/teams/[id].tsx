@@ -172,7 +172,7 @@ export default function TeamDetailScreen() {
             gap: 12,
           }}
         >
-          <Text style={{ color: '#a3a3a3' }}>Equipa não encontrada.</Text>
+          <Text style={{ color: colors.textMuted }}>Equipa não encontrada.</Text>
           <Button
             label="Voltar"
             variant="secondary"
@@ -809,7 +809,7 @@ function PositionChip({ position }: { position: string }) {
           ? '#C9A26B'
           : position === 'ata'
             ? '#f87171'
-            : '#a3a3a3';
+            : colors.textMuted;
   return (
     <View
       style={{
@@ -890,13 +890,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   meta: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 4,
     letterSpacing: -0.1,
   },
   meta2: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     marginTop: 2,
     letterSpacing: -0.1,
@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   repLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   repFoot: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 11,
     textAlign: 'center',
     marginTop: 12,
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   nextWhere: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 4,
   },
@@ -994,7 +994,7 @@ const styles = StyleSheet.create({
     borderColor: '#0E1812',
   },
   friendsPillText: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     flex: 1,
     letterSpacing: -0.1,
@@ -1067,7 +1067,7 @@ const styles = StyleSheet.create({
   coachRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   coachIcon: { fontSize: 22 },
   coachLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1101,7 +1101,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
   },
   statsLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 4,
     textTransform: 'uppercase',
@@ -1114,7 +1114,7 @@ const styles = StyleSheet.create({
   },
   contribRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   contribLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.8,
@@ -1145,18 +1145,18 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   itemMeta: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
     letterSpacing: -0.1,
   },
-  arrow: { color: '#5a5a5a', fontSize: 22, fontWeight: '300' },
-  muted: { color: '#737373', fontSize: 13 },
+  arrow: { color: colors.textFaint, fontSize: 22, fontWeight: '300' },
+  muted: { color: colors.textDim, fontSize: 13 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   stat: { alignItems: 'center', flex: 1 },
   statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   statLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1164,7 +1164,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   inviteLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1180,7 +1180,7 @@ const styles = StyleSheet.create({
   },
   inviteRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   inviteHint: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     marginTop: 12,
     lineHeight: 18,

@@ -8,6 +8,7 @@ import {
   type PressableProps,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { colors } from '../theme';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -172,5 +173,5 @@ const textVariantStyles = StyleSheet.create({
   primary: { color: '#0E1812' },
   secondary: { color: '#ffffff' },
   danger: { color: '#f87171' },
-  ghost: { color: '#a3a3a3' },
+  ghost: { color: colors.textMuted },
 });

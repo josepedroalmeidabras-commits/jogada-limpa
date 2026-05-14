@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
   label: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 16,
     marginBottom: 6,
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.5 },
   submitText: { color: '#000000', fontSize: 16, fontWeight: '600' },
   hint: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     marginTop: 16,
     textAlign: 'center',
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   charHint: {
-    color: '#5a5a5a',
+    color: colors.textFaint,
     fontSize: 11,
     textAlign: 'right',
     marginTop: 4,
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
     backgroundColor: colors.brand,
   },
-  footChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
+  footChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   footChipTextActive: { color: '#0E1812' },
   privacyRow: {
     flexDirection: 'row',
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   posSportLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
     backgroundColor: colors.brand,
   },
-  posChipText: { color: '#a3a3a3', fontSize: 12, fontWeight: '700' },
+  posChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   posChipTextActive: { color: '#0E1812' },
   avatarBlock: { alignItems: 'center', gap: 12, marginTop: 8 },
   changePhotoBtn: {
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   changePhotoText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
-  subhint: { color: '#737373', fontSize: 12, marginBottom: 12, lineHeight: 16 },
+  subhint: { color: colors.textDim, fontSize: 12, marginBottom: 12, lineHeight: 16 },
   availRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   },
   dangerBtnText: { color: '#f87171', fontWeight: '600', fontSize: 14 },
   dangerHint: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 8,
     textAlign: 'center',

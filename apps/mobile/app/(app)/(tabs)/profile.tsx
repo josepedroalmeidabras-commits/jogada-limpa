@@ -740,7 +740,7 @@ export default function ProfileScreen() {
                     style={[
                       styles.achModalStatusText,
                       {
-                        color: selectedAch?.unlocked ? '#C9A26B' : '#737373',
+                        color: selectedAch?.unlocked ? '#C9A26B' : colors.textDim,
                       },
                     ]}
                   >
@@ -794,7 +794,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 16,
   },
-  city: { color: '#a3a3a3', fontSize: 14, letterSpacing: -0.1 },
+  city: { color: colors.textMuted, fontSize: 14, letterSpacing: -0.1 },
   avatarRow: { position: 'relative' },
   jerseyBadge: {
     position: 'absolute',
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -0.3,
   },
-  email: { color: '#5a5a5a', fontSize: 12, marginBottom: 12 },
+  email: { color: colors.textFaint, fontSize: 12, marginBottom: 12 },
   bioText: {
     color: colors.textMuted,
     fontSize: 14,
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
   },
   recordIcon: { fontSize: 24 },
   recordLabel: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   achModalDesc: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 14,
     lineHeight: 21,
     textAlign: 'center',
@@ -915,7 +915,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   achProgressText: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'right',
@@ -1031,7 +1031,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.2,
   },
-  rowMeta: { color: '#a3a3a3', fontSize: 12, marginTop: 2, letterSpacing: -0.1 },
+  rowMeta: { color: colors.textMuted, fontSize: 12, marginTop: 2, letterSpacing: -0.1 },
   elo: { color: '#ffffff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   eloSummaryRow: {
     flexDirection: 'row',
@@ -1050,7 +1050,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   eloHint: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 11,
     marginTop: 2,
     textTransform: 'uppercase',
@@ -1063,7 +1063,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.06)',
   },
   eloFooterText: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     textAlign: 'center',
     letterSpacing: -0.1,
@@ -1116,7 +1116,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
   },
   seasonLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 4,
     textTransform: 'uppercase',
@@ -1131,7 +1131,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
   },
   selfLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 4,
     textTransform: 'uppercase',
@@ -1146,7 +1146,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
   },
-  muted: { color: '#737373', fontSize: 13 },
+  muted: { color: colors.textDim, fontSize: 13 },
   aggRow: { marginBottom: 12 },
   aggHeader: {
     flexDirection: 'row',
@@ -1154,7 +1154,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   aggLabel: { color: '#d4d4d4', fontSize: 13 },
-  aggValue: { color: '#a3a3a3', fontSize: 12 },
+  aggValue: { color: colors.textMuted, fontSize: 12 },
   aggTrack: {
     height: 6,
     borderRadius: 3,
@@ -1163,7 +1163,7 @@ const styles = StyleSheet.create({
   },
   aggFill: { height: '100%', backgroundColor: '#fbbf24' },
   aggFoot: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 8,
@@ -1190,7 +1190,7 @@ const styles = StyleSheet.create({
   win: { color: '#34d399' },
   loss: { color: '#f87171' },
   resultLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,

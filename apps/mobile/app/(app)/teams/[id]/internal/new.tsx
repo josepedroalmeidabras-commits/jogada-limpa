@@ -517,10 +517,10 @@ const styles = StyleSheet.create({
   muted: { color: colors.textMuted, textAlign: 'center', fontSize: 14, lineHeight: 21 },
   scroll: { padding: 24, paddingBottom: 48, alignItems: 'stretch' },
   heading: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
-  sub: { color: '#a3a3a3', fontSize: 14, marginTop: 4, marginBottom: 16 },
+  sub: { color: colors.textMuted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   hint: { color: colors.textMuted, fontSize: 13, marginTop: 6, lineHeight: 19 },
   label: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 16,
     marginBottom: 6,

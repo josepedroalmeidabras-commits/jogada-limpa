@@ -407,14 +407,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.2,
   },
-  meta: { color: '#a3a3a3', fontSize: 12, marginTop: 2, letterSpacing: -0.1 },
+  meta: { color: colors.textMuted, fontSize: 12, marginTop: 2, letterSpacing: -0.1 },
   score: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.4,
   },
-  muted: { color: '#737373', fontSize: 13 },
+  muted: { color: colors.textDim, fontSize: 13 },
   filterRow: { gap: 6, paddingVertical: 12 },
   filterChip: {
     paddingHorizontal: 14,

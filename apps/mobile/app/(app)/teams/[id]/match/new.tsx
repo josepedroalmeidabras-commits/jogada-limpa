@@ -589,9 +589,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48, alignItems: 'stretch' },
   heading: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
-  sub: { color: '#a3a3a3', fontSize: 14, marginTop: 4, marginBottom: 16 },
+  sub: { color: colors.textMuted, fontSize: 14, marginTop: 4, marginBottom: 16 },
   label: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 16,
     marginBottom: 6,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   textarea: { minHeight: 80, textAlignVertical: 'top' },
   opponents: { gap: 8, marginTop: 4 },
   myEloLine: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 12,
     marginBottom: 12,
     textTransform: 'uppercase',
@@ -844,10 +844,10 @@ const styles = StyleSheet.create({
   oppCardPicked: { backgroundColor: '#ffffff', borderColor: '#ffffff' },
   oppName: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   oppNamePicked: { color: '#000000' },
-  oppCity: { color: '#a3a3a3', fontSize: 13, marginTop: 2 },
+  oppCity: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   oppCityPicked: { color: '#404040' },
   emptyOpp: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 14,
     padding: 16,
     borderRadius: 12,

@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   scroll: { padding: 24, paddingBottom: 48 },
   heading: { color: '#ffffff', fontSize: 22, fontWeight: '800' },
-  sub: { color: '#a3a3a3', fontSize: 13, marginTop: 4, marginBottom: 16 },
+  sub: { color: colors.textMuted, fontSize: 13, marginTop: 4, marginBottom: 16 },
   emptyBox: {
     padding: 24,
     borderRadius: 16,
@@ -204,11 +204,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
   emptyTitle: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  emptyBody: { color: '#a3a3a3', fontSize: 14, marginTop: 8, lineHeight: 20 },
+  emptyBody: { color: colors.textMuted, fontSize: 14, marginTop: 8, lineHeight: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   subInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   name: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
-  meta: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
+  meta: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   inviteBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -217,6 +217,6 @@ const styles = StyleSheet.create({
   },
   inviteBtnDisabled: { opacity: 0.5 },
   inviteText: { color: '#000000', fontWeight: '600', fontSize: 13 },
-  empty: { color: '#a3a3a3', textAlign: 'center' },
+  empty: { color: colors.textMuted, textAlign: 'center' },
   error: { color: '#f87171', textAlign: 'center', marginTop: 16, fontSize: 13 },
 });

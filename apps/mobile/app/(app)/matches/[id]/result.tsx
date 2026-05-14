@@ -376,9 +376,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   scroll: { padding: 24, paddingBottom: 48 },
   heading: { color: '#ffffff', fontSize: 22, fontWeight: '800' },
-  sub: { color: '#a3a3a3', fontSize: 13, marginTop: 4, marginBottom: 16 },
+  sub: { color: colors.textMuted, fontSize: 13, marginTop: 4, marginBottom: 16 },
   label: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginBottom: 6,
     textTransform: 'uppercase',
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
   },
-  scoreTeam: { color: '#a3a3a3', fontSize: 11, textTransform: 'uppercase' },
+  scoreTeam: { color: colors.textMuted, fontSize: 11, textTransform: 'uppercase' },
   scoreInput: {
     color: '#ffffff',
     fontSize: 40,
@@ -402,9 +402,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     minWidth: 60,
   },
-  scoreDash: { color: '#737373', fontSize: 28, fontWeight: '700' },
+  scoreDash: { color: colors.textDim, fontSize: 28, fontWeight: '700' },
   empty: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 13,
     padding: 16,
     borderRadius: 12,
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   },
   stepperWrap: { flex: 1, gap: 4 },
   stepperLabel: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.5 },
   submitText: { color: '#000000', fontSize: 16, fontWeight: '600' },
   hint: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 16,

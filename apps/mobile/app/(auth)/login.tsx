@@ -13,6 +13,7 @@ import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { Logo } from '@/components/Logo';
 import { supabase } from '@/lib/supabase';
+import { colors } from '@/theme';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   subtitle: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 16,
     textAlign: 'center',
     marginTop: 10,
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   switchText: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 24,
     fontSize: 14,
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
   error: { color: '#f87171', textAlign: 'center', fontSize: 13, marginTop: 4 },
   info: { color: '#a7f3d0', textAlign: 'center', fontSize: 13, marginTop: 4 },
   forgotText: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     textAlign: 'center',
     marginTop: 8,

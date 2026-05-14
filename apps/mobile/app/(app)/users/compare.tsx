@@ -327,7 +327,7 @@ export default function ComparePlayersScreen() {
 }
 
 function PlayerHead({ snap }: { snap: Snapshot }) {
-  const ratingC = snap.overall > 0 ? ratingColor(snap.overall) : '#737373';
+  const ratingC = snap.overall > 0 ? ratingColor(snap.overall) : colors.textDim;
   return (
     <View style={styles.head}>
       <Avatar

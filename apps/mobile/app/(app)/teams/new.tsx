@@ -17,6 +17,7 @@ import { fetchActiveSports, type ActiveSport } from '@/lib/profile';
 import { createTeam } from '@/lib/teams';
 import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
+import { colors } from '@/theme';
 
 export default function NewTeamScreen() {
   const { session } = useAuth();
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { padding: 24, paddingBottom: 48 },
   label: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 12,
     marginBottom: 6,
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.5 },
   submitText: { color: '#000000', fontSize: 16, fontWeight: '600' },
   hint: {
-    color: '#737373',
+    color: colors.textDim,
     fontSize: 13,
     textAlign: 'center',
     marginTop: 16,

@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { padding: 24, paddingBottom: 48 },
   heading: { color: '#ffffff', fontSize: 22, fontWeight: '800' },
-  sub: { color: '#a3a3a3', fontSize: 13, marginTop: 4, marginBottom: 16 },
+  sub: { color: colors.textMuted, fontSize: 13, marginTop: 4, marginBottom: 16 },
   card: {
     padding: 16,
     borderRadius: 16,
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   cardHeaderText: { marginLeft: 12, flex: 1 },
   cardName: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  cardRole: { color: '#a3a3a3', fontSize: 12, marginTop: 2 },
+  cardRole: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   avatar: {
     width: 40,
     height: 40,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   doneTitle: { color: '#ffffff', fontSize: 18, fontWeight: '700' },
-  doneBody: { color: '#a3a3a3', textAlign: 'center', fontSize: 14 },
+  doneBody: { color: colors.textMuted, textAlign: 'center', fontSize: 14 },
   primary: {
     marginTop: 12,
     backgroundColor: '#ffffff',

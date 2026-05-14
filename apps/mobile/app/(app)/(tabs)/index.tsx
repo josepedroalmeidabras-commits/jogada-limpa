@@ -1204,12 +1204,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   cardMeta: {
-    color: '#a3a3a3',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 2,
     letterSpacing: -0.1,
   },
-  arrow: { color: '#5a5a5a', fontSize: 24, fontWeight: '300' },
+  arrow: { color: colors.textFaint, fontSize: 24, fontWeight: '300' },
   actions: { marginTop: 16, gap: 10 },
   statsRow: {
     flexDirection: 'row',

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { colors } from '../theme';
 
 export type SelfRatingScores = {
   fair_play: number;
@@ -97,13 +98,13 @@ export function describeDelta(delta: number, reviewCount: number): {
   color: string;
 } {
   if (reviewCount < 3) {
-    return { label: 'Poucos votos ainda', color: '#737373' };
+    return { label: 'Poucos votos ainda', color: colors.textDim };
   }
   if (delta > 1.0) {
     return { label: 'Sobreavaliaste-te', color: '#fb923c' };
   }
   if (delta < -1.0) {
-    return { label: 'Foste subestimado(a)', color: '#34d399' };
+    return { label: 'Foste subestimado(a)', color: colors.success };
   }
-  return { label: 'Em linha', color: '#a3a3a3' };
+  return { label: 'Em linha', color: colors.textMuted };
 }
