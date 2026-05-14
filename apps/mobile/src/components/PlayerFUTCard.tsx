@@ -288,12 +288,15 @@ export function PlayerFUTCard({
 
         <View style={styles.brandRow}>
           {tier.name ? (
-            <Text style={[styles.tierTag, { color: tier.brand }]}>
+            <Text
+              style={[styles.tierTag, { color: tier.brand }]}
+              numberOfLines={1}
+            >
               {tier.name}
             </Text>
           ) : null}
           <Text style={styles.brand}>S 7 V N</Text>
-          <View style={{ width: tier.name ? 50 : 0 }} />
+          <View style={{ width: tier.name ? 68 : 0 }} />
         </View>
       </LinearGradient>
     </Animated.View>
@@ -522,10 +525,10 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   tierTag: {
-    width: 50,
+    width: 68,
     fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 1.6,
+    letterSpacing: 1.4,
     opacity: 0.85,
   },
   formRow: {
