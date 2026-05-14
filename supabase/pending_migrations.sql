@@ -694,10 +694,12 @@ group by tr.reviewed_team_id;
 grant select on public.team_review_aggregates to authenticated, anon;
 
 -- Bónus: review_aggregates (singular, individual users) com mesmo filtro
+-- NOTA: total_reviews mantém-se bigint (sem ::int) para CREATE OR REPLACE
+-- não bater com o tipo declarado em 0078 (que era count(*) cru = bigint).
 create or replace view public.review_aggregates as
 select
   r.reviewed_id                                                                as user_id,
-  count(*)::int                                                                as total_reviews,
+  count(*)                                                                     as total_reviews,
   avg(coalesce(r.overall, (r.fair_play + r.punctuality + r.technical_level) / 3.0)) as avg_overall,
   avg(r.fair_play)                                                             as avg_fair_play,
   avg(r.punctuality)                                                           as avg_punctuality,
