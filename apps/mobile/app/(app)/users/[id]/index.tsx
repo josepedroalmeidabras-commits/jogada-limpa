@@ -784,37 +784,28 @@ export default function PublicProfileScreen() {
               <Eyebrow>Recordes</Eyebrow>
               <Card style={{ marginTop: 8 }}>
                 {records.biggest_win && (
-                  <View style={styles.recordRow}>
-                    <Text style={styles.recordIcon}>🥇</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.recordLabel}>Maior vitória</Text>
-                      <Text style={styles.recordValue}>
-                        {`+${records.biggest_win.margin} vs ${records.biggest_win.opponent}`}
-                      </Text>
-                    </View>
-                  </View>
+                  <RecordRow
+                    icon="trophy"
+                    tint={colors.brand}
+                    label="Maior vitória"
+                    value={`+${records.biggest_win.margin} vs ${records.biggest_win.opponent}`}
+                  />
                 )}
                 {records.biggest_loss && (
-                  <View style={styles.recordRow}>
-                    <Text style={styles.recordIcon}>💔</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.recordLabel}>Pior derrota</Text>
-                      <Text style={styles.recordValue}>
-                        {`-${records.biggest_loss.margin} vs ${records.biggest_loss.opponent}`}
-                      </Text>
-                    </View>
-                  </View>
+                  <RecordRow
+                    icon="heart-dislike"
+                    tint={colors.danger}
+                    label="Pior derrota"
+                    value={`-${records.biggest_loss.margin} vs ${records.biggest_loss.opponent}`}
+                  />
                 )}
                 {records.longest_streak > 0 && (
-                  <View style={styles.recordRow}>
-                    <Text style={styles.recordIcon}>🔥</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.recordLabel}>Melhor sequência</Text>
-                      <Text style={styles.recordValue}>
-                        {`${records.longest_streak} vitórias seguidas`}
-                      </Text>
-                    </View>
-                  </View>
+                  <RecordRow
+                    icon="flame"
+                    tint={colors.warning}
+                    label="Melhor sequência"
+                    value={`${records.longest_streak} vitórias seguidas`}
+                  />
                 )}
               </Card>
             </Animated.View>
@@ -824,6 +815,35 @@ export default function PublicProfileScreen() {
       </ScrollView>
       )}
     </Screen>
+  );
+}
+
+function RecordRow({
+  icon,
+  tint,
+  label,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.recordRow}>
+      <View
+        style={[
+          styles.recordIconRing,
+          { borderColor: tint + '55', backgroundColor: tint + '14' },
+        ]}
+      >
+        <Ionicons name={icon} size={18} color={tint} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.recordLabel}>{label}</Text>
+        <Text style={styles.recordValue}>{value}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -1170,7 +1190,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  recordIcon: { fontSize: 22 },
+  recordIconRing: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   recordLabel: {
     color: colors.textMuted,
     fontSize: 11,
