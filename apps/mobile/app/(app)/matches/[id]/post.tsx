@@ -16,8 +16,8 @@ import {
   fetchMatchById,
   type MatchSummary,
 } from '@/lib/matches';
-import { fetchMatchParticipants, type MatchParticipant } from '@/lib/result';
-import { fetchMyReviewsForMatch, hasReviewedTeam } from '@/lib/reviews';
+import { fetchMatchParticipants } from '@/lib/result';
+import { hasReviewedTeam } from '@/lib/reviews';
 import { fetchMyMvpVote } from '@/lib/mvp';
 import { fetchMySelfRating } from '@/lib/self-rating';
 import { hasReviewedReferee } from '@/lib/referee';
@@ -42,8 +42,6 @@ export default function PostMatchHubScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const [match, setMatch] = useState<MatchSummary | null>(null);
-  const [participants, setParticipants] = useState<MatchParticipant[]>([]);
-  const [reviewsToDo, setReviewsToDo] = useState<PlayerSubTask[]>([]);
   const [statsToVote, setStatsToVote] = useState<PlayerSubTask[]>([]);
   const [mvpDone, setMvpDone] = useState(false);
   const [selfDone, setSelfDone] = useState(false);
@@ -62,7 +60,6 @@ export default function PostMatchHubScreen() {
       fetchMatchParticipants(id),
     ]);
     setMatch(m);
-    setParticipants(p);
 
     const myUserId = session.user.id;
     const me = p.find((x) => x.user_id === myUserId);
@@ -80,9 +77,8 @@ export default function PostMatchHubScreen() {
     setOpponentTeamName(opponentTeam.name);
     setOpponentTeamLogo(opponentTeam.photo_url);
 
-    const [alreadyReviewed, mvpVote, selfRating, refereeRev, teamRev] =
+    const [mvpVote, selfRating, refereeRev, teamRev] =
       await Promise.all([
-        fetchMyReviewsForMatch(id, myUserId),
         fetchMyMvpVote(id),
         fetchMySelfRating(id),
         m.referee_id && m.referee_id !== myUserId
@@ -93,14 +89,6 @@ export default function PostMatchHubScreen() {
           : hasReviewedTeam(id, opponentTeam.id),
       ]);
 
-    setReviewsToDo(
-      teammates.map((o) => ({
-        user_id: o.user_id,
-        name: o.profile?.name ?? 'Jogador',
-        photo_url: o.profile?.photo_url ?? null,
-        done: alreadyReviewed.has(o.user_id),
-      })),
-    );
     setOpponentTeamDone(teamRev);
     setMvpDone(mvpVote !== null);
     setSelfDone(selfRating !== null);
@@ -190,15 +178,17 @@ export default function PostMatchHubScreen() {
     );
   }
 
-  const reviewsDone = reviewsToDo.filter((r) => r.done).length;
-  const reviewsTotal = reviewsToDo.length;
   const statsDone = statsToVote.filter((s) => s.done).length;
   const statsTotal = statsToVote.length;
   const hasReferee = refereeDone !== null;
-  const hasOpponentTeam = !!opponentTeamName && !match.is_internal;
+  const iAmCaptain =
+    !!session &&
+    (match.side_a.captain_id === session.user.id ||
+      match.side_b.captain_id === session.user.id);
+  const hasOpponentTeam =
+    !!opponentTeamName && !match.is_internal && iAmCaptain;
 
   const blocks = [
-    { weight: reviewsTotal, done: reviewsDone },
     ...(hasOpponentTeam
       ? [{ weight: 1, done: opponentTeamDone ? 1 : 0 }]
       : []),
@@ -242,40 +232,13 @@ export default function PostMatchHubScreen() {
           </View>
         </Animated.View>
 
-        {reviewsTotal > 0 && (
-          <Animated.View
-            entering={FadeInDown.delay(80).springify()}
-            style={styles.section}
-          >
-            <SectionHeader
-              title={`Avaliar colegas · ${reviewsDone}/${reviewsTotal}`}
-              cta="Avaliar"
-              ctaPress={() => router.push(`/(app)/matches/${id}/review`)}
-            />
-            <Card style={{ marginTop: 8 }}>
-              {reviewsToDo.map((r, i) => (
-                <SubTaskRow
-                  key={r.user_id}
-                  photoUrl={r.photo_url}
-                  name={r.name}
-                  done={r.done}
-                  border={i > 0}
-                  onPress={() =>
-                    !r.done && router.push(`/(app)/matches/${id}/review`)
-                  }
-                />
-              ))}
-            </Card>
-          </Animated.View>
-        )}
-
         <Animated.View
           entering={FadeInDown.delay(120).springify()}
           style={styles.section}
         >
-          <Eyebrow>Outros</Eyebrow>
+          <Eyebrow>O que fazer</Eyebrow>
           <Card style={{ marginTop: 8 }}>
-            {opponentTeamName && !match.is_internal && (
+            {hasOpponentTeam && (
               <SubTaskRow
                 photoUrl={opponentTeamLogo}
                 name={`Avaliar ${opponentTeamName}`}
@@ -291,7 +254,7 @@ export default function PostMatchHubScreen() {
               icon="trophy"
               title="Votar MVP"
               done={mvpDone}
-              border={opponentTeamName && !match.is_internal ? true : false}
+              border={hasOpponentTeam}
               onPress={() => router.push(`/(app)/matches/${id}/mvp`)}
             />
             <TopTaskRow
@@ -354,26 +317,6 @@ export default function PostMatchHubScreen() {
         )}
       </ScrollView>
     </Screen>
-  );
-}
-
-function SectionHeader({
-  title,
-  cta,
-  ctaPress,
-}: {
-  title: string;
-  icon?: string;
-  cta: string;
-  ctaPress: () => void;
-}) {
-  return (
-    <View style={styles.sectionHead}>
-      <Eyebrow>{title}</Eyebrow>
-      <Pressable onPress={ctaPress}>
-        <Text style={styles.sectionCta}>{cta} →</Text>
-      </Pressable>
-    </View>
   );
 }
 
@@ -467,17 +410,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   section: { marginTop: 24 },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionCta: {
-    color: colors.brand,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',

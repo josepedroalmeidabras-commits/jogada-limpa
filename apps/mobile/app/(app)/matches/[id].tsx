@@ -1029,9 +1029,9 @@ export default function MatchDetailScreen() {
                 <Text style={styles.postBannerIconText}>⭐</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.postBannerTitle}>Avaliar atributos dos colegas</Text>
+                <Text style={styles.postBannerTitle}>Pós-jogo</Text>
                 <Text style={styles.postBannerBody}>
-                  Sugere subir ou descer + MVP + reviews. Vai à página pós-jogo.
+                  Vota no MVP, avalia a equipa adversária (capitão) e ajusta os atributos dos amigos.
                 </Text>
               </View>
               <Text style={styles.postBannerArrow}>›</Text>
