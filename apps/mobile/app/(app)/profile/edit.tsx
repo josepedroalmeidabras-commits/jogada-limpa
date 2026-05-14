@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/providers/auth';
 import {
@@ -452,32 +453,54 @@ export default function EditProfileScreen() {
           ))}
 
           <Text style={[styles.label, { marginTop: 24 }]}>
-            Disponibilidade para substituir
+            Disponível para substituir
           </Text>
           <Text style={styles.subhint}>
-            Ativa por desporto para apareceres na lista de jogadores
-            disponíveis. Expira automaticamente passados 7 dias.
+            Quando ligado, apareces a capitães à procura de substituto.
+            Expira automaticamente passados 7 dias.
           </Text>
           {sports.map((s) => (
             <Pressable
               key={s.sport_id}
-              style={styles.availRow}
+              style={[
+                styles.availCard,
+                s.is_open_to_sub && styles.availCardOn,
+              ]}
               onPress={() => toggleAvailability(s.sport_id, s.is_open_to_sub)}
             >
+              <View
+                style={[
+                  styles.availIconRing,
+                  s.is_open_to_sub && styles.availIconRingOn,
+                ]}
+              >
+                <Ionicons
+                  name="person-add"
+                  size={18}
+                  color={
+                    s.is_open_to_sub ? '#0E1812' : colors.textMuted
+                  }
+                />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.availName}>{s.sport?.name}</Text>
-                {s.is_open_to_sub && s.open_until && (
-                  <Text style={styles.availMeta}>
+                <Text style={styles.availCardTitle}>
+                  {s.is_open_to_sub
+                    ? 'Estás disponível como substituto'
+                    : 'Toca para ativares'}
+                </Text>
+                {s.is_open_to_sub && s.open_until ? (
+                  <Text style={styles.availCardMetaOn}>
                     Aberto até{' '}
                     {new Date(s.open_until).toLocaleDateString('pt-PT')}
+                  </Text>
+                ) : (
+                  <Text style={styles.availCardMetaOff}>
+                    Os capitães procuram pessoas como tu
                   </Text>
                 )}
               </View>
               <View
-                style={[
-                  styles.toggle,
-                  s.is_open_to_sub && styles.toggleOn,
-                ]}
+                style={[styles.toggle, s.is_open_to_sub && styles.toggleOn]}
               >
                 <View
                   style={[
@@ -756,6 +779,52 @@ const styles = StyleSheet.create({
   },
   availName: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
   availMeta: { color: colors.brand, fontSize: 12, marginTop: 2 },
+  availCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgElevated,
+    marginBottom: 8,
+  },
+  availCardOn: {
+    borderColor: colors.brandSoftBorder,
+    backgroundColor: colors.brandSoft,
+  },
+  availIconRing: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  availIconRingOn: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brand,
+  },
+  availCardTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  availCardMetaOn: {
+    color: colors.brand,
+    fontSize: 12,
+    marginTop: 3,
+    fontWeight: '700',
+  },
+  availCardMetaOff: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 3,
+  },
   toggle: {
     width: 44,
     height: 26,
