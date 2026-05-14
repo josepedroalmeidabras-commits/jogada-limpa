@@ -516,21 +516,44 @@ export default function EditProfileScreen() {
             Mercado livre — quero entrar numa equipa
           </Text>
           <Text style={styles.subhint}>
-            Aparece a capitães em "Mercado livre" para te convidarem para a
-            equipa deles. Expira em 30 dias.
+            Quando ligado, apareces a capitães no Mercado livre para te
+            convidarem para a equipa. Expira em 30 dias.
           </Text>
           {sports.map((s) => (
             <Pressable
               key={`team-${s.sport_id}`}
-              style={styles.availRow}
+              style={[
+                styles.availCard,
+                s.is_open_to_team && styles.availCardOn,
+              ]}
               onPress={() => toggleOpenToTeam(s.sport_id, s.is_open_to_team)}
             >
+              <View
+                style={[
+                  styles.availIconRing,
+                  s.is_open_to_team && styles.availIconRingOn,
+                ]}
+              >
+                <Ionicons
+                  name="people"
+                  size={18}
+                  color={s.is_open_to_team ? '#0E1812' : colors.textMuted}
+                />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.availName}>{s.sport?.name}</Text>
-                {s.is_open_to_team && s.open_to_team_until && (
-                  <Text style={styles.availMeta}>
+                <Text style={styles.availCardTitle}>
+                  {s.is_open_to_team
+                    ? 'À procura de equipa'
+                    : 'Toca para apareceres no Mercado'}
+                </Text>
+                {s.is_open_to_team && s.open_to_team_until ? (
+                  <Text style={styles.availCardMetaOn}>
                     Disponível até{' '}
                     {new Date(s.open_to_team_until).toLocaleDateString('pt-PT')}
+                  </Text>
+                ) : (
+                  <Text style={styles.availCardMetaOff}>
+                    Os capitães podem convidar-te
                   </Text>
                 )}
               </View>
