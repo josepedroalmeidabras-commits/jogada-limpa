@@ -30,7 +30,6 @@ import { addMatchToCalendar } from '@/lib/calendar';
 import { fetchMatchUnreadCount } from '@/lib/match-chat';
 import { fetchHeadToHead, type HeadToHead } from '@/lib/h2h';
 import { supabase } from '@/lib/supabase';
-import { fetchReferee, type RefereeProfile } from '@/lib/referee';
 import { Avatar } from '@/components/Avatar';
 import {
   fetchMatchParticipants,
@@ -59,7 +58,6 @@ export default function MatchDetailScreen() {
     a: { win_pct: number; matches: number; wins: number; draws: number; losses: number };
     b: { win_pct: number; matches: number; wins: number; draws: number; losses: number };
   } | null>(null);
-  const [referee, setReferee] = useState<RefereeProfile | null>(null);
   const [participants, setParticipants] = useState<MatchParticipant[]>([]);
   const [mvp, setMvp] = useState<MvpWinner | null>(null);
   const [respondBusy, setRespondBusy] = useState(false);
@@ -78,11 +76,10 @@ export default function MatchDetailScreen() {
         m.status === 'proposed' ||
         m.status === 'confirmed' ||
         m.status === 'result_pending';
-      const [part, unread, hh, ref, parts, mvpWin] = await Promise.all([
+      const [part, unread, hh, parts, mvpWin] = await Promise.all([
         isMatchParticipant(m.id, session.user.id),
         fetchMatchUnreadCount(m.id, session.user.id),
         fetchHeadToHead(m.side_a.id, m.side_b.id),
-        m.referee_id ? fetchReferee(m.referee_id) : Promise.resolve(null),
         needsParticipants
           ? fetchMatchParticipants(m.id)
           : Promise.resolve<MatchParticipant[]>([]),
@@ -93,7 +90,6 @@ export default function MatchDetailScreen() {
       setIsParticipant(part);
       setChatUnread(unread);
       setH2h(hh);
-      setReferee(ref);
       setParticipants(parts);
       setMvp(mvpWin);
 
@@ -473,52 +469,6 @@ export default function MatchDetailScreen() {
             </Animated.View>
           );
         })()}
-
-        {(referee || (isCaptain && match.status !== 'cancelled')) && (
-          <Animated.View
-            entering={FadeInDown.delay(95).springify()}
-            style={styles.section}
-          >
-            {referee ? (
-              <Card
-                onPress={() => router.push(`/(app)/users/${referee.id}`)}
-              >
-                <View style={styles.refRow}>
-                  <Text style={styles.refWhistle}>🥏</Text>
-                  <Avatar
-                    url={referee.photo_url}
-                    name={referee.name}
-                    size={36}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.refLabel}>Árbitro</Text>
-                    <Text style={styles.refName}>{referee.name}</Text>
-                  </View>
-                  {isCaptain && match.status !== 'validated' && (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        router.push(`/(app)/matches/${match.id}/referee`);
-                      }}
-                      hitSlop={8}
-                    >
-                      <Text style={styles.refEdit}>Mudar ›</Text>
-                    </Pressable>
-                  )}
-                </View>
-              </Card>
-            ) : (
-              <Pressable
-                onPress={() =>
-                  router.push(`/(app)/matches/${match.id}/referee`)
-                }
-                style={styles.refAddBtn}
-              >
-                <Text style={styles.refAddText}>🥏 Adicionar árbitro</Text>
-              </Pressable>
-            )}
-          </Animated.View>
-        )}
 
         {h2h && h2h.played > 1 && !match.is_internal && (
           <Animated.View
@@ -1318,42 +1268,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
-  },
-  refRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  refWhistle: { fontSize: 22 },
-  refLabel: {
-    color: colors.textDim,
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-  },
-  refName: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 2,
-    letterSpacing: -0.2,
-  },
-  refEdit: {
-    color: '#C9A26B',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  refAddBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    borderStyle: 'dashed',
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    alignItems: 'center',
-  },
-  refAddText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
   },
   confirmTitle: {
     color: colors.textMuted,

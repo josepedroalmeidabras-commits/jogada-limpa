@@ -20,7 +20,6 @@ import { fetchMatchParticipants } from '@/lib/result';
 import { hasReviewedTeam } from '@/lib/reviews';
 import { fetchMyMvpVote } from '@/lib/mvp';
 import { fetchMySelfRating } from '@/lib/self-rating';
-import { hasReviewedReferee } from '@/lib/referee';
 import { fetchMyVotesFor, categoriesForPosition } from '@/lib/player-stats';
 import { fetchPreferredPosition } from '@/lib/reviews';
 import { Avatar } from '@/components/Avatar';
@@ -45,7 +44,6 @@ export default function PostMatchHubScreen() {
   const [statsToVote, setStatsToVote] = useState<PlayerSubTask[]>([]);
   const [mvpDone, setMvpDone] = useState(false);
   const [selfDone, setSelfDone] = useState(false);
-  const [refereeDone, setRefereeDone] = useState<boolean | null>(null);
   const [opponentTeamDone, setOpponentTeamDone] = useState(false);
   const [opponentTeamName, setOpponentTeamName] = useState<string | null>(null);
   const [opponentTeamId, setOpponentTeamId] = useState<string | null>(null);
@@ -77,22 +75,17 @@ export default function PostMatchHubScreen() {
     setOpponentTeamName(opponentTeam.name);
     setOpponentTeamLogo(opponentTeam.photo_url);
 
-    const [mvpVote, selfRating, refereeRev, teamRev] =
-      await Promise.all([
-        fetchMyMvpVote(id),
-        fetchMySelfRating(id),
-        m.referee_id && m.referee_id !== myUserId
-          ? hasReviewedReferee(id, m.referee_id)
-          : Promise.resolve(null),
-        m.is_internal
-          ? Promise.resolve(true)
-          : hasReviewedTeam(id, opponentTeam.id),
-      ]);
+    const [mvpVote, selfRating, teamRev] = await Promise.all([
+      fetchMyMvpVote(id),
+      fetchMySelfRating(id),
+      m.is_internal
+        ? Promise.resolve(true)
+        : hasReviewedTeam(id, opponentTeam.id),
+    ]);
 
     setOpponentTeamDone(teamRev);
     setMvpDone(mvpVote !== null);
     setSelfDone(selfRating !== null);
-    setRefereeDone(refereeRev);
     const statsTasks: PlayerSubTask[] = await Promise.all(
       teammates.map(async (t) => {
         const pos = await fetchPreferredPosition(t.user_id);
@@ -180,7 +173,6 @@ export default function PostMatchHubScreen() {
 
   const statsDone = statsToVote.filter((s) => s.done).length;
   const statsTotal = statsToVote.length;
-  const hasReferee = refereeDone !== null;
   const iAmCaptain =
     !!session &&
     (match.side_a.captain_id === session.user.id ||
@@ -194,7 +186,6 @@ export default function PostMatchHubScreen() {
       : []),
     { weight: 1, done: mvpDone ? 1 : 0 },
     { weight: 1, done: selfDone ? 1 : 0 },
-    ...(hasReferee ? [{ weight: 1, done: refereeDone ? 1 : 0 }] : []),
     { weight: statsTotal, done: statsDone },
   ];
   const totalUnits = blocks.reduce((a, b) => a + b.weight, 0) || 1;
@@ -264,17 +255,6 @@ export default function PostMatchHubScreen() {
               border
               onPress={() => router.push(`/(app)/matches/${id}/self-rating`)}
             />
-            {hasReferee && (
-              <TopTaskRow
-                icon="flag-outline"
-                title="Avaliar árbitro"
-                done={!!refereeDone}
-                border
-                onPress={() =>
-                  router.push(`/(app)/matches/${id}/referee-review`)
-                }
-              />
-            )}
           </Card>
         </Animated.View>
 
