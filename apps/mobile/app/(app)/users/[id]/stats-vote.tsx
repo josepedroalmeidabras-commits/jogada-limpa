@@ -28,10 +28,10 @@ import {
 import { fetchPreferredPosition } from '@/lib/reviews';
 import { useAuth } from '@/providers/auth';
 import { Screen } from '@/components/Screen';
-import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
-import { Eyebrow, Heading } from '@/components/Heading';
+import { Eyebrow } from '@/components/Heading';
 import { Button } from '@/components/Button';
+import { PlayerFUTCard } from '@/components/PlayerFUTCard';
 import { colors } from '@/theme';
 
 // Quanto é que um voto "+" ou "-" desloca o teu voto vs o valor atual agregado.
@@ -220,12 +220,12 @@ export default function StatsVoteScreen() {
       >
         <Animated.View
           entering={FadeInDown.duration(300).springify()}
-          style={styles.hero}
         >
-          <Avatar url={profile.photo_url} name={profile.name} size={72} />
-          <Heading level={2} style={{ marginTop: 12 }}>
-            {profile.name}
-          </Heading>
+          <PlayerFUTCard
+            profile={profile}
+            position={position}
+            stats={Object.values(aggregates)}
+          />
           <Text style={styles.heroHint}>
             {isSelf
               ? 'Define o teu baseline. Os amigos podem ajustar para cima ou para baixo.'
@@ -394,11 +394,10 @@ const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   muted: { color: colors.textMuted, textAlign: 'center', fontSize: 14, lineHeight: 21 },
-  hero: { alignItems: 'center', marginBottom: 8 },
   heroHint: {
     color: colors.textMuted,
     fontSize: 13,
-    marginTop: 12,
+    marginTop: 16,
     lineHeight: 19,
     textAlign: 'center',
     paddingHorizontal: 16,

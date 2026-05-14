@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Stack,
@@ -673,16 +674,35 @@ export default function PublicProfileScreen() {
             totalVotes={totalVotes(stats)}
           />
           {canVote && (
-            <View style={{ marginTop: 12 }}>
-              <Button
-                label={isSelf ? 'Sugerir os meus atributos' : 'Votar atributos'}
-                variant="secondary"
-                full
-                onPress={() =>
-                  router.push(`/(app)/users/${id}/stats-vote`)
-                }
-              />
-            </View>
+            <Pressable
+              onPress={() => router.push(`/(app)/users/${id}/stats-vote`)}
+              style={({ pressed }) => [
+                styles.voteCta,
+                pressed && { transform: [{ scale: 0.985 }], opacity: 0.92 },
+              ]}
+            >
+              <LinearGradient
+                colors={['#E0B97C', '#C9A26B', '#B58E55']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.voteCtaInner}
+              >
+                <View style={styles.voteCtaIconWrap}>
+                  <Ionicons name="star" size={20} color="#0E1812" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.voteCtaTitle}>
+                    {isSelf ? 'Sugerir os meus atributos' : 'Votar nos atributos'}
+                  </Text>
+                  <Text style={styles.voteCtaSub}>
+                    {isSelf
+                      ? 'Define o teu baseline FUT'
+                      : '+ / = / − em cada categoria'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#0E1812" />
+              </LinearGradient>
+            </Pressable>
           )}
           {!isSelf && session && (
             <View style={{ marginTop: 8 }}>
@@ -810,6 +830,46 @@ function AggBar({ label, value }: { label: string; value: number }) {
 
 const styles = StyleSheet.create({
   scroll: { padding: 24, paddingBottom: 48 },
+  voteCta: {
+    marginTop: 14,
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#C9A26B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  voteCtaInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  voteCtaIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(14,24,18,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(14,24,18,0.25)',
+  },
+  voteCtaTitle: {
+    color: '#0E1812',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+  },
+  voteCtaSub: {
+    color: 'rgba(14,24,18,0.7)',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+    letterSpacing: -0.1,
+  },
   headerBlock: {
     alignItems: 'center',
     gap: 6,

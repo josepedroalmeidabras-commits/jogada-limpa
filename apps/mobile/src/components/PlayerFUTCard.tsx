@@ -2,7 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Avatar } from './Avatar';
 import { FormStrip, type FormResult } from './FormStrip';
-import { formatDisplayName, FOOT_LABEL, type Profile } from '@/lib/profile';
+import { formatDisplayName, type Profile, type Foot } from '@/lib/profile';
+
+// FIFA-style foot badge: L (esquerdo), R (direito), B (ambidextro)
+const FOOT_BADGE: Record<Foot, string> = {
+  left: 'L',
+  right: 'R',
+  both: 'B',
+};
 import {
   categoriesForPosition,
   overallRating,
@@ -140,14 +147,31 @@ export function PlayerFUTCard({
             <Text style={[styles.overall, { color: overallColor }]}>
               {overall > 0 ? overall : '—'}
             </Text>
-            <Text style={[styles.position, { color: overallColor }]}>
-              {positionShort}
-            </Text>
-            {profile.preferred_foot && (
-              <Text style={styles.foot}>
-                {FOOT_LABEL[profile.preferred_foot].slice(0, 3).toUpperCase()}
+            <View
+              style={[
+                styles.positionBadge,
+                { borderColor: overallColor },
+              ]}
+            >
+              <Text style={[styles.position, { color: overallColor }]}>
+                {positionShort}
               </Text>
-            )}
+            </View>
+            {profile.preferred_foot ? (
+              <View style={styles.footBlock}>
+                <Text style={styles.pyFootTag}>PÉ</Text>
+                <View
+                  style={[
+                    styles.footBadge,
+                    { borderColor: tier.brand },
+                  ]}
+                >
+                  <Text style={[styles.footBadgeText, { color: tier.brand }]}>
+                    {FOOT_BADGE[profile.preferred_foot]}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
           </View>
           <View style={styles.heroAvatar}>
             <Avatar
@@ -292,9 +316,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   ratingBlock: {
-    width: 60,
+    width: 64,
     alignItems: 'flex-start',
-    gap: 2,
+    gap: 4,
   },
   overall: {
     fontSize: 44,
@@ -302,17 +326,46 @@ const styles = StyleSheet.create({
     letterSpacing: -2,
     lineHeight: 46,
   },
+  positionBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginTop: 2,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
   position: {
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 2,
   },
-  foot: {
+  footBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  pyFootTag: {
     color: 'rgba(255,255,255,0.55)',
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1.2,
-    marginTop: 6,
+    letterSpacing: 1.4,
+  },
+  footBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  footBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 14,
   },
   heroAvatar: { position: 'relative' },
   jersey: {
