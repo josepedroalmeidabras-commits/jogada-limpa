@@ -62,7 +62,7 @@ export default function LoginScreen() {
       } else if (mode === 'forgot') {
         const { error } = await supabase.auth.resetPasswordForEmail(
           email.trim().toLowerCase(),
-          { redirectTo: 'https://jogadalimpa.app/reset' },
+          { redirectTo: 'https://s7vn.app/reset' },
         );
         if (error) throw error;
         setInfo(

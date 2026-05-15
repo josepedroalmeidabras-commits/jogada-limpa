@@ -97,7 +97,7 @@ export default function PlayerCardScreen() {
       winPct !== null ? `${winPct}% vitórias` : '',
       season ? `${season.matches_played} jogos · ${season.goals}G · ${season.assists}A` : '',
       '',
-      'S7VN — jogadalimpa.app',
+      'S7VN — s7vn.app',
     ].filter(Boolean);
     try {
       await Share.share({ message: lines.join('\n') });
@@ -206,7 +206,7 @@ export default function PlayerCardScreen() {
             </View>
           </View>
 
-          <Text style={styles.brand}>jogadalimpa.app</Text>
+          <Text style={styles.brand}>s7vn.app</Text>
         </Animated.View>
 
         <View style={styles.actions}>

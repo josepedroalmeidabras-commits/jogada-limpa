@@ -188,7 +188,7 @@ export default function TeamDetailScreen() {
   const inviteMessage =
     `Junta-te à minha equipa "${team.name}" na S7VN ⚽\n\n` +
     `Código de entrada: ${team.invite_code.toUpperCase()}\n\n` +
-    `Descarrega a app em jogadalimpa.app e insere o código.`;
+    `Descarrega a app em s7vn.app e insere o código.`;
 
   async function copyCode() {
     await Clipboard.setStringAsync(team!.invite_code);

@@ -392,7 +392,7 @@ function StatusPill({ status }: { status: MatchSummary['status'] }) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 120 },
+  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 120 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

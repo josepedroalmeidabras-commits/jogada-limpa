@@ -1217,7 +1217,7 @@ function ActionRow({
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 24, paddingBottom: 48 },
+  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 48 },
   scoreSplit: {
     flexDirection: 'row',
     alignItems: 'flex-start',

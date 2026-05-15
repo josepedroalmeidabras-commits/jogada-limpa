@@ -35,22 +35,22 @@ const LINKS: Array<{
   {
     label: 'Termos e condições',
     icon: 'document-text-outline',
-    url: 'https://jogadalimpa.app/terms',
+    url: 'https://s7vn.app/termos',
   },
   {
     label: 'Política de privacidade',
     icon: 'shield-checkmark-outline',
-    url: 'https://jogadalimpa.app/privacy',
+    url: 'https://s7vn.app/privacidade',
   },
   {
     label: 'Contactar suporte',
     icon: 'mail-outline',
-    url: 'mailto:suporte@jogadalimpa.app',
+    url: 'mailto:josepedroalmeidabras@gmail.com',
   },
   {
     label: 'Reportar bug',
     icon: 'bug-outline',
-    url: 'mailto:suporte@jogadalimpa.app?subject=Bug%20report',
+    url: 'mailto:josepedroalmeidabras@gmail.com?subject=Bug%20report',
   },
 ];
 

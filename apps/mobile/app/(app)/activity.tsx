@@ -25,7 +25,6 @@ import {
 } from '@/lib/friends';
 import { Screen } from '@/components/Screen';
 import { Card } from '@/components/Card';
-import { Heading, Eyebrow } from '@/components/Heading';
 import { Skeleton } from '@/components/Skeleton';
 import { Avatar } from '@/components/Avatar';
 import { MatchResultRow } from '@/components/MatchResultRow';
@@ -118,17 +117,9 @@ export default function ActivityScreen() {
           </View>
         ) : (
           <>
-            <Animated.View entering={FadeInDown.duration(280).springify()}>
-              <Eyebrow>{profile?.city ?? ''}</Eyebrow>
-              <Heading level={1} style={{ marginTop: 4 }}>
-                O que se passa
-              </Heading>
-            </Animated.View>
-
             {mvpWeek ? (
               <Animated.View
                 entering={FadeInDown.delay(80).springify()}
-                style={{ marginTop: 18 }}
               >
                 <Pressable
                   onPress={() => router.push(`/(app)/users/${mvpWeek.user_id}`)}
@@ -338,7 +329,7 @@ export default function ActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { padding: 20, paddingBottom: 100 },
+  scroll: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 100 },
   mvpCard: {
     flexDirection: 'row',
     alignItems: 'center',

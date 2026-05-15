@@ -299,11 +299,11 @@ export default function ProfileScreen() {
                         ? `Entra na equipa "${teamName}" com o código ${code}.`
                         : 'Marca jogos de S7VN com a tua equipa, avalia colegas e sobe no ranking de Coimbra.',
                       '',
-                      'Instala em jogadalimpa.app',
+                      'Instala em s7vn.app',
                       ...(code
                         ? [
                             '',
-                            `Já tens a app? Abre: jogadalimpa://teams/join?code=${code}`,
+                            `Já tens a app? Abre: s7vn://teams/join?code=${code}`,
                           ]
                         : []),
                     ];

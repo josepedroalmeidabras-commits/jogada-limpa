@@ -25,7 +25,7 @@ export function SuspendedScreen({
       </Text>
       <Text style={styles.subbody}>
         Se achas que foi um engano, contacta-nos em{' '}
-        <Text style={styles.email}>apelos@jogadalimpa.app</Text> com o teu
+        <Text style={styles.email}>josepedroalmeidabras@gmail.com</Text> com o teu
         nome de utilizador e descreve o sucedido.
       </Text>
       <View style={{ height: 32 }} />

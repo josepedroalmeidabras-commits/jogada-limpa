@@ -2,7 +2,7 @@
   "expo": {
     "name": "S7VN",
     "slug": "jogada-limpa",
-    "scheme": "jogadalimpa",
+    "scheme": "s7vn",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,11 +18,12 @@
     },
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.jogadalimpa.app",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.s7vn.app",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Para escolheres uma foto de perfil ou escudo da equipa.",
-        "NSCalendarsUsageDescription": "Para adicionares jogos confirmados ao teu calendário."
+        "NSCalendarsUsageDescription": "Para adicionares jogos confirmados ao teu calendário.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -32,7 +33,12 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.jogadalimpa.app"
+      "package": "com.s7vn.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -62,6 +68,13 @@
     ],
     "notification": {
       "iosDisplayInForeground": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "be854912-d087-4dc1-8736-529380056fa0"
+      }
+    },
+    "owner": "josepedrodev"
   }
 }
