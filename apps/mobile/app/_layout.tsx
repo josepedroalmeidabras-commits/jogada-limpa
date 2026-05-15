@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/providers/auth';
 import { ToastProvider } from '@/components/Toast';
+import { ConfigErrorScreen } from '@/components/ConfigErrorScreen';
+import { supabaseConfigError } from '@/lib/supabase';
 
 function AuthGate() {
   const { session, loading } = useAuth();
@@ -40,6 +42,15 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
+  if (supabaseConfigError) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <ConfigErrorScreen message={supabaseConfigError} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <AuthProvider>
