@@ -36,24 +36,33 @@ declare
   v_m2   uuid := '33333333-aaaa-4000-8000-000000000002';
 begin
   -- ============================ AUTH USERS ============================
+  -- NOTA: email_change, email_change_token_new, email_change_token_current,
+  -- recovery_token, confirmation_token, reauthentication_token, phone_change,
+  -- phone_change_token são preenchidos a '' explicitamente. Mesmo que sejam
+  -- NULL-permissivos no Postgres, GoTrue rejeita NULL aqui e devolve
+  -- "Database error querying schema" no /token. raw_app_meta_data tem
+  -- providers:["email"] pelo mesmo motivo. Ver 0087_reviewer_identities.sql.
   insert into auth.users (
     id, instance_id, email, encrypted_password, email_confirmed_at,
-    raw_app_meta_data, raw_user_meta_data, aud, role, created_at, updated_at
+    raw_app_meta_data, raw_user_meta_data, aud, role, created_at, updated_at,
+    email_change, email_change_token_new, email_change_token_current,
+    recovery_token, confirmation_token, reauthentication_token,
+    phone_change, phone_change_token
   ) values
-    (v_rev, '00000000-0000-0000-0000-000000000000', 'reviewer@s7vn.app',  v_pwd,      now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p1,  '00000000-0000-0000-0000-000000000000', 'jmarques@s7vn.local', v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p2,  '00000000-0000-0000-0000-000000000000', 'psantos@s7vn.local',  v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p3,  '00000000-0000-0000-0000-000000000000', 'tferreira@s7vn.local', v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p4,  '00000000-0000-0000-0000-000000000000', 'mcosta@s7vn.local',   v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p5,  '00000000-0000-0000-0000-000000000000', 'apinto@s7vn.local',   v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p6,  '00000000-0000-0000-0000-000000000000', 'rsilva@s7vn.local',   v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p7,  '00000000-0000-0000-0000-000000000000', 'balmeida@s7vn.local', v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p8,  '00000000-0000-0000-0000-000000000000', 'dsousa@s7vn.local',   v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p9,  '00000000-0000-0000-0000-000000000000', 'roliveira@s7vn.local', v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p10, '00000000-0000-0000-0000-000000000000', 'fmoreira@s7vn.local', v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p11, '00000000-0000-0000-0000-000000000000', 'gmartins@s7vn.local', v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p12, '00000000-0000-0000-0000-000000000000', 'hcarvalho@s7vn.local', v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now()),
-    (v_p13, '00000000-0000-0000-0000-000000000000', 'ngomes@s7vn.local',   v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now())
+    (v_rev, '00000000-0000-0000-0000-000000000000', 'reviewer@s7vn.app',  v_pwd,      now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p1,  '00000000-0000-0000-0000-000000000000', 'jmarques@s7vn.local', v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p2,  '00000000-0000-0000-0000-000000000000', 'psantos@s7vn.local',  v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p3,  '00000000-0000-0000-0000-000000000000', 'tferreira@s7vn.local', v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p4,  '00000000-0000-0000-0000-000000000000', 'mcosta@s7vn.local',   v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p5,  '00000000-0000-0000-0000-000000000000', 'apinto@s7vn.local',   v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p6,  '00000000-0000-0000-0000-000000000000', 'rsilva@s7vn.local',   v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p7,  '00000000-0000-0000-0000-000000000000', 'balmeida@s7vn.local', v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p8,  '00000000-0000-0000-0000-000000000000', 'dsousa@s7vn.local',   v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p9,  '00000000-0000-0000-0000-000000000000', 'roliveira@s7vn.local', v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p10, '00000000-0000-0000-0000-000000000000', 'fmoreira@s7vn.local', v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p11, '00000000-0000-0000-0000-000000000000', 'gmartins@s7vn.local', v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p12, '00000000-0000-0000-0000-000000000000', 'hcarvalho@s7vn.local', v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', ''),
+    (v_p13, '00000000-0000-0000-0000-000000000000', 'ngomes@s7vn.local',   v_pwd_fake, now(), '{"provider":"email","providers":["email"]}', '{}', 'authenticated', 'authenticated', now(), now(), '', '', '', '', '', '', '', '')
   on conflict (id) do nothing;
 
   -- ============================ AUTH IDENTITIES ============================
