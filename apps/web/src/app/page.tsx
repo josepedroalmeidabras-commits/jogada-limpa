@@ -138,6 +138,9 @@ export default function Home() {
       <footer className="flex w-full justify-between border-t border-white/5 px-6 py-8 text-xs text-white/30">
         <span>© 2026 S7VN · Coimbra</span>
         <div className="flex gap-6">
+          <a href="/suporte" className="hover:text-white/60">
+            Apoio
+          </a>
           <a href="/privacidade" className="hover:text-white/60">
             Privacidade
           </a>
