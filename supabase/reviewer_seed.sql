@@ -56,6 +56,34 @@ begin
     (v_p13, '00000000-0000-0000-0000-000000000000', 'ngomes@s7vn.local',   v_pwd_fake, now(), '{"provider":"email"}', '{}', 'authenticated', 'authenticated', now(), now())
   on conflict (id) do nothing;
 
+  -- ============================ AUTH IDENTITIES ============================
+  -- GoTrue v2 exige row em auth.identities para login por password. Sem
+  -- isto, /token devolve "Database error querying schema" (foi o que partiu
+  -- a App Review do build #4 — ver 0087_reviewer_identities.sql).
+  insert into auth.identities (
+    id, provider_id, user_id, identity_data, provider,
+    last_sign_in_at, created_at, updated_at
+  )
+  select
+    gen_random_uuid(),
+    u.id::text,
+    u.id,
+    jsonb_build_object(
+      'sub',            u.id::text,
+      'email',          u.email,
+      'email_verified', true,
+      'phone_verified', false
+    ),
+    'email',
+    now(), now(), now()
+  from auth.users u
+  where u.id in (v_rev, v_p1, v_p2, v_p3, v_p4, v_p5, v_p6, v_p7,
+                 v_p8, v_p9, v_p10, v_p11, v_p12, v_p13)
+    and not exists (
+      select 1 from auth.identities i
+      where i.user_id = u.id and i.provider = 'email'
+    );
+
   -- ============================ PROFILES ============================
   insert into public.profiles (id, name, photo_url, city, birthdate, bio) values
     (v_rev, 'App Reviewer', 'https://i.pravatar.cc/200?img=15', 'Coimbra', '1995-06-15', 'Conta de teste para revisão da App Store.'),
